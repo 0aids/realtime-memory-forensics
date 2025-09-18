@@ -13,4 +13,5 @@
  *
  * Since we are graphing, we'll need to use sdl or some sort of graphics
  * library. Surely can't be that bad right?
+ * I could use ncurses to graph, and i'm sure there are nice enough
  * */

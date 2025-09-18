@@ -1,6 +1,9 @@
+#include "logger.hpp"
 #include "memoryRegion.hpp"
 #include <cstring>
 #include <fstream>
+typedef std::vector<MemoryRegionProperties> RegionPropertiesList;
+// Implement sorting later
 
 class MemoryMap {
 private:
@@ -41,5 +44,8 @@ public:
 
   MemoryMap() {}
 
-  const RegionPropertiesList &getRegionProperties() { return regionProperties; }
+  RegionPropertiesList getRegionProperties() {
+    DEBUG("Getting region properties: " << this->regionProperties);
+    return regionProperties;
+  }
 };

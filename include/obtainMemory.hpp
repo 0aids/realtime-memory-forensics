@@ -13,6 +13,7 @@ extern "C" {
 #include <unistd.h>
 }
 #include <string>
+// TODO: Move everything to a separate namespace.
 
 typedef std::vector<MemoryRegion> MemoryRegionList;
 typedef std::unordered_map<std::string, size_t> MapNameToIndex;
@@ -52,14 +53,14 @@ public:
     return regions[regionNameToIndex[regionName]];
   }
 
-  // Read and update the memory for a certain region.
-  void updateMemoryRegion(std::string regionName) {
+  // Snapshot the memory for a specific region
+  void snapshotMemoryRegion(std::string regionName) {
     if (!this->regionNameToIndex.contains(regionName)) {
       ERROR("Region: '" << regionName << "' doesn't exist");
       return;
     }
 
-    regions[regionNameToIndex[regionName]].updateBinaryStream();
+    regions[regionNameToIndex[regionName]].snapshot();
     return;
   }
 
@@ -78,13 +79,15 @@ public:
     size_t i = 0;
 
     for (auto &regionProperty : regionProperties) {
-      regions.push_back(MemoryRegion(regionProperty));
+      regions.push_back(MemoryRegion());
       this->regionNameToIndex.emplace(regionProperty.regionName, i++);
     }
   }
   void printMemoryRegionListNames() {
+    DEBUG("Region list length: " << this->regions.size())
     for (auto &memoryRegion : this->regions) {
-      std::cout << memoryRegion.getProperties().regionName << std::endl;
+      auto &properties = memoryRegion.getProperties();
+      std::cout << properties.regionName << std::endl;
     }
   }
 
@@ -94,15 +97,17 @@ public:
     // returns nullptr if doesn't exist.
     for (auto &region : this->regions) {
       auto regionPerms = region.getProperties().permissions;
+      DEBUG("Current region: " << region.getProperties().toStr());
       if (!isReadable(regionPerms) || !isWritable(regionPerms)) {
         continue;
       }
 
       // DEBUG("Reading region: " << region.getProperties());
-      region.updateBinaryStream();
+      region.snapshot();
       auto location = region.findString(string);
       if (location != UINTPTR_MAX) {
-        DEBUG("Found string @: " << std::showbase << std::hex << location);
+        DEBUG("Found string '" << string << "' \n\t@: " << std::showbase
+                               << std::hex << location);
         DEBUG("In region: " << region.getProperties());
         return &region;
       }
