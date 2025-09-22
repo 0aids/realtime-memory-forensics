@@ -1,4 +1,5 @@
 #include <chrono>
+#include <ratio>
 #include <string>
 #include <thread>
 using namespace std;
@@ -34,7 +35,7 @@ int __attribute__((optimize("O0"))) main() {
       "auctor erat sed pellentesque tempor. Etiam at congue ante. "
       "Pellentesque ");
   while (true) {
-    this_thread::sleep_for(chrono::seconds(5));
+    this_thread::sleep_for(chrono::milliseconds(50));
     i[0]++;
     i[0] = (i[0] - 65) % 26 + 65;
   }
