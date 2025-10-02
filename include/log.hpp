@@ -1,57 +1,103 @@
 // Just a basic logging system.
+// Has the feature of understanding repeated logging (IE every frame), and will
+// update the last row that had such a thing with a count.
+#pragma once
 
-#define LOG_LEVEL_ERROR 0
-#define LOG_LEVEL_WARNING 1
-#define LOG_LEVEL_INFO 2
-#define LOG_LEVEL_DEBUG 3
+#include <array>
+#include <optional>
+#include <sstream>
+#include <string>
+#include <string_view>
 
-#define ERROR_COLOR "\x1b[1;31m"
-#define WARN_COLOR "\x1b[33m"
-#define INFO_COLOR "\x1b[39m"
-#define DEBUG_COLOR "\x1b[2;39m"
-#define END_COLOR "\x1b[0m"
+// ANSI color codes for terminal output.
+const std::string RESET_COLOR  = "\033[0m";
+const std::string RED_COLOR    = "\033[31m";
+const std::string YELLOW_COLOR = "\033[33m";
+const std::string BLUE_COLOR   = "\033[34m";
+const std::string GREY_COLOR   = "\033[90m";
 
-#ifndef LOG_LEVEL
+constexpr size_t  LOG_LENGTH = 1;
 
-#define LOG_LEVEL LOG_LEVEL_DEBUG
+enum LogLevel {
+    Error,   // Critical errors
+    Warning, // Potential issues
+    Message, // Key application events
+    Verbose, // Detailed state information
+    Debug    // Granular debugging information
+};
 
-#endif
+struct LogEntry {
+    std::string string;
+    size_t      hash;
+    size_t      count = 1;
+};
 
-#define p_log_message(log_color, level_name, contents)                         \
-  std::cerr << log_color << "[" level_name "] " __FILE__ ":" << __func__       \
-            << ":" << __LINE__ << " -- " << contents << END_COLOR "\n"
+// A circular array which stores the last LOG_LENGTH log entries.
+class LogsList {
+  private:
+    std::array<LogEntry, LOG_LENGTH> m_logs;
+    size_t m_index = 0; // Points to the next empty slot
+    size_t m_count = 0; // Number of valid entries in the buffer
 
-#if LOG_LEVEL >= LOG_LEVEL_DEBUG
-#define p_log_debug(format) p_log_message(DEBUG_COLOR, " DEBUG ", format)
+  public:
+    // If a message is repeated, increments its counter; otherwise, adds it.
+    void pushBack(std::string str);
+    // Pushes a new message without checking for repetition.
+    void pushBackNoCheck(std::string str);
+};
 
-#define p_log_var(var_name)                                                    \
-  p_log_message(DEBUG_COLOR, " DEBUG ", #var_name << " = " << var_name)
+class LoggerWrapper {
+  private:
+    std::optional<std::stringstream> m_ss;
+    LogsList*                        m_logsList  = nullptr;
+    bool                             m_checkLast = true;
 
-#define p_log_var_hex(var_name)                                                \
-  p_log_message(DEBUG_COLOR, " DEBUG ",                                        \
-                #var_name << " = " << std::showbase << std::hex << var_name    \
-                          << std::dec);
+  public:
+    LoggerWrapper(LogsList* logsList, bool checkLast, LogLevel level,
+                  std::string_view filename,
+                  std::string_view functionName, size_t lineNumber);
+    LoggerWrapper() = default;
+    ~LoggerWrapper();
 
-#else
-#define LOG_DEBUG(format, ...)                                                 \
-  do {                                                                         \
-  } while (0)
-#endif
+    // Stream operator to append data to the log message.
+    template <typename T>
+    LoggerWrapper& operator<<(const T& in) {
+        if (m_ss) {
+            *m_ss << in;
+        }
+        return *this;
+    }
+};
 
-#if LOG_LEVEL >= LOG_LEVEL_INFO
-#define p_log_info(format) p_log_message(INFO_COLOR, " INFO  ", format)
-#else
-#define LOG_INFO(format, ...)                                                  \
-  do {                                                                         \
-  } while (0)
-#endif
+class Logger {
+  private:
+    static LogsList m_logsList;
+    // Messages with a level higher than this will be ignored.
+    constexpr static LogLevel m_logLevel = LogLevel::Debug;
 
-#if LOG_LEVEL >= LOG_LEVEL_WARNING
-#define p_log_warning(format) p_log_message(WARN_COLOR, "WARNING", format)
-#else
-#define LOG_WARNING(format, ...)                                               \
-  do {                                                                         \
-  } while (0)
-#endif
+  public:
+    // Creates a LoggerWrapper to stream the log message into.
+    static LoggerWrapper log(LogLevel         level,
+                             std::string_view filename,
+                             std::string_view functionName,
+                             size_t lineNumber, bool checkLast);
+};
 
-#define p_log_error(format) p_log_message(ERROR_COLOR, "!ERROR!", format)
+// --- Logging Macros ---
+
+// Logs a message, checking for repetition to update a counter.
+#define Log(level, msg)                                              \
+    {                                                                \
+        (Logger::log)(level, __FILE__, __func__, __LINE__, true)     \
+            << msg;                                                  \
+    }
+
+// Logs a message every time, without checking for repetition.
+#define Log_f(level, msg)                                            \
+    {                                                                \
+        (Logger::log)(level, __FILE__, __func__, __LINE__, false)    \
+            << msg;                                                  \
+    }
+
+// Logs a variable's name and its value.
+#define Log_var(level, var) Log(level, #var " = " << var)

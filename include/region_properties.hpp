@@ -1,51 +1,51 @@
 #pragma once
 #include <cstdint>
+#include <string_view>
 #include <memory>
 #include <string>
 #include <sys/types.h>
 #include <vector>
 // A bit map of properties
-namespace MemoryAnalysis::Properties {
 enum e_Permissions {
-  READ = 1 << 0,
-  WRITE = 1 << 1,
-  EXECUTE = 1 << 2,
-  PRIVATE = 1 << 3,
+    READ    = 1 << 0,
+    WRITE   = 1 << 1,
+    EXECUTE = 1 << 2,
+    PRIVATE = 1 << 3,
 };
-typedef unsigned char PermissionsMask;
+// Change back to uint8_t, but you can't print it because this game is stupid
+using PermissionsMask = uint32_t;
 
-std::string maskToString(PermissionsMask perms);
+std::string     permissionsMaskToString(const PermissionsMask& perms);
 
-PermissionsMask charsToMask(char perms[4]);
+PermissionsMask toPermissionsMask(const char perms[4]);
+PermissionsMask toPermissionsMask(const std::string& chars);
+PermissionsMask toPermissionsMask(const std::string_view& chars);
 
-struct BasicRegionProperties {
-  const std::string m_name;
-  const uintptr_t m_start;
-  const size_t m_size;
-  const PermissionsMask m_perms;
+struct MemoryRegionProperties {
+  public:
+    // Should this be const? yes.
+    const std::string     parentRegionName;
+    const uintptr_t       parentRegionStart;
+    const size_t          parentRegionSize;
+    const PermissionsMask permissions;
 
-  BasicRegionProperties(std::string name, uintptr_t start, size_t size,
-                        PermissionsMask perms);
+  public:
+    // The region start and size is relative to the parent region.
+    uintptr_t regionStart;
+    // The region start and size is relative to the parent region.
+    size_t regionSize;
 
-  std::string toStr();
-  const std::string toConstStr() const;
-};
-struct MemoryRegionProperties;
+  public:
+    MemoryRegionProperties(std::string name, uintptr_t start,
+                           size_t size, PermissionsMask perms);
 
-struct MemorySubRegionProperties : public BasicRegionProperties {
-public:
-  std::weak_ptr<MemoryRegionProperties> parentRegion;
-};
+    std::string       toStr();
+    const std::string toConstStr() const;
 
-struct MemoryRegionProperties : public BasicRegionProperties {
-public:
-  MemoryRegionProperties(std::string name, uintptr_t start, size_t size,
-                         PermissionsMask perms);
-  std::vector<std::shared_ptr<MemorySubRegionProperties>> childSubRegions;
-  //
+    auto operator<=>(const MemoryRegionProperties&) const = default;
 };
 
 using RegionPropertiesList = std::vector<MemoryRegionProperties>;
 
-std::ostream &operator<<(std::ostream &os, BasicRegionProperties *properties);
-} // namespace MemoryAnalysis::Properties
+std::ostream& operator<<(std::ostream&                 os,
+                         const MemoryRegionProperties& properties);

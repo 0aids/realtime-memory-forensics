@@ -1,9 +1,11 @@
 #include "log.hpp"
 
 int main() {
-  p_log_debug("This is a debug test");
-  p_log_info("This is an info test");
-  p_log_warning("This is a warning test");
-  p_log_error("This is an error test");
-  return 0;
+    Log(Debug, "This is a test");
+    Log(Error, "This is a test");
+    Log(Message, "This is a test");
+    Log(Warning, "This is a test");
+    Log(Verbose, "This is a test");
+
+    return 0;
 }
