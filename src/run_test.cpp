@@ -9,6 +9,33 @@
 #include <cstdlib>
 #include <unistd.h>
 
+__attribute__((optimize("O0"))) void
+changingMapMemorySampleProcess() {
+    using namespace std;
+    string thing;
+    thing = "this is a thing!!!";
+    this_thread::sleep_for(1000ms);
+    while (true) {
+        thing.reserve(10000000);
+        this_thread::sleep_for(1000ms);
+        thing.shrink_to_fit();
+    }
+}
+
+pid_t runChangingMapProcess() {
+    //
+    pid_t pid = fork();
+    if (pid < 0) {
+        Log(Error, "Forking failed");
+        exit(EXIT_FAILURE);
+    }
+    if (pid == 0) {
+        changingMapMemorySampleProcess();
+        _exit(127);
+    }
+    return pid;
+}
+
 __attribute__((optimize("O0"))) void sampleProcess() {
     using namespace std;
 

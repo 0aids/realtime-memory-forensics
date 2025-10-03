@@ -17,3 +17,5 @@ bool checkPtraceScope();
     } else {                                                         \
         Log(Debug, "Assertion succeeded")                            \
     }
+
+pid_t runChangingMapProcess();

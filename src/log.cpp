@@ -32,7 +32,7 @@ LoggerWrapper::LoggerWrapper(LogsList* logsList, bool checkLast,
         m_ss.emplace(); // Construct the std::stringstream
         // Prepend the log message with level, file, and function info.
         *m_ss << levelToString(level) << " (" << filename << ":"
-              << functionName << ":" << lineNumber << ") ";
+              << functionName << ":" << lineNumber << ") \t";
     }
 }
 

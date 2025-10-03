@@ -1,6 +1,7 @@
 #include "memory_map.hpp"
 #include "log.hpp"
 #include "region_properties.hpp"
+#include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <fstream>
@@ -23,12 +24,13 @@ MemoryMap::MemoryMap(const std::string& mapLocation) :
 };
 
 // TODO: Ensure checks for failure.
-e_ErrorTypes MemoryMap::readMaps() {
-    std::ifstream memoryMapFile(this->m_mapLocation);
-    std::string   line;
-    int           unnamedRegionNumber = 1;
+const RegionPropertiesList& MemoryMap::snapshotMaps() {
+    std::ifstream        memoryMapFile(this->m_mapLocation);
+    std::string          line;
+    int                  unnamedRegionNumber = 1;
 
-    int           i = 0;
+    RegionPropertiesList regionProperties;
+
     while (std::getline(memoryMapFile, line)) {
         uintptr_t startAddr, endAddr;
         char      permR, permW, permX, permP;
@@ -47,112 +49,91 @@ e_ErrorTypes MemoryMap::readMaps() {
         MemoryRegionProperties currentRegionProperties(
             std::string(name), startAddr, endAddr - startAddr,
             toPermissionsMask(permissions));
-        this->m_regionProperties_l.push_back(currentRegionProperties);
-
-        if (!this->m_nameToIndex_l.contains(name)) {
-            this->m_nameToIndex_l.emplace(name, i);
-        }
-        i++;
+        regionProperties.push_back(currentRegionProperties);
     }
     memoryMapFile.close();
-    return SUCCESS;
+    m_mapSnapshots_l.push_back(regionProperties);
+    return m_mapSnapshots_l.back();
 }
-bool MemoryMap::hasChanged() {
-    std::ifstream memoryMapFile(this->m_mapLocation);
-    std::string   line;
-    int           unnamedRegionNumber = 1;
 
-    int           i = 0;
-    while (std::getline(memoryMapFile, line)) {
-        uintptr_t startAddr, endAddr;
-        char      permR, permW, permX, permP;
-        char      name[1024] = "";
-        sscanf(line.c_str(), "%lx-%lx %c%c%c%c %*s %*s %*s %[^\n]",
-               &startAddr, &endAddr, &permR, &permW, &permX, &permP,
-               name);
-
-        char permissions[4] = {permR, permW, permX, permP};
-        if (strlen(name) == 0) {
-            std::string unnamedName = "UnnamedRegion-" +
-                std::to_string(unnamedRegionNumber++);
-            strncpy(name, unnamedName.c_str(), sizeof(name) - 1);
-        }
-
-        MemoryRegionProperties currentRegionProperties(
-            std::string(name), startAddr, endAddr - startAddr,
-            toPermissionsMask(permissions));
-        if (currentRegionProperties != m_regionProperties_l[i]) {
-            return true;
-        }
-        i++;
+constexpr inline static std::string
+shortenName(const std::string& fullname) {
+    if (fullname.length() < 20) {
+        return fullname;
     }
-    memoryMapFile.close();
-    return false;
-}
-
-MemoryRegionProperties& MemoryMap::operator[](const size_t& index) {
-    return this->m_regionProperties_l[index];
-}
-
-MemoryRegionProperties&
-MemoryMap::operator[](const std::string& name) {
-    if (!this->m_nameToIndex_l.contains(name)) {
-        Log(Message,
-            "Error accessing regionName: '"
-                << name << "'; Region does not exist");
-        exit(1);
+    size_t lastSlash = fullname.find_last_of('/');
+    if (lastSlash != std::string::npos) {
+        return fullname.substr(lastSlash + 1);
     }
-    return this->m_regionProperties_l[this->m_nameToIndex_l.at(name)];
+    return fullname;
 }
 
-const MemoryRegionProperties&
-MemoryMap::operator[](const size_t& index) const {
-    return this->m_regionProperties_l[index];
-}
-
-const MemoryRegionProperties&
-MemoryMap::operator[](const std::string& name) const {
-    if (!this->m_nameToIndex_l.contains(name)) {
+void MemoryMapSnapshots::compareSnapshots(size_t index1,
+                                          size_t index2) {
+    if (index1 >= this->size() || index2 >= this->size()) {
         Log(Error,
-            "Error accessing regionName: '"
-                << name << "'; Region does not exist");
-        exit(1);
+            "Invalid indices, number of elements is: "
+                << this->size());
     }
-    return this->m_regionProperties_l[this->m_nameToIndex_l.at(name)];
-}
-
-RegionPropertiesList MemoryMap::getPropertiesList() {
-    return this->m_regionProperties_l;
-}
-
-RegionPropertiesList
-MemoryMap::getRegionsWithPermissions(const std::string_view& chars) {
-    RegionPropertiesList list{};
-    auto                 mask = toPermissionsMask(chars);
-
-    // Going to be slow cause we gotta make copies.
-    for (MemoryRegionProperties p : m_regionProperties_l) {
-        // Log_f(Debug,
-        //       "p.permissions: " << p.permissions
-        //                         << "\tmask: " << mask);
-        if (p.permissions == mask) {
-            list.push_back(p);
-        }
+    const RegionPropertiesList& m1 = (*this)[index1];
+    const RegionPropertiesList& m2 = (*this)[index2];
+    // Just do direct comparison for now.
+    size_t minSize = std::min(m1.size(), m2.size());
+    char   m1orm2 =
+        0; // 0 if equal length, -1 if m2 is larger, 1 if m1 is larger.
+    if (minSize < m1.size()) {
+        m1orm2 = 1;
+        Log(Message,
+            "Index2's number of regions is less than Index1's")
+    } else if (minSize < m2.size()) {
+        m1orm2 = -1;
+        Log(Message,
+            "Index1's number of regions is less than Index2's")
     }
-    return list;
-}
-RegionPropertiesList
-MemoryMap::getRegionsWithPermissions(const PermissionsMask& mask) {
-    RegionPropertiesList list{};
+    Log(Message, "Index1's size: " << m1.size());
+    Log(Message, "Index2's size: " << m2.size());
+    for (size_t i = 0; i < minSize; i++) {
+        const auto& m1Val = m1[i];
+        const auto& m2Val = m2[i];
 
-    // Going to be slow cause we gotta make copies.
-    for (MemoryRegionProperties p : m_regionProperties_l) {
-        // Log_f(Debug,
-        //       "p.permissions: " << p.permissions
-        //                         << "\tmask: " << mask);
-        if (p.permissions == mask) {
-            list.push_back(p);
-        }
+        Log_f(Message,
+              "m1 name: " << shortenName(m1Val.parentRegionName)
+                          << "\tm2 name: "
+                          << shortenName(m2Val.parentRegionName)
+                          << "\tisDifferent: "
+                          << ((m1Val.parentRegionName ==
+                               m2Val.parentRegionName) ?
+                                  "false" :
+                                  "true"));
+
+        Log_f(Message,
+              std::hex << std::showbase
+                       << "m1 start: " << m1Val.parentRegionStart
+                       << "\t\tm2 start: " << m2Val.parentRegionStart
+                       << "\t\tisDifferent: "
+                       << ((m1Val.parentRegionStart ==
+                            m2Val.parentRegionStart) ?
+                               "false" :
+                               "true"));
+        Log_f(Message,
+              std::hex << std::showbase
+                       << "m1 size: " << m1Val.parentRegionSize
+                       << "\t\tm2 size: " << m2Val.parentRegionSize
+                       << "\t\tisDifferent: "
+                       << ((m1Val.parentRegionSize ==
+                            m2Val.parentRegionSize) ?
+                               "false" :
+                               "true"));
+        Log_f(Message,
+              "m1 perms: "
+                  << permissionsMaskToString(m1Val.permissions)
+                  << "\t\tm2 perms: "
+                  << permissionsMaskToString(m2Val.permissions)
+                  << "\t\tisDifferent: "
+                  << ((m1Val.permissions == m2Val.permissions) ?
+                          "false" :
+                          "true"));
+        Log_f(Message, "");
+        Log_f(Message, "");
     }
-    return list;
 }

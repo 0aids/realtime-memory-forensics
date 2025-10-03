@@ -45,7 +45,14 @@ struct MemoryRegionProperties {
     auto operator<=>(const MemoryRegionProperties&) const = default;
 };
 
-using RegionPropertiesList = std::vector<MemoryRegionProperties>;
+class RegionPropertiesList
+    : public std::vector<MemoryRegionProperties> {
+  public:
+    RegionPropertiesList
+    getRegionsWithPermissions(const std::string_view& chars);
+    RegionPropertiesList
+    getRegionsWithPermissions(const PermissionsMask& mask);
+};
 
 std::ostream& operator<<(std::ostream&                 os,
                          const MemoryRegionProperties& properties);

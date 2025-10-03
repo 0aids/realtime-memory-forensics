@@ -3,6 +3,7 @@
 #include "memory_region.hpp"
 #include "memory_map.hpp"
 #include <cstdlib>
+#include <csignal>
 #include <iostream>
 #include <thread>
 #include "run_test.hpp"
@@ -12,10 +13,11 @@ int main() {
     Log(Message, "Sample process pid: " << pid);
 
     MemoryMap map(pid);
-    map.readMaps();
+    map.snapshotMaps();
 
     // Most if not all regions are private
-    auto writeRegions = map.getRegionsWithPermissions("rwp");
+    auto writeRegions =
+        map.m_mapSnapshots_l.back().getRegionsWithPermissions("rwp");
     Log(Message,
         "Number of read writable regions: " << writeRegions.size());
     for (const auto& region : writeRegions) {
@@ -79,6 +81,7 @@ int main() {
             goto foundThing;
         }
     }
+    kill(pid, SIGTERM);
     assert(false, "Did not find any changing regions");
 
 foundThing:

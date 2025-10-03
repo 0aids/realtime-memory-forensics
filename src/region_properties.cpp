@@ -129,3 +129,35 @@ std::ostream& operator<<(std::ostream&                 os,
     os << properties.toConstStr();
     return os;
 }
+
+RegionPropertiesList RegionPropertiesList::getRegionsWithPermissions(
+    const std::string_view& chars) {
+    RegionPropertiesList list{};
+    auto                 mask = toPermissionsMask(chars);
+
+    // Going to be slow cause we gotta make copies.
+    for (const MemoryRegionProperties& p : *this) {
+        // Log_f(Debug,
+        //       "p.permissions: " << p.permissions
+        //                         << "\tmask: " << mask);
+        if (p.permissions == mask) {
+            list.push_back(p);
+        }
+    }
+    return list;
+}
+RegionPropertiesList RegionPropertiesList::getRegionsWithPermissions(
+    const PermissionsMask& mask) {
+    RegionPropertiesList list{};
+
+    // Going to be slow cause we gotta make copies.
+    for (const MemoryRegionProperties& p : *this) {
+        // Log_f(Debug,
+        //       "p.permissions: " << p.permissions
+        //                         << "\tmask: " << mask);
+        if (p.permissions == mask) {
+            list.push_back(p);
+        }
+    }
+    return list;
+}
