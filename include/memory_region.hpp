@@ -1,5 +1,6 @@
 #include "region_properties.hpp"
 #include <ctime>
+#include <memory>
 #include <vector>
 #include <chrono>
 
@@ -23,27 +24,32 @@ struct RegionSnapshot : public std::vector<char> {
     // Only compares the 2 regions if they have the same properties.
     std::vector<MemoryRegionProperties>
     findChangedRegions(const RegionSnapshot& otherRegion,
-                       uint32_t              compareSize);
+                       uint32_t              compareSize) const;
     std::vector<MemoryRegionProperties>
     findUnchangedRegions(const RegionSnapshot& otherRegion,
-                         uint32_t              compareSize);
+                         uint32_t              compareSize) const;
 
     // Find a string-like region - a region that contains alphanumeric stuff.
     std::vector<MemoryRegionProperties>
-                findStringLikeRegions(const size_t& minLength);
+    findStringLikeRegions(const size_t& minLength);
+    RegionSnapshot(std::chrono::nanoseconds     time,
+                   const MemoryRegionProperties regionProps) :
+        snapshottedTime(time), regionProperties(regionProps) {};
 
     static void resetFailed();
     static bool getFailed();
 };
 
-struct SnapshotList : public std::vector<RegionSnapshot> {};
+using SP_RegionSnapshot = std::shared_ptr<RegionSnapshot>;
+
+struct SnapshotList_SP : public std::vector<SP_RegionSnapshot> {};
 
 class MemoryRegion {
   public:
     pid_t                  m_pid;
     MemoryRegionProperties m_regionProperties;
-    SnapshotList           m_snapshots_l;
+    SnapshotList_SP        m_snapshots_l;
     MemoryRegion(MemoryRegionProperties properties, pid_t pid);
-    const RegionSnapshot& getLastSnapshot();
-    void                  snapshot();
+    SP_RegionSnapshot getLastSnapshot() const;
+    void              snapshot();
 };

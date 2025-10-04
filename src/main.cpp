@@ -6,6 +6,7 @@
 #include "log.hpp"
 #include "memory_map.hpp"
 #include "memory_region.hpp"
+#include "region_properties.hpp"
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
@@ -53,50 +54,57 @@ int main(int argc, char* argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    pid_t     pid = std::stoi(argv[1]);
-    MemoryMap map(pid);
-    map.readMaps();
-    auto                 rwp = map.getRegionsWithPermissions("rwp");
-    RegionPropertiesList readWritePrivateRegions;
-    readWritePrivateRegions.push_back(rwp[3]);
-    readWritePrivateRegions.push_back(rwp[4]);
-
-    vector<MemoryRegion*>  memRegions1;
-    vector<RegionSnapshot> snapshots1;
-    for (const auto& regionP : readWritePrivateRegions) {
-        if (map.hasChanged()) {
-            Log(Error, "Map has changed!");
-            // return 0;
+    pid_t                 pid        = std::stoi(argv[1]);
+    size_t                largestInd = 0;
+    RegionPropertiesList* filtered   = new RegionPropertiesList();
+    {
+        MemoryMap map(pid);
+        auto      mapsnap = map.snapshotMaps();
+        *filtered         = mapsnap.getRegionsWithPermissions("rwp");
+        cout << "Number filtered: " << filtered->size() << endl;
+        for (size_t i = 1; i < filtered->size(); i++) {
+            if ((*filtered)[largestInd].parentRegionSize <
+                (*filtered)[i].parentRegionSize) {
+                largestInd = i;
+            }
         }
-        memRegions1.push_back(new MemoryRegion(regionP, pid));
-        memRegions1.back()->snapshot();
-        snapshots1.push_back(memRegions1.back()->getLastSnapshot());
     }
+    cout << "largest ind: " << largestInd << endl;
+    std::vector<MemoryRegionProperties> thing;
+    {
+        MemoryRegion m((*filtered)[largestInd], pid);
+        delete filtered;
+        m.snapshot();
+        auto m1 = m.getLastSnapshot();
+        cout << m1->size() << endl;
+        std::string ha;
+        cout << "Waiting for input: " << endl;
+        cin >> ha;
+        m.snapshot();
+        auto m2 = m.getLastSnapshot();
 
-    this_thread::sleep_for(10000ms);
-
-    map.readMaps();
-    rwp = map.getRegionsWithPermissions("rwp");
-    readWritePrivateRegions.clear();
-    readWritePrivateRegions.push_back(rwp[3]);
-    readWritePrivateRegions.push_back(rwp[4]);
-
-    vector<MemoryRegion*>  memRegions2;
-    vector<RegionSnapshot> snapshots2;
-    for (const auto& regionP : readWritePrivateRegions) {
-        memRegions2.push_back(new MemoryRegion(regionP, pid));
-        memRegions2.back()->snapshot();
-        snapshots1.push_back(memRegions2.back()->getLastSnapshot());
+        cout << m2->size() << endl;
+        thing = m1->findChangedRegions(*m2, 8);
     }
-    int total = 0;
-    for (int i = 0; i < (int)snapshots1.size(); i++) {
-        if (i >= (int)snapshots2.size())
-            break;
-
-        auto diff =
-            snapshots1[i].findChangedRegions(snapshots2[i], 8);
-        total += diff.size();
-    }
-
-    cout << "Total differing regions: " << total << endl;
+    cout << "number of changed regions: " << thing.size();
+    // std::vector<MemoryRegion> mr;
+    // for (const auto& memprop : thing) {
+    //     mr.push_back(MemoryRegion(memprop, pid));
+    //     mr.back().snapshot();
+    // }
+    // std::string ha;
+    // cout << "Waiting for another input" << endl;
+    // cin >> ha;
+    //
+    // int count = 0;
+    // for (auto& reg : mr) {
+    //     reg.snapshot();
+    //     count +=
+    //         reg.m_snapshots_l[0]
+    //             ->findUnchangedRegions(*(reg.m_snapshots_l[1]), 64)
+    //             .size();
+    // }
+    // cout << "Number of unchanged regions: " << count;
+    // and then have to fucking repeat this again and again until I find my position.
+    // That is going to be fucking insane.
 }

@@ -49,7 +49,8 @@ const RegionPropertiesList& MemoryMap::snapshotMaps() {
         MemoryRegionProperties currentRegionProperties(
             std::string(name), startAddr, endAddr - startAddr,
             toPermissionsMask(permissions));
-        regionProperties.push_back(currentRegionProperties);
+        regionProperties.push_back(
+            std::move(currentRegionProperties));
     }
     memoryMapFile.close();
     m_mapSnapshots_l.push_back(regionProperties);

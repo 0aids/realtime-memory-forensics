@@ -1,6 +1,6 @@
 # Make files are the bane of my existance
 CXX=g++
-CXXFLAGS=-g  -Wall -Wextra -Wpedantic # -fsanitize=undefined,address
+CXXFLAGS=-g  -Wall -Wextra -Wpedantic -fsanitize=undefined,address
 CCSTD= -std=c++23
 DEPFLAGS= -MP -MD
 OPT= -O1

@@ -26,7 +26,7 @@ struct MemoryRegionProperties {
     // Should this be const? yes.
     const std::string     parentRegionName;
     const uintptr_t       parentRegionStart;
-    const size_t          parentRegionSize;
+    const uint64_t        parentRegionSize;
     const PermissionsMask permissions;
 
   public:

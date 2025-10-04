@@ -1,4 +1,5 @@
 #include "region_properties.hpp"
+#include <algorithm>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -141,7 +142,7 @@ RegionPropertiesList RegionPropertiesList::getRegionsWithPermissions(
         //       "p.permissions: " << p.permissions
         //                         << "\tmask: " << mask);
         if (p.permissions == mask) {
-            list.push_back(p);
+            list.push_back(std::move(p));
         }
     }
     return list;
@@ -156,7 +157,7 @@ RegionPropertiesList RegionPropertiesList::getRegionsWithPermissions(
         //       "p.permissions: " << p.permissions
         //                         << "\tmask: " << mask);
         if (p.permissions == mask) {
-            list.push_back(p);
+            list.push_back(std::move(p));
         }
     }
     return list;

@@ -16,7 +16,13 @@ class MemoryMapSnapshots : public std::vector<RegionPropertiesList> {
     // Return's a region properties list containing all the
     // regions that differed.
   public:
-    // This will just print out the changes for now.
+    // Prints out changes, attempts to identify the same region via (decreasing confidence):
+    //      region with same name and permissions and index of same name.
+    //                             (IE second occurrence of libm.so.6)
+    //      region with same name and permissions
+    //      region with same name and index of same name (very unlikely to change permissions)
+    //
+    //      unnamed region with same permissions and similar start.
     void compareSnapshots(size_t index1, size_t index2);
 };
 
