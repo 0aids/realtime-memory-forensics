@@ -6,10 +6,13 @@
 
 // Mainly written by me, tidied up by ai cause lazy.
 
-namespace {
+namespace
+{
     // Helper to convert LogLevel enum to a colored string representation.
-    std::string levelToString(LogLevel level) {
-        switch (level) {
+    std::string levelToString(LogLevel level)
+    {
+        switch (level)
+        {
             case LogLevel::Error: return RED_COLOR + "[ERROR]  ";
             case LogLevel::Warning: return YELLOW_COLOR + "[WARNING]";
             case LogLevel::Message: return BLUE_COLOR + "[MESSAGE]";
@@ -27,8 +30,10 @@ LoggerWrapper::LoggerWrapper(LogsList* logsList, bool checkLast,
                              std::string_view filename,
                              std::string_view functionName,
                              size_t           lineNumber) :
-    m_logsList(logsList), m_checkLast(checkLast) {
-    if (m_logsList) {
+    m_logsList(logsList), m_checkLast(checkLast)
+{
+    if (m_logsList)
+    {
         m_ss.emplace(); // Construct the std::stringstream
         // Prepend the log message with level, file, and function info.
         *m_ss << levelToString(level) << " (" << filename << ":"
@@ -36,15 +41,20 @@ LoggerWrapper::LoggerWrapper(LogsList* logsList, bool checkLast,
     }
 }
 
-LoggerWrapper::~LoggerWrapper() {
-    if (!m_ss) {
+LoggerWrapper::~LoggerWrapper()
+{
+    if (!m_ss)
+    {
         return;
     }
 
-    if (m_checkLast) {
-        m_logsList->pushBack(std::move(m_ss->str()));
-    } else {
-        m_logsList->pushBackNoCheck(std::move(m_ss->str()));
+    if (m_checkLast)
+    {
+        m_logsList->pushBack(m_ss->str());
+    }
+    else
+    {
+        m_logsList->pushBackNoCheck(m_ss->str());
     }
 }
 
@@ -55,8 +65,10 @@ LogsList      Logger::m_logsList;
 
 LoggerWrapper Logger::log(LogLevel level, std::string_view filename,
                           std::string_view functionName,
-                          size_t lineNumber, bool checkLast) {
-    if (level > m_logLevel) {
+                          size_t lineNumber, bool checkLast)
+{
+    if (level > m_logLevel)
+    {
         return LoggerWrapper(); // Return an empty wrapper that does nothing.
     }
 
@@ -66,14 +78,17 @@ LoggerWrapper Logger::log(LogLevel level, std::string_view filename,
 
 // --- LogsList Implementation ---
 
-void LogsList::pushBack(std::string str) {
+void LogsList::pushBack(std::string str)
+{
     const std::hash<std::string> hasher;
     const size_t                 hash = hasher(str);
 
     // Search backwards from the most recent log entry to find a match.
-    for (size_t k = 1; k <= m_count; ++k) {
+    for (size_t k = 1; k <= m_count; ++k)
+    {
         const size_t j = (m_index - k + LOG_LENGTH) % LOG_LENGTH;
-        if (m_logs[j].hash == hash) {
+        if (m_logs[j].hash == hash)
+        {
             m_logs[j].count++;
             // Use ANSI codes to move cursor up, clear line, and reprint message.
             const size_t linesToMoveUp = k;
@@ -94,19 +109,22 @@ void LogsList::pushBack(std::string str) {
     m_logs[m_index] = LogEntry{std::move(str), hash, 1};
     std::cerr << m_logs[m_index].string << RESET_COLOR << "\n";
     m_index = (m_index + 1) % LOG_LENGTH;
-    if (m_count < LOG_LENGTH) {
+    if (m_count < LOG_LENGTH)
+    {
         m_count++;
     }
 }
 
-void LogsList::pushBackNoCheck(std::string str) {
+void LogsList::pushBackNoCheck(std::string str)
+{
     const std::hash<std::string> hasher;
     const size_t                 hash = hasher(str);
 
     m_logs[m_index] = LogEntry{std::move(str), hash, 1};
     std::cerr << m_logs[m_index].string << "\n";
     m_index = (m_index + 1) % LOG_LENGTH;
-    if (m_count < LOG_LENGTH) {
+    if (m_count < LOG_LENGTH)
+    {
         m_count++;
     }
 }

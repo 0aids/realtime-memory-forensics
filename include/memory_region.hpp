@@ -4,7 +4,8 @@
 #include <vector>
 #include <chrono>
 
-struct RegionSnapshot : public std::vector<char> {
+struct RegionSnapshot : public std::vector<char>
+{
   private:
     inline static bool failed = false;
 
@@ -24,10 +25,14 @@ struct RegionSnapshot : public std::vector<char> {
     // Only compares the 2 regions if they have the same properties.
     std::vector<MemoryRegionProperties>
     findChangedRegions(const RegionSnapshot& otherRegion,
-                       uint32_t              compareSize) const;
+                       const uint32_t        compareSize) const;
+    std::vector<MemoryRegionProperties>
+    findChangedRegionsSingleThread(const RegionSnapshot& otherRegion,
+                                   const uint32_t compareSize) const;
+
     std::vector<MemoryRegionProperties>
     findUnchangedRegions(const RegionSnapshot& otherRegion,
-                         uint32_t              compareSize) const;
+                         const uint32_t        compareSize) const;
 
     // Find a string-like region - a region that contains alphanumeric stuff.
     std::vector<MemoryRegionProperties>
@@ -38,13 +43,20 @@ struct RegionSnapshot : public std::vector<char> {
 
     static void resetFailed();
     static bool getFailed();
+
+    // Find all regions with that string.
+    std::vector<MemoryRegionProperties>
+    findOf(const std::string& str);
 };
 
 using SP_RegionSnapshot = std::shared_ptr<RegionSnapshot>;
 
-struct SnapshotList_SP : public std::vector<SP_RegionSnapshot> {};
+struct SnapshotList_SP : public std::vector<SP_RegionSnapshot>
+{
+};
 
-class MemoryRegion {
+class MemoryRegion
+{
   public:
     pid_t                  m_pid;
     MemoryRegionProperties m_regionProperties;

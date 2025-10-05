@@ -8,7 +8,8 @@
 #include <thread>
 #include "run_test.hpp"
 using namespace std;
-int main() {
+int main()
+{
     pid_t pid = runChangingMapProcess();
     Log(Message, "Sample process pid: " << pid);
 

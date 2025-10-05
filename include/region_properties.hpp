@@ -6,7 +6,8 @@
 #include <sys/types.h>
 #include <vector>
 // A bit map of properties
-enum e_Permissions {
+enum e_Permissions
+{
     READ    = 1 << 0,
     WRITE   = 1 << 1,
     EXECUTE = 1 << 2,
@@ -21,7 +22,8 @@ PermissionsMask toPermissionsMask(const char perms[4]);
 PermissionsMask toPermissionsMask(const std::string& chars);
 PermissionsMask toPermissionsMask(const std::string_view& chars);
 
-struct MemoryRegionProperties {
+struct MemoryRegionProperties
+{
   public:
     // Should this be const? yes.
     const std::string     parentRegionName;
@@ -30,14 +32,18 @@ struct MemoryRegionProperties {
     const PermissionsMask permissions;
 
   public:
-    // The region start and size is relative to the parent region.
-    uintptr_t regionStart;
-    // The region start and size is relative to the parent region.
-    size_t regionSize;
+    // Relative to the parent region
+    uintptr_t relativeRegionStart;
+    uintptr_t regionSize;
 
   public:
     MemoryRegionProperties(std::string name, uintptr_t start,
                            size_t size, PermissionsMask perms);
+
+    uintptr_t getActualRegionStart() const
+    {
+        return relativeRegionStart + parentRegionStart;
+    }
 
     std::string       toStr();
     const std::string toConstStr() const;
@@ -46,7 +52,8 @@ struct MemoryRegionProperties {
 };
 
 class RegionPropertiesList
-    : public std::vector<MemoryRegionProperties> {
+    : public std::vector<MemoryRegionProperties>
+{
   public:
     RegionPropertiesList
     getRegionsWithPermissions(const std::string_view& chars);

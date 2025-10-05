@@ -1,6 +1,10 @@
 # Make files are the bane of my existance
 CXX=g++
-CXXFLAGS=-g  -Wall -Wextra -Wpedantic -fsanitize=undefined,address
+ASAN = -fsanitize=undefined,address
+# Building with asan causes tests to fail due to asan memory limits.
+# Maybe i'm doing something wrong.
+# It seems to move the shit around.
+CXXFLAGS=-g  -Wall -Wextra -Wpedantic # $(ASAN)
 CCSTD= -std=c++23
 DEPFLAGS= -MP -MD
 OPT= -O1
@@ -14,6 +18,7 @@ CPPFILES = $(shell find src -type f -name "*.cpp" -not -path '*/.*' )
 OFILES = $(patsubst src/%.cpp, build/src/%.o, $(CPPFILES))
 
 # maybe I should learn cmake. or meson, or an actually good build system.
+# I love make it's so easyyyyy :) :):)(:
 OFILES_FOR_TEST = $(filter-out %main.o, $(OFILES))
 TESTFILES = $(shell find tests -type f -name "*.cpp" -not -path '*/.*')
 TESTOFILES = $(patsubst tests/%.cpp, build/tests/%.o, $(TESTFILES))

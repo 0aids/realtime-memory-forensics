@@ -72,9 +72,6 @@ const int MAX_VALUE = 100;
 // Filenames are snake_case
 #include "some_random_header.hpp"
 
-// Pointers must be suffixed with _p
-int *someDumbPointer_p;
-
 // If it is a list or a vector of some sort, suffix with _l
 std::vector<ints> intsList_l
 
@@ -82,3 +79,13 @@ std::vector<ints> intsList_l
 #define p_var_debug(...) ...
 // Unless they are used for constants, in that case use SCREAMING_SNAKE_CASE
 ```
+
+# AI disclosure
+
+AI has been used to:
+
+1. Help with questions that cannot be conventionally asked to google.
+2. Help me with making some design decisions (IE: Asking for a specific DS that might suit my goals)
+3. Help me debug when I'm at my wit's end
+
+Any exceptions to the rules above are disclosed in their specific file.

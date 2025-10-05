@@ -8,7 +8,8 @@
 #include <thread>
 #include "run_test.hpp"
 using namespace std;
-int main() {
+int main()
+{
     pid_t pid = runSampleProcess();
     Log(Message, "Sample process pid: " << pid);
 
@@ -19,7 +20,8 @@ int main() {
     auto writeRegions = mmap.getRegionsWithPermissions("rwp");
     Log(Message,
         "Number of read writable regions: " << writeRegions.size());
-    for (const auto& region : writeRegions) {
+    for (const auto& region : writeRegions)
+    {
         Log(Message, "ReadWritable Region:\n" << region.toConstStr());
     }
     assert(writeRegions.size() > 0, "No regions found!!!");
@@ -27,17 +29,20 @@ int main() {
     // Find the region that is changing.
     int stringLikeCount = 0;
     Log(Debug, "Finding regions that are changing");
-    for (const auto& regionProperties : writeRegions) {
+    for (const auto& regionProperties : writeRegions)
+    {
         MemoryRegion mem(regionProperties, pid);
         mem.snapshot();
         auto snap = mem.getLastSnapshot();
 
-        auto properties = snap.findStringLikeRegions(10);
+        auto properties = snap->findStringLikeRegions(10);
         Log(Debug,
             "Number of stringlike regions: " << properties.size());
-        if (properties.size() > 0) {
+        if (properties.size() > 0)
+        {
             stringLikeCount++;
-            for (const auto& property : properties) {
+            for (const auto& property : properties)
+            {
                 MemoryRegion stringLikeRegion(property, pid);
                 stringLikeRegion.snapshot();
                 // Log(Message,
@@ -48,7 +53,7 @@ int main() {
                 Log(Message,
                     "Sample stringlike region: "
                         << stringLikeRegion.getLastSnapshot()
-                               .toStr());
+                               ->toStr());
             }
         }
     }

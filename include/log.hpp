@@ -18,22 +18,25 @@ const std::string GREY_COLOR   = "\033[90m";
 
 constexpr size_t  LOG_LENGTH = 1;
 
-enum LogLevel {
-    Error,   // Critical errors
-    Warning, // Potential issues
-    Message, // Key application events
-    Verbose, // Detailed state information
-    Debug    // Granular debugging information
+enum LogLevel
+{
+    Error   = 0, // Critical errors
+    Warning = 1, // Potential issues
+    Message = 2, // Key application events
+    Verbose = 3, // Detailed state information
+    Debug   = 4, // Granular debugging information
 };
 
-struct LogEntry {
+struct LogEntry
+{
     std::string string;
     size_t      hash;
     size_t      count = 1;
 };
 
 // A circular array which stores the last LOG_LENGTH log entries.
-class LogsList {
+class LogsList
+{
   private:
     std::array<LogEntry, LOG_LENGTH> m_logs;
     size_t m_index = 0; // Points to the next empty slot
@@ -46,7 +49,8 @@ class LogsList {
     void pushBackNoCheck(std::string str);
 };
 
-class LoggerWrapper {
+class LoggerWrapper
+{
   private:
     std::optional<std::stringstream> m_ss;
     LogsList*                        m_logsList  = nullptr;
@@ -61,26 +65,29 @@ class LoggerWrapper {
 
     // Stream operator to append data to the log message.
     template <typename T>
-    LoggerWrapper& operator<<(const T& in) {
-        if (m_ss) {
+    LoggerWrapper& operator<<(const T& in)
+    {
+        if (m_ss)
+        {
             *m_ss << in;
         }
         return *this;
     }
 };
 
-class Logger {
+class Logger
+{
   private:
     static LogsList m_logsList;
     // Messages with a level higher than this will be ignored.
-    constexpr static LogLevel m_logLevel = LogLevel::Debug;
 
   public:
     // Creates a LoggerWrapper to stream the log message into.
-    static LoggerWrapper log(LogLevel         level,
-                             std::string_view filename,
-                             std::string_view functionName,
-                             size_t lineNumber, bool checkLast);
+    inline static LogLevel m_logLevel = LogLevel::Debug;
+    static LoggerWrapper   log(LogLevel         level,
+                               std::string_view filename,
+                               std::string_view functionName,
+                               size_t lineNumber, bool checkLast);
 };
 
 // --- Logging Macros ---
