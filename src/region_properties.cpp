@@ -1,5 +1,7 @@
 #include "region_properties.hpp"
 #include <algorithm>
+#include "log.hpp"
+#include <optional>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -191,4 +193,18 @@ RegionPropertiesList RegionPropertiesList::getRegionsWithPermissions(
         }
     }
     return list;
+}
+
+std::optional<MemoryRegionProperties>
+RegionPropertiesList::getRegionWithName(const std::string_view& name)
+{
+    for (size_t i = 0; i < this->size(); i++)
+    {
+        if ((*this)[i].parentRegionName == name)
+        {
+            return (*this)[i];
+        }
+    }
+    Log(Warning, "Name was not found.");
+    return std::optional<MemoryRegionProperties>();
 }

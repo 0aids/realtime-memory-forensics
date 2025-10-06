@@ -26,10 +26,11 @@ struct MemoryRegionProperties
 {
   public:
     // Should this be const? yes.
-    const std::string     parentRegionName;
-    const uintptr_t       parentRegionStart;
-    const uint64_t        parentRegionSize;
-    const PermissionsMask permissions;
+    // const fucking deletes the copy and move assignment operators?
+    const std::string     parentRegionName  = "NULL";
+    const uintptr_t       parentRegionStart = 0;
+    const uint64_t        parentRegionSize  = 0;
+    const PermissionsMask permissions       = 0;
 
   public:
     // Relative to the parent region
@@ -37,8 +38,12 @@ struct MemoryRegionProperties
     uintptr_t regionSize;
 
   public:
+    MemoryRegionProperties() = default;
     MemoryRegionProperties(std::string name, uintptr_t start,
                            size_t size, PermissionsMask perms);
+    ~MemoryRegionProperties()                             = default;
+    MemoryRegionProperties(const MemoryRegionProperties&) = default;
+    MemoryRegionProperties(MemoryRegionProperties&&)      = default;
 
     uintptr_t getActualRegionStart() const
     {
@@ -59,6 +64,11 @@ class RegionPropertiesList
     getRegionsWithPermissions(const std::string_view& chars);
     RegionPropertiesList
     getRegionsWithPermissions(const PermissionsMask& mask);
+
+    // Gets the first memory region with the corresponding name.
+    // If it doesn't exist, will return empty optional.
+    std::optional<MemoryRegionProperties>
+    getRegionWithName(const std::string_view& name);
 };
 
 std::ostream& operator<<(std::ostream&                 os,

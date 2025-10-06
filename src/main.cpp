@@ -1,4 +1,5 @@
 #include "run_test.hpp"
+#include <iterator>
 #include <ranges>
 #include <thread>
 #include <chrono>
@@ -47,6 +48,7 @@ void releaseProcess(pid_t pid)
 int main(int argc, char* argv[])
 {
     using namespace std;
+    Logger::m_logLevel = Message;
     if (argc != 2)
     {
         Log(Error,
@@ -63,62 +65,51 @@ int main(int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
 
-    pid_t                 pid        = std::stoi(argv[1]);
-    size_t                largestInd = 0;
-    RegionPropertiesList* filtered   = new RegionPropertiesList();
+    pid_t     pid = std::stoi(argv[1]);
+
+    MemoryMap mmap(pid);
+    mmap.snapshotMaps();
+    std::vector<MemoryRegionProperties> changedRegions{
+        mmap.m_mapSnapshots_l.getLargestRegionFromLastSnapshot()};
+    std::string                         ha;
+    std::vector<MemoryRegionProperties> result;
+
     {
-        MemoryMap map(pid);
-        auto      mapsnap = map.snapshotMaps();
-        *filtered         = mapsnap.getRegionsWithPermissions("rwp");
-        cout << "Number filtered: " << filtered->size() << endl;
-        for (size_t i = 1; i < filtered->size(); i++)
+        MemoryRegion mr(changedRegions[0], pid);
+        if (!mr.snapshot())
         {
-            if ((*filtered)[largestInd].parentRegionSize <
-                (*filtered)[i].parentRegionSize)
+            return 1;
+        }
+        auto lastSnap = mr.getLastSnapshot();
+        result        = lastSnap->findDoubleLike(100, 200);
+    }
+
+    cout << "Results size: " << result.size() << endl;
+
+    while (result.size() > 3)
+    {
+        std::vector<MemoryRegion> mrList;
+        for (const auto& region : result)
+        {
+            mrList.push_back(MemoryRegion(std::move(region), pid));
+            if (!mrList.back().snapshot())
             {
-                largestInd = i;
+                mrList.pop_back();
+                continue;
             }
         }
-    }
-    cout << "largest ind: " << largestInd << endl;
-    std::vector<MemoryRegionProperties> thing;
-    std::vector<MemoryRegionProperties> singlething;
-    {
-        MemoryRegion m((*filtered)[largestInd], pid);
-        delete filtered;
-        m.snapshot();
-        auto m1 = m.getLastSnapshot();
-        cout << m1->size() << endl;
-        std::string ha;
-        cout << "Waiting for input: " << endl;
-        cin >> ha;
-        m.snapshot();
-        auto m2 = m.getLastSnapshot();
+        result.clear();
+        for (auto& memreg : mrList)
+        {
+            auto lastSnap = memreg.getLastSnapshot();
 
-        cout << m2->size() << endl;
-        thing  = m1->findChangedRegions(*m2, 64);
-        auto t = m1->findOf("print");
-        cout << "Number of prints: " << t.size() << endl;
+            auto newResults = lastSnap->findDoubleLike(100, 200);
+
+            std::copy(std::make_move_iterator(newResults.begin()),
+                      std::make_move_iterator(newResults.end()),
+                      std::back_inserter(result));
+        }
+        cout << "Current result size: " << result.size() << endl;
+        this_thread::sleep_for(1s);
     }
-    cout << "number of changed regions: " << thing.size() << endl;
-    // std::vector<MemoryRegion> mr;
-    // for (const auto& memprop : thing) {
-    //     mr.push_back(MemoryRegion(memprop, pid));
-    //     mr.back().snapshot();
-    // }
-    // std::string ha;
-    // cout << "Waiting for another input" << endl;
-    // cin >> ha;
-    //
-    // int count = 0;
-    // for (auto& reg : mr) {
-    //     reg.snapshot();
-    //     count +=
-    //         reg.m_snapshots_l[0]
-    //             ->findUnchangedRegions(*(reg.m_snapshots_l[1]), 64)
-    //             .size();
-    // }
-    // cout << "Number of unchanged regions: " << count;
-    // and then have to fucking repeat this again and again until I find my position.
-    // That is going to be fucking insane.
 }

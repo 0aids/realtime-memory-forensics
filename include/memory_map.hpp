@@ -5,14 +5,16 @@
 #include <string>
 #include <utility>
 
-struct MemoryRegionPropertiesDiff {
+struct MemoryRegionPropertiesDiff
+{
   public:
     // Do not do references; What if the reference's lifetime exceeds the actual item?
     const MemoryRegionProperties m_properties1;
     const MemoryRegionProperties m_properties2;
 };
 
-class MemoryMapSnapshots : public std::vector<RegionPropertiesList> {
+class MemoryMapSnapshots : public std::vector<RegionPropertiesList>
+{
     // Return's a region properties list containing all the
     // regions that differed.
   public:
@@ -24,9 +26,12 @@ class MemoryMapSnapshots : public std::vector<RegionPropertiesList> {
     //
     //      unnamed region with same permissions and similar start.
     void compareSnapshots(size_t index1, size_t index2);
+
+    MemoryRegionProperties getLargestRegionFromLastSnapshot();
 };
 
-class MemoryMap {
+class MemoryMap
+{
   private:
     const pid_t       m_pid;
     const std::string m_mapLocation;

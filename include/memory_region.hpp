@@ -1,8 +1,45 @@
 #include "region_properties.hpp"
+#include <array>
+#include <cstdint>
 #include <ctime>
 #include <memory>
+#include <string_view>
 #include <vector>
 #include <chrono>
+
+// Give the constructor an empty struct of the type you want to find.
+// Constructs a list of pointers and their offsets to find in memory.
+
+enum class StructMemberTypes
+{
+    unknown_t = 0,
+    ptr_t     = 1,
+    int_t     = 2,
+    uint_t    = 3,
+    char_t    = 4,
+    float_t   = 5,
+    // etc, just for casting or smth.
+};
+
+struct StructProperties
+{
+    const std::string_view  name;
+    const size_t            offset;
+    const size_t            size;
+    const StructMemberTypes type;
+};
+
+#define d_RegisterMember(StructType, MemberName, typeEnum)           \
+    {                                                                \
+        #MemberName,                                                 \
+        offsetof(StructType::MemberName),                            \
+        sizeof(decltype(StructType::MemberName)),                    \
+        typeEnum,                                                    \
+    }
+
+struct StructProperties_l : public std::vector<StructProperties>
+{
+};
 
 struct RegionSnapshot : public std::vector<char>
 {
@@ -41,12 +78,29 @@ struct RegionSnapshot : public std::vector<char>
                    const MemoryRegionProperties regionProps) :
         snapshottedTime(time), regionProperties(regionProps) {};
 
-    static void resetFailed();
-    static bool getFailed();
-
     // Find all regions with that string.
     std::vector<MemoryRegionProperties>
     findOf(const std::string& str);
+
+    // Find all pointers which point to a region.
+    std::vector<MemoryRegionProperties>
+    findPointers(const uintptr_t& actualAddress);
+
+    std::vector<MemoryRegionProperties> findPointerLikes();
+
+    // Must be the absolute address.
+    // Returns the linked list in the correct order.
+    // Only traverses backwards!!!
+    std::vector<MemoryRegionProperties>
+    findLinkedList(const uintptr_t& memberAddress,
+                   const uintptr_t& numHeaderBytes);
+
+    // Finds a struct. Only really uses the pointers to find the region.
+    std::vector<MemoryRegionProperties>
+    findStruct(const StructProperties_l& structProperties);
+
+    std::vector<MemoryRegionProperties>
+    findDoubleLike(const double& lower, const double& upper);
 };
 
 using SP_RegionSnapshot = std::shared_ptr<RegionSnapshot>;
@@ -63,5 +117,6 @@ class MemoryRegion
     SnapshotList_SP        m_snapshots_l;
     MemoryRegion(MemoryRegionProperties properties, pid_t pid);
     SP_RegionSnapshot getLastSnapshot() const;
-    void              snapshot();
+    // True if succeeded.
+    bool snapshot();
 };

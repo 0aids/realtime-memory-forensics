@@ -8,30 +8,35 @@
 #include <sched.h>
 #include <string>
 
-static inline std::string pidToMapLocation(pid_t pid) {
+static inline std::string pidToMapLocation(pid_t pid)
+{
     return "/proc/" + std::to_string(pid) + "/maps";
 }
 
 MemoryMap::MemoryMap(pid_t pid) :
-    m_pid(pid), m_mapLocation(pidToMapLocation(pid)) {
+    m_pid(pid), m_mapLocation(pidToMapLocation(pid))
+{
     Log(Message, "Constructed with pid: " << pid);
     Log(Message, "Map location: " << m_mapLocation);
 };
 
 MemoryMap::MemoryMap(const std::string& mapLocation) :
-    m_pid(NO_PID), m_mapLocation(mapLocation) {
+    m_pid(NO_PID), m_mapLocation(mapLocation)
+{
     Log(Message, "Constructed with mapLocation: " << mapLocation);
 };
 
 // TODO: Ensure checks for failure.
-const RegionPropertiesList& MemoryMap::snapshotMaps() {
+const RegionPropertiesList& MemoryMap::snapshotMaps()
+{
     std::ifstream        memoryMapFile(this->m_mapLocation);
     std::string          line;
     int                  unnamedRegionNumber = 1;
 
     RegionPropertiesList regionProperties;
 
-    while (std::getline(memoryMapFile, line)) {
+    while (std::getline(memoryMapFile, line))
+    {
         uintptr_t startAddr, endAddr;
         char      permR, permW, permX, permP;
         char      name[1024] = "";
@@ -40,7 +45,8 @@ const RegionPropertiesList& MemoryMap::snapshotMaps() {
                name);
 
         char permissions[4] = {permR, permW, permX, permP};
-        if (strlen(name) == 0) {
+        if (strlen(name) == 0)
+        {
             std::string unnamedName = "UnnamedRegion-" +
                 std::to_string(unnamedRegionNumber++);
             strncpy(name, unnamedName.c_str(), sizeof(name) - 1);
@@ -58,20 +64,25 @@ const RegionPropertiesList& MemoryMap::snapshotMaps() {
 }
 
 constexpr inline static std::string
-shortenName(const std::string& fullname) {
-    if (fullname.length() < 20) {
+shortenName(const std::string& fullname)
+{
+    if (fullname.length() < 20)
+    {
         return fullname;
     }
     size_t lastSlash = fullname.find_last_of('/');
-    if (lastSlash != std::string::npos) {
+    if (lastSlash != std::string::npos)
+    {
         return fullname.substr(lastSlash + 1);
     }
     return fullname;
 }
 
 void MemoryMapSnapshots::compareSnapshots(size_t index1,
-                                          size_t index2) {
-    if (index1 >= this->size() || index2 >= this->size()) {
+                                          size_t index2)
+{
+    if (index1 >= this->size() || index2 >= this->size())
+    {
         Log(Error,
             "Invalid indices, number of elements is: "
                 << this->size());
@@ -82,18 +93,22 @@ void MemoryMapSnapshots::compareSnapshots(size_t index1,
     size_t minSize = std::min(m1.size(), m2.size());
     char   m1orm2 =
         0; // 0 if equal length, -1 if m2 is larger, 1 if m1 is larger.
-    if (minSize < m1.size()) {
+    if (minSize < m1.size())
+    {
         m1orm2 = 1;
         Log(Message,
             "Index2's number of regions is less than Index1's")
-    } else if (minSize < m2.size()) {
+    }
+    else if (minSize < m2.size())
+    {
         m1orm2 = -1;
         Log(Message,
             "Index1's number of regions is less than Index2's")
     }
     Log(Message, "Index1's size: " << m1.size());
     Log(Message, "Index2's size: " << m2.size());
-    for (size_t i = 0; i < minSize; i++) {
+    for (size_t i = 0; i < minSize; i++)
+    {
         const auto& m1Val = m1[i];
         const auto& m2Val = m2[i];
 
@@ -137,4 +152,18 @@ void MemoryMapSnapshots::compareSnapshots(size_t index1,
         Log_f(Message, "");
         Log_f(Message, "");
     }
+}
+MemoryRegionProperties
+MemoryMapSnapshots::getLargestRegionFromLastSnapshot()
+{
+    size_t largestInd = 0;
+    for (size_t i = 1; i < back().size(); i++)
+    {
+        if (this->back()[i].regionSize >
+            this->back()[largestInd].regionSize)
+        {
+            largestInd = i;
+        }
+    }
+    return this->back()[largestInd];
 }
