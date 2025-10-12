@@ -48,7 +48,7 @@ void releaseProcess(pid_t pid)
 int main(int argc, char* argv[])
 {
     using namespace std;
-    Logger::m_logLevel = Message;
+    Logger::m_logLevel = Debug;
     if (argc != 2)
     {
         Log(Error,
@@ -69,47 +69,65 @@ int main(int argc, char* argv[])
 
     MemoryMap mmap(pid);
     mmap.snapshotMaps();
-    std::vector<MemoryRegionProperties> changedRegions{
-        mmap.m_mapSnapshots_l.getLargestRegionFromLastSnapshot()};
+    RegionPropertiesList changedRegions =
+        mmap.m_mapSnapshots_l[0].getRegionsWithPermissions("rwp");
     std::string                         ha;
-    std::vector<MemoryRegionProperties> result;
-
+    std::vector<MemoryRegionProperties> regionProperties =
+        changedRegions.getRegionsWithSubstrName("UnnamedRegion-");
+    // for (const auto& region : changedRegions)
+    // {
+    //     if (region.regionSize > 1 << 23)
+    //     {
+    //         regionProperties.push_back(std::move(region));
+    //     }
+    // }
+    cout << "Number of big regions: " << regionProperties.size()
+         << endl;
+    for (const auto& bigregion : regionProperties)
     {
-        MemoryRegion mr(changedRegions[0], pid);
-        if (!mr.snapshot())
+        std::vector<MemoryRegionProperties> newRegionProperties = {
+            bigregion};
+        cout << "Before the inner loop: waiting for input" << endl;
+        ha = "";
+        cin >> ha;
+        while (newRegionProperties.size() > 0 && ha != "found" &&
+               ha != "skip")
         {
-            return 1;
-        }
-        auto lastSnap = mr.getLastSnapshot();
-        result        = lastSnap->findDoubleLike(100, 200);
-    }
-
-    cout << "Results size: " << result.size() << endl;
-
-    while (result.size() > 3)
-    {
-        std::vector<MemoryRegion> mrList;
-        for (const auto& region : result)
-        {
-            mrList.push_back(MemoryRegion(std::move(region), pid));
-            if (!mrList.back().snapshot())
+            std::vector<MemoryRegion> mrList;
+            for (const auto& region : newRegionProperties)
             {
-                mrList.pop_back();
-                continue;
+                mrList.push_back(MemoryRegion(region, pid));
+                if (!mrList.back().snapshot())
+                {
+                    mrList.pop_back();
+                    continue;
+                }
             }
-        }
-        result.clear();
-        for (auto& memreg : mrList)
-        {
-            auto lastSnap = memreg.getLastSnapshot();
+            cout << "Current size: " << newRegionProperties.size()
+                 << endl;
+            cout << "Waiting for input for change: " << endl;
+            cin >> ha;
+            if (ha == "found" || ha == "skip")
+                break;
+            newRegionProperties.clear();
+            for (auto& memRegion : mrList)
+            {
+                if (!memRegion.snapshot())
+                {
+                    continue;
+                };
+                auto changes =
+                    memRegion.m_snapshots_l[0]->findChangedRegions(
+                        *memRegion.m_snapshots_l[1], 8);
 
-            auto newResults = lastSnap->findDoubleLike(100, 200);
-
-            std::copy(std::make_move_iterator(newResults.begin()),
-                      std::make_move_iterator(newResults.end()),
-                      std::back_inserter(result));
+                std::copy(std::make_move_iterator(changes.begin()),
+                          std::make_move_iterator(changes.end()),
+                          std::back_inserter(newRegionProperties));
+            }
+            cout << "Current size: " << newRegionProperties.size()
+                 << endl;
         }
-        cout << "Current result size: " << result.size() << endl;
-        this_thread::sleep_for(1s);
+        if (ha == "found")
+            break;
     }
 }

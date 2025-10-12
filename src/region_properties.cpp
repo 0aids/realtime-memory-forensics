@@ -208,3 +208,16 @@ RegionPropertiesList::getRegionWithName(const std::string_view& name)
     Log(Warning, "Name was not found.");
     return std::optional<MemoryRegionProperties>();
 }
+RegionPropertiesList RegionPropertiesList::getRegionsWithSubstrName(
+    const std::string_view& name)
+{
+    RegionPropertiesList l;
+    for (size_t i = 0; i < this->size(); i++)
+    {
+        if ((*this)[i].parentRegionName.contains(name))
+        {
+            l.push_back((*this)[i]);
+        }
+    }
+    return l;
+}

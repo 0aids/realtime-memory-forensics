@@ -1,6 +1,7 @@
 #include "memory_region.hpp"
 #include "log.hpp"
 #include "region_properties.hpp"
+#include "analysis_threadpool.hpp"
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -14,12 +15,6 @@ extern "C"
 {
 #include <bits/types/struct_iovec.h>
 #include <sys/uio.h>
-}
-inline size_t NUMTHREADS = std::thread::hardware_concurrency() - 2;
-
-static inline size_t niceAmountOfThreads(uintptr_t size)
-{
-    return (size < 1 << 20) ? 1 : NUMTHREADS;
 }
 
 std::string RegionSnapshot::toStr() const
@@ -128,206 +123,15 @@ SP_RegionSnapshot MemoryRegion::getLastSnapshot() const
     return m_snapshots_l.back();
 }
 
-// For 0xc0000000 bytes, comparison took 72.5s at 8byte comparisons.
-std::vector<MemoryRegionProperties>
-RegionSnapshot::findChangedRegionsSingleThread(
-    const RegionSnapshot& otherRegion, uint32_t compareSize) const
-{
-    using namespace std::chrono;
-    auto before = steady_clock::now().time_since_epoch();
-    std::vector<MemoryRegionProperties> changes = {};
-    for (size_t i = 0; i < this->size() / compareSize; ++i)
-    {
-        if (memcmp(this->data() + (i * compareSize),
-                   otherRegion.data() + (i * compareSize),
-                   compareSize))
-        {
-            if (changes.size() > 0 &&
-                changes.back().relativeRegionStart +
-                        changes.back().regionSize ==
-                    i * compareSize)
-            {
-                changes.back().regionSize += compareSize;
-            }
-            else
-            {
-                auto newRegionProperties = this->regionProperties;
-                newRegionProperties.regionSize = compareSize;
-                newRegionProperties.relativeRegionStart =
-                    i * compareSize;
-                changes.push_back(newRegionProperties);
-            };
-        }
-    }
 
-    Log(Message,
-        "Time taken for finding changes: "
-            << duration_cast<milliseconds>(
-                   steady_clock::now().time_since_epoch() - before));
-    Log(Message, "Number of bytes compared: " << this->size());
-    return changes;
-}
-
-struct RegionAnalysisCapture
-{
-    // Relative to the subregion, not to the actual.
-    uintptr_t start; // Start is relative and inclusive.
-    uintptr_t size;  // ( start + size ) is not inclusive.
-    std::vector<MemoryRegionProperties>& results;
-};
-
-using RegionAnalysisFunction =
-    std::function<void(RegionAnalysisCapture)>;
-
-class RegionAnalysisThread : public std::thread
-{
-  private:
-    RegionAnalysisCapture m_capture;
-
-  public:
-    RegionAnalysisThread(RegionAnalysisCapture         capture,
-                         const RegionAnalysisFunction& func) :
-        std::thread(func, capture), m_capture(capture)
-    {
-    }
-};
-
-class RegionAnalysisThreadPool
-{
-  private:
-    size_t                            m_numThreads;
-    size_t                            m_overlap;
-    std::vector<RegionAnalysisThread> m_threadPool;
-    size_t                            m_totalResults;
-    const MemoryRegionProperties&     m_regionProperties;
-    std::vector<std::vector<MemoryRegionProperties>>
-         m_preliminaryResultsPool;
-
-    bool m_complete = false;
-
-  public:
-    std::vector<MemoryRegionProperties> m_resultsPool;
-    RegionAnalysisThreadPool(
-        size_t numThreads, size_t overlap,
-        const MemoryRegionProperties& properties) :
-        m_numThreads(numThreads), m_overlap(overlap),
-        m_regionProperties(properties),
-        m_preliminaryResultsPool(numThreads)
-    {
-        m_threadPool.reserve(numThreads);
-        m_totalResults = 0;
-    }
-
-    // WARNING: For the lambda, DO NOT USE A REFERENCE. Will need to fix by compositing
-    // the thread later.
-    // TODO: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    void startAllThreads(const RegionAnalysisFunction& func)
-    {
-        // Align to 64 bits. Allows for proper alignment for certain Data structures.
-        uintptr_t bytesPerThread =
-            ((m_regionProperties.regionSize / m_numThreads) / 8) * 8;
-        Log(Debug, "Bytes per thread: " << bytesPerThread);
-        Log(Debug, "Overlap: " << m_overlap);
-        for (size_t i = 0; i < m_numThreads; i++)
-        {
-            RegionAnalysisCapture capture = {
-                // Relative to the sub region.
-                .start   = i * bytesPerThread,
-                .size    = bytesPerThread + m_overlap,
-                .results = m_preliminaryResultsPool[i],
-            };
-
-            // Stupid fucking bounds
-            // BUG: Fix the stupid error with funky ass small regions.
-            // I do not have the energy to figure out if capture.start is
-            // Relative to the parent region or to the actual snapshotting region.
-            if (i == m_numThreads - 1)
-            {
-                capture.size =
-                    m_regionProperties.regionSize - capture.start;
-            }
-            Log(Debug, "Thread: " << i << " has started.");
-            Log(Debug,
-                "relative Start: " << std::hex << std::showbase
-                                   << capture.start);
-            Log(Debug,
-                "size: " << std::hex << std::showbase
-                         << capture.size);
-            Log(Debug,
-                "relative end: " << std::hex << std::showbase
-                                 << capture.start + capture.size);
-            Log(Debug,
-                "Actual Start: " << std::hex << std::showbase
-                                 << capture.start +
-                        m_regionProperties.getActualRegionStart());
-            Log(Debug,
-                "Actual end: " << std::hex << std::showbase
-                               << capture.start + capture.size +
-                        m_regionProperties.getActualRegionStart());
-
-            m_threadPool.push_back(
-                RegionAnalysisThread(capture, func));
-        }
-    }
-
-    void joinAllThreads()
-    {
-        m_totalResults = 0;
-        for (size_t i = 0; i < m_numThreads; i++)
-        {
-            m_threadPool[i].join();
-            m_totalResults += m_preliminaryResultsPool[i].size();
-        }
-    }
-
-    std::vector<MemoryRegionProperties>
-    consolidateResults(bool extendConnected = false,
-                       bool checkDuplicates = false)
-    {
-        Log(Debug,
-            "Total number of changes before consolidation: "
-                << m_totalResults);
-        for (size_t i = 0; i < m_numThreads; i++)
-        {
-            if (m_preliminaryResultsPool[i].size() == 0)
-            {
-                continue;
-            }
-            // I hate fucking bounds checking.
-            // makes my if statements look like shit.
-            for (const auto& r : m_preliminaryResultsPool[i])
-            {
-                if (extendConnected && m_resultsPool.size() > 0 &&
-                    m_resultsPool.back().relativeRegionStart +
-                            m_resultsPool.back().regionSize ==
-                        r.relativeRegionStart)
-                {
-                    m_resultsPool.back().regionSize += r.regionSize;
-                }
-                else if (checkDuplicates &&
-                         m_resultsPool.size() > 0 &&
-                         m_resultsPool.back().relativeRegionStart ==
-                             r.relativeRegionStart)
-                {
-                    continue;
-                }
-                else
-                {
-                    m_resultsPool.push_back(std::move(r));
-                };
-            }
-        }
-        return std::move(m_resultsPool);
-    }
-};
 
 // For 0xc0000000 bytes, comparison took 9.8 seconds ;) (with 10 threads and 8
 // byte comparisons)
-std::vector<MemoryRegionProperties>
+RegionPropertiesList
 RegionSnapshot::findChangedRegions(const RegionSnapshot& otherRegion,
                                    const uint32_t compareSize) const
 {
-    std::vector<MemoryRegionProperties> changes = {};
+    RegionPropertiesList changes = {};
     using namespace std::chrono;
     auto before = steady_clock::now().time_since_epoch();
 
@@ -338,19 +142,7 @@ RegionSnapshot::findChangedRegions(const RegionSnapshot& otherRegion,
         return changes;
     }
 
-    // Construct the pool's arguments.
-    // A pair giving the start(inclusive) and end(exclusive).
-    size_t numThreads = std::thread::hardware_concurrency() - 2;
-    // Defer to single thread to reduce multithreading overhead on smaller
-    // workloads
-    //                  1 Mb
-    if (this->size() < 1 << 20)
-    {
-        return this->findChangedRegionsSingleThread(otherRegion,
-                                                    compareSize);
-    }
-
-    RegionAnalysisThreadPool tp(numThreads, 0, regionProperties);
+    RegionAnalysisThreadPool tp(RegionAnalysisThreadPool::numThreads, 0, regionProperties);
 
     tp.startAllThreads(
         [&compareSize, &otherRegion,
@@ -398,28 +190,20 @@ RegionSnapshot::findChangedRegions(const RegionSnapshot& otherRegion,
 
     return changes;
 }
-std::vector<MemoryRegionProperties>
-RegionSnapshot::findUnchangedRegions(
+RegionPropertiesList RegionSnapshot::findUnchangedRegions(
     const RegionSnapshot& otherRegion,
     const uint32_t        compareSize) const
 {
-    size_t numThreads = NUMTHREADS;
-    // Defer to single thread to reduce multithreading overhead on smaller
-    // workloads
-    //                  1 Mb
-    if (this->size() < 1 << 20)
-    {
-        numThreads = 1;
-    }
 
     if (otherRegion.size() != this->size() ||
         this->size() != regionProperties.regionSize)
     {
         Log(Error, "Incomparable regions of differing size!!!");
-        return std::vector<MemoryRegionProperties>();
+        return RegionPropertiesList();
     }
 
-    RegionAnalysisThreadPool tp(numThreads, 0, regionProperties);
+    RegionAnalysisThreadPool tp(RegionAnalysisThreadPool::numThreads
+                                , 0, regionProperties);
 
     tp.startAllThreads(
         [&compareSize, &otherRegion,
@@ -458,12 +242,10 @@ RegionSnapshot::findUnchangedRegions(
     return tp.consolidateResults(true, false);
 }
 
-std::vector<MemoryRegionProperties>
+RegionPropertiesList
 RegionSnapshot::findStringLikeRegions(const size_t& minLength)
 {
-    RegionAnalysisThreadPool tp((this->size() < 1 << 20) ? 1 :
-                                                           NUMTHREADS,
-                                minLength, regionProperties);
+    RegionAnalysisThreadPool tp(NUMTHREADS, minLength, regionProperties);
 
     tp.startAllThreads(
         [this, minLength](RegionAnalysisCapture cap)
@@ -512,12 +294,9 @@ RegionSnapshot::findStringLikeRegions(const size_t& minLength)
     return tp.consolidateResults(true, true);
 }
 
-std::vector<MemoryRegionProperties>
-RegionSnapshot::findOf(const std::string& str)
+RegionPropertiesList RegionSnapshot::findOf(const std::string& str)
 {
-    RegionAnalysisThreadPool tp((this->size() < 1 << 20) ? 1 :
-                                                           NUMTHREADS,
-                                str.length(), regionProperties);
+    RegionAnalysisThreadPool tp(NUMTHREADS, str.length(), regionProperties);
 
     tp.startAllThreads(
         [&str, this](RegionAnalysisCapture cap)
@@ -551,11 +330,10 @@ RegionSnapshot::findOf(const std::string& str)
 constexpr static size_t ptrSize    = sizeof(uintptr_t);
 constexpr static size_t doubleSize = sizeof(double);
 
-std::vector<MemoryRegionProperties>
+RegionPropertiesList
 RegionSnapshot::findPointers(const uintptr_t& actualAddress)
 {
-    RegionAnalysisThreadPool tp(niceAmountOfThreads(this->size()),
-                                ptrSize, regionProperties);
+    RegionAnalysisThreadPool tp(NUMTHREADS, ptrSize, regionProperties);
 
     Log(Debug,
         "Looking for address: " << std::hex << std::showbase
@@ -583,9 +361,9 @@ RegionSnapshot::findPointers(const uintptr_t& actualAddress)
     return tp.consolidateResults(false, true);
 }
 
-std::vector<MemoryRegionProperties> RegionSnapshot::findPointerLikes()
+RegionPropertiesList RegionSnapshot::findPointerLikes()
 {
-    RegionAnalysisThreadPool tp(niceAmountOfThreads(this->size()), 0,
+    RegionAnalysisThreadPool tp(NUMTHREADS, 0,
                                 regionProperties);
 
     Log(Debug,
@@ -616,11 +394,11 @@ std::vector<MemoryRegionProperties> RegionSnapshot::findPointerLikes()
     tp.joinAllThreads();
     return tp.consolidateResults(false, false);
 }
-std::vector<MemoryRegionProperties>
+RegionPropertiesList
 RegionSnapshot::findLinkedList(const uintptr_t& memberAddress,
                                const uintptr_t& numHeaderBytes)
 {
-    std::vector<MemoryRegionProperties> result;
+    RegionPropertiesList result;
     // We are going to be generating a shit tonne of annoyign messages, so disable them.
     auto oldLogLevel      = Logger::m_logLevel;
     Logger::m_logLevel    = Message;
@@ -646,15 +424,23 @@ RegionSnapshot::findLinkedList(const uintptr_t& memberAddress,
         i++;
         // Ensure we don't fucking kill ourselves over a cyclic loop.
     } while (numPointers > 0 && i < maxIters);
+
     Logger::m_logLevel = oldLogLevel;
+    if (i >= maxIters)
+    {
+        Log(Warning,
+            "Maximum linked list traversal reached, traversed: "
+                << i << " times.");
+    }
 
     return result;
 }
-std::vector<MemoryRegionProperties>
+
+RegionPropertiesList
 RegionSnapshot::findDoubleLike(const double& lower,
                                const double& upper)
 {
-    RegionAnalysisThreadPool tp(niceAmountOfThreads(this->size()), 0,
+    RegionAnalysisThreadPool tp(NUMTHREADS, 0,
                                 regionProperties);
 
     tp.startAllThreads(

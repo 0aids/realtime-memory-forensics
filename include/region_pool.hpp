@@ -1,65 +1,60 @@
 // A pool of memory regions. A pool is just a vector of memory regions.
 // However allows access to multi-threading across a large amount of regions.
-#include <memory>
-#include <memory_region.hpp>
+#pragma once
+#include "memory_region.hpp"
+#include "region_properties.hpp"
 #include <vector>
+#include <functional>
+
+using RegionPoolCallback =
+    std::function<RegionPropertiesList(std::vector<MemoryRegion&>)>;
 
 // All search patterns will append to the region results history.
 class MemoryRegionPool
 {
   private:
-    MemoryRegion                      m_parentRegion;
-
+    // Most recent is at the back.
     std::vector<RegionPropertiesList> m_regionResultsHistory_l;
 
-    std::vector<MemoryRegion>         m_childRegions_l;
+    // Only represents the current state, which is the back of results history.
+    std::vector<MemoryRegion> m_memoryRegions_l;
+
+    // We don really care about the order which we get returned in anyways;
+    // Runs a threadpool to complete all of the smaller regions
+    // Takes in a callback function which receives a memory region; we can
+    // use that memory region to do whatever the fuck we want.
+    void threadSmallerRegions(RegionPoolCallback rpcb);
+
+    // Runs the larger regions sequentially, making use of the internal
+    // threading mechanism.
+    // Takes in a callback function which receives a memory region; we can
+    // use that memory region to do whatever the fuck we want.
+    void threadLargerRegions(RegionPoolCallback rpcb);
 
   public:
-    void snapshotParentRegion();
-
-    void findParentRegionStr(const std::string& str);
+    void findStrRegions(const std::string& str);
 
     // Must be the absolute value of the pointer;
     // finds all pointers which point to the given memory address.
-    void findParentRegionPtr(const uintptr_t& ptr);
+    void findPtrRegions(const uintptr_t& ptr);
 
     // Requires 2 snapshots.
-    void findParentRegionChanges();
+    void findChangedRegions(size_t numBytes);
 
     // Requires 2 snapshots.
-    void findParentRegionUnchanged();
+    void findUnchangedRegions(size_t numBytes);
 
-    void findParentRegionPtrlike();
+    void findPtrlikeRegions();
 
-    void findParentRegionStrlike();
+    void findStrlikeRegions();
 
-    void findParentRegionStruct(
-        const std::vector<StructProperties>& structProperties_l);
-
-  public:
-    void snapshotChildRegions();
-
-    void findChildRegionsStr(const std::string& str);
-
-    // Must be the absolute value of the pointer;
-    // finds all pointers which point to the given memory address.
-    void findChildRegionsPtr(const uintptr_t& ptr);
-
-    // Requires 2 snapshots.
-    void findChildRegionsChanged();
-
-    // Requires 2 snapshots.
-    void findChildRegionsUnchanged();
-
-    void findChildRegionsPtrlike();
-
-    void findChildRegionsStrlike();
-
-    void findChildRegionsStruct(
+    void findRegionsStruct(
         const std::vector<StructProperties>& structProperties_l);
 
   public:
     void makeRegionsFromLastResults();
+
+    void snapshotRegions();
 
     void clearResultsHistory();
 };

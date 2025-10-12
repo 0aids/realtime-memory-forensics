@@ -40,11 +40,11 @@ int main()
         tempMr.m_regionProperties.regionSize += 24;
         tempMr.snapshot();
         auto tempLastSnap = tempMr.getLastSnapshot();
-        cout << "Contents: \n" << tempLastSnap->toStr() << endl;
+        cerr << "Contents: \n" << tempLastSnap->toStr() << endl;
         auto linkers = lastSnap->findLinkedList(
-            ptrlikes[i].getActualRegionStart(), 16);
+            ptrlikes[i].getActualRegionStart(), 8);
         total += linkers.size();
     }
-    cout << "Number of linkers: " << total << endl;
+    cerr << "Number of linkers: " << total << endl;
     assert(total > 0, "There is a linked list in there somewhere...");
 }

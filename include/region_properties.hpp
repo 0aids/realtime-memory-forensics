@@ -69,6 +69,9 @@ class RegionPropertiesList
     // If it doesn't exist, will return empty optional.
     std::optional<MemoryRegionProperties>
     getRegionWithName(const std::string_view& name);
+
+    RegionPropertiesList
+    getRegionsWithSubstrName(const std::string_view& name);
 };
 
 std::ostream& operator<<(std::ostream&                 os,
