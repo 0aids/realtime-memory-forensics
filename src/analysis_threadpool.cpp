@@ -20,6 +20,8 @@ RegionAnalysisThreadPool::RegionAnalysisThreadPool(
 void RegionAnalysisThreadPool::startAllThreads(
     const RegionAnalysisFunction& func)
 {
+    // if (m_regionProperties.regionSize < 1 << 30)
+    //     m_numThreads = 1;
     // Align to 64 bits. Allows for proper alignment for certain Data structures.
     uintptr_t bytesPerThread =
         ((m_regionProperties.regionSize / m_numThreads) / 8) * 8;
@@ -84,12 +86,17 @@ void RegionAnalysisThreadPool::joinAllThreads()
     }
 }
 
-RegionPropertiesList RegionAnalysisThreadPool::consolidateResults(
-    bool extendConnected, bool checkDuplicates)
+RegionPropertiesList
+RegionAnalysisThreadPool::consolidateResults(bool extendConnected,
+                                             bool checkDuplicates)
 {
     Log(Debug,
         "Total number of changes before consolidation: "
             << m_totalResults);
+    Log(Debug, 
+    "Extend connected: " << (extendConnected ? "true" : "false"));
+    Log(Debug, 
+    "Check duplicates: " << (checkDuplicates ? "true" : "false"));
     for (size_t i = 0; i < m_numThreads; i++)
     {
         if (m_preliminaryResultsPool[i].size() == 0)
@@ -100,6 +107,16 @@ RegionPropertiesList RegionAnalysisThreadPool::consolidateResults(
         // makes my if statements look like shit.
         for (const auto& r : m_preliminaryResultsPool[i])
         {
+            // if (m_resultsPool.size() > 0)
+            // {
+            //     Log(Debug,
+            //         "last region end: "
+            //             << m_resultsPool.back().relativeRegionStart +
+            //                 m_resultsPool.back().regionSize);
+            //     Log(Debug,
+            //         "Current region start: "
+            //             << r.relativeRegionStart + r.regionSize);
+            // }
             if (extendConnected && m_resultsPool.size() > 0 &&
                 m_resultsPool.back().relativeRegionStart +
                         m_resultsPool.back().regionSize ==
@@ -111,6 +128,7 @@ RegionPropertiesList RegionAnalysisThreadPool::consolidateResults(
                      m_resultsPool.back().relativeRegionStart ==
                          r.relativeRegionStart)
             {
+                Log(Debug, "Found duplicate!");
                 continue;
             }
             else
@@ -119,5 +137,8 @@ RegionPropertiesList RegionAnalysisThreadPool::consolidateResults(
             };
         }
     }
+
+    Log(Debug,
+        "Total number after consolidation: " << m_resultsPool.size());
     return std::move(m_resultsPool);
 }

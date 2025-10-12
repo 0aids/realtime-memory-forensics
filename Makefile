@@ -43,16 +43,16 @@ tests:    $(TESTEXEFILES) $(OFILES_FOR_TEST)
 
 
 build/tests/% : build/tests/%.o $(OFILES_FOR_TEST)
-	mkdir -p build/tests
+	@mkdir -p build/tests
 	$(CXX) $(INCLUDES) $(OPT) $(DEPFLAGS) $(CCSTD) $(LIBFLAGS) $(CXXFLAGS) -o $@ $^
 
 build/tests/%.o: tests/%.cpp
-	mkdir -p build/tests
+	@mkdir -p build/tests
 	$(CXX) $(INCLUDES) $(OPT) $(DEPFLAGS) $(CCSTD) $(LIBFLAGS) $(CXXFLAGS) -c -o $@ $<
 
 
 build/src/%.o : src/%.cpp
-	mkdir -p build/`dirname $<`
+	@mkdir -p build/`dirname $<`
 	$(CXX) $(INCLUDES) $(OPT) $(DEPFLAGS) $(CCSTD) $(CXXFLAGS) -c -o $@ $< 
 	
 

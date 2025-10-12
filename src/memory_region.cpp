@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include "threadpoolv2.hpp"
 #include <functional>
 #include <memory>
 #include <string>
@@ -16,6 +17,80 @@ extern "C"
 #include <bits/types/struct_iovec.h>
 #include <sys/uio.h>
 }
+
+
+struct NewAnalysisCapture {
+    uintptr_t start;
+    uintptr_t size;
+    std::vector<MemoryRegionProperties> &results;
+};
+
+using DiscrimnatorFunc = ThreadPool<MemoryRegionProperties, NewAnalysisCapture>::DiscriminatorFunc;
+using PerThreadFunc = ThreadPool<MemoryRegionProperties, NewAnalysisCapture>::PerThreadFunc;
+using ConsolidateDiscriminatorFunc =
+    ThreadPool<MemoryRegionProperties,
+               NewAnalysisCapture>::ConsolidateDiscriminatorFunc;
+
+DiscrimnatorFunc generateDefaultDiscriminator(
+    uintptr_t overlap,
+    const MemoryRegionProperties& regionProperties, 
+    size_t numThreads
+)
+{
+    uintptr_t bytesPerThread =
+        ((regionProperties.regionSize / numThreads) / 8) * 8;
+    return [bytesPerThread, overlap, numThreads, &regionProperties ](
+               ssize_t                              index,
+               std::vector<MemoryRegionProperties>& results_l)
+               -> NewAnalysisCapture
+    {
+        NewAnalysisCapture capture = {
+            // Relative to the sub region.
+            .start   = index * bytesPerThread,
+            .size    = bytesPerThread + overlap,
+            .results = results_l,
+        };
+
+        if (static_cast<size_t>(index) == numThreads - 1)
+        {
+            capture.size =
+                regionProperties.regionSize - capture.start;
+        }
+
+        return capture;
+    };
+}
+
+
+ConsolidateDiscriminatorFunc
+generateConsolidateDiscriminatorFunc(bool extendConnected = false,
+                                     bool checkDuplicates = false)
+{
+    return [extendConnected, checkDuplicates](MemoryRegionProperties &current, MemoryRegionProperties &last)->bool
+    {
+        Log(Debug, "Last relative region start: " << last.relativeRegionStart);
+        Log(Debug, "Last relative region end: " << last.relativeRegionStart + last.regionSize);
+        Log(Debug, "Current relative region start: " << current.relativeRegionStart);
+        if (extendConnected &&
+            last.relativeRegionStart +
+                    last.regionSize ==
+                current.relativeRegionStart)
+        {
+            last.regionSize += current.regionSize;
+            return false;
+        }
+        else if (checkDuplicates && last.relativeRegionStart ==
+                     current.relativeRegionStart)
+        {
+            return false;
+        }
+        else
+        {
+            return true;
+        };
+    };
+};
+
 
 std::string RegionSnapshot::toStr() const
 {
@@ -142,11 +217,12 @@ RegionSnapshot::findChangedRegions(const RegionSnapshot& otherRegion,
         return changes;
     }
 
-    RegionAnalysisThreadPool tp(RegionAnalysisThreadPool::numThreads, 0, regionProperties);
-
-    tp.startAllThreads(
-        [&compareSize, &otherRegion,
-         this](RegionAnalysisCapture capture)
+    // World's worst constructor.
+    ThreadPool<MemoryRegionProperties, NewAnalysisCapture> tpv2(
+        generateDefaultDiscriminator(0, this->regionProperties,
+                                     niceNumThreads),
+        [this, &compareSize,
+         &otherRegion](const NewAnalysisCapture capture)
         {
             size_t size    = capture.size;
             size_t current = capture.start;
@@ -178,9 +254,17 @@ RegionSnapshot::findChangedRegions(const RegionSnapshot& otherRegion,
                 }
                 current += csize;
             }
-        });
-    tp.joinAllThreads();
-    changes = tp.consolidateResults(true);
+        },
+        niceNumThreads);
+    // End of world's worst constructor
+
+    tpv2.startThreads();
+    tpv2.joinThreads();
+    // ??? Apparently the static_cast fixes the stupid conversion?
+    // They are literally the inherited type you fucking piece of shit.
+    changes =
+        static_cast<RegionPropertiesList>(tpv2.consolidateResults(
+            generateConsolidateDiscriminatorFunc(true, false)));
 
     Log(Message,
         "Time taken for finding changes: "
@@ -190,6 +274,7 @@ RegionSnapshot::findChangedRegions(const RegionSnapshot& otherRegion,
 
     return changes;
 }
+
 RegionPropertiesList RegionSnapshot::findUnchangedRegions(
     const RegionSnapshot& otherRegion,
     const uint32_t        compareSize) const
@@ -202,37 +287,34 @@ RegionPropertiesList RegionSnapshot::findUnchangedRegions(
         return RegionPropertiesList();
     }
 
-    RegionAnalysisThreadPool tp(RegionAnalysisThreadPool::numThreads
-                                , 0, regionProperties);
+    RegionAnalysisThreadPool tp(RegionAnalysisThreadPool::numThreads,
+                                0, regionProperties);
 
     tp.startAllThreads(
         [&compareSize, &otherRegion,
          this](RegionAnalysisCapture capture)
         {
-            for (size_t i = 0; i < capture.size / compareSize; ++i)
+            size_t numIters = capture.size / compareSize;
+            for (size_t i = 0; i < numIters; i++)
             {
-                if (!memcmp(this->data() + (i * compareSize),
-                            otherRegion.data() + (i * compareSize),
-                            compareSize))
+                size_t offset = capture.start + i * compareSize; 
+                size_t csize = (i == numIters - 1) ?
+                	capture.start + capture.size - offset : compareSize;
+                if (!memcmp(this->data() + offset, otherRegion.data() + offset,
+                            csize))
                 {
                     if (capture.results.size() > 0 &&
                         capture.results.back().relativeRegionStart +
                                 capture.results.back().regionSize ==
-                            i * compareSize)
+                            offset)
                     {
-                        capture.results.back().regionSize +=
-                            compareSize;
+                        capture.results.back().regionSize += compareSize;
+                    } else {
+                        MemoryRegionProperties prop = this->regionProperties;
+                        prop.relativeRegionStart = offset;
+                        prop.regionSize = csize;
+                        capture.results.push_back(prop);
                     }
-                    else
-                    {
-                        auto newRegionProperties =
-                            this->regionProperties;
-                        newRegionProperties.regionSize = compareSize;
-                        newRegionProperties.relativeRegionStart =
-                            i * compareSize;
-                        capture.results.push_back(
-                            std::move(newRegionProperties));
-                    };
                 }
             }
         });
