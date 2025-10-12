@@ -6,8 +6,12 @@
 #include <vector>
 #include <functional>
 
+struct SmallRegionCapture {
+
+};
+
 using RegionPoolCallback =
-    std::function<RegionPropertiesList(std::vector<MemoryRegion&>)>;
+    std::function<void(SmallRegionCapture)>;
 
 // All search patterns will append to the region results history.
 class MemoryRegionPool

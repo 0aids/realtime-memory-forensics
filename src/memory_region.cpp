@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <cstring>
 #include "threadpoolv2.hpp"
-#include <functional>
 #include <memory>
 #include <string>
 #include <thread>
@@ -18,28 +17,29 @@ extern "C"
 #include <sys/uio.h>
 }
 
-
-struct NewAnalysisCapture {
-    uintptr_t start;
-    uintptr_t size;
-    std::vector<MemoryRegionProperties> &results;
+struct NewAnalysisCapture
+{
+    uintptr_t                            start;
+    uintptr_t                            size;
+    std::vector<MemoryRegionProperties>& results;
 };
 
-using DiscrimnatorFunc = ThreadPool<MemoryRegionProperties, NewAnalysisCapture>::DiscriminatorFunc;
-using PerThreadFunc = ThreadPool<MemoryRegionProperties, NewAnalysisCapture>::PerThreadFunc;
+using DiscrimnatorFunc =
+    ThreadPool<MemoryRegionProperties,
+               NewAnalysisCapture>::DiscriminatorFunc;
+using PerThreadFunc = ThreadPool<MemoryRegionProperties,
+                                 NewAnalysisCapture>::PerThreadFunc;
 using ConsolidateDiscriminatorFunc =
     ThreadPool<MemoryRegionProperties,
                NewAnalysisCapture>::ConsolidateDiscriminatorFunc;
 
 DiscrimnatorFunc generateDefaultDiscriminator(
-    uintptr_t overlap,
-    const MemoryRegionProperties& regionProperties, 
-    size_t numThreads
-)
+    uintptr_t overlap, const MemoryRegionProperties& regionProperties,
+    size_t numThreads)
 {
     uintptr_t bytesPerThread =
         ((regionProperties.regionSize / numThreads) / 8) * 8;
-    return [bytesPerThread, overlap, numThreads, &regionProperties ](
+    return [bytesPerThread, overlap, numThreads, &regionProperties](
                ssize_t                              index,
                std::vector<MemoryRegionProperties>& results_l)
                -> NewAnalysisCapture
@@ -61,25 +61,32 @@ DiscrimnatorFunc generateDefaultDiscriminator(
     };
 }
 
-
 ConsolidateDiscriminatorFunc
 generateConsolidateDiscriminatorFunc(bool extendConnected = false,
                                      bool checkDuplicates = false)
 {
-    return [extendConnected, checkDuplicates](MemoryRegionProperties &current, MemoryRegionProperties &last)->bool
+    return [extendConnected,
+            checkDuplicates](MemoryRegionProperties& current,
+                             MemoryRegionProperties& last) -> bool
     {
-        Log(Debug, "Last relative region start: " << last.relativeRegionStart);
-        Log(Debug, "Last relative region end: " << last.relativeRegionStart + last.regionSize);
-        Log(Debug, "Current relative region start: " << current.relativeRegionStart);
+        Log(Debug,
+            "Last relative region start: "
+                << last.relativeRegionStart);
+        Log(Debug,
+            "Last relative region end: " << last.relativeRegionStart +
+                    last.regionSize);
+        Log(Debug,
+            "Current relative region start: "
+                << current.relativeRegionStart);
         if (extendConnected &&
-            last.relativeRegionStart +
-                    last.regionSize ==
+            last.relativeRegionStart + last.regionSize ==
                 current.relativeRegionStart)
         {
             last.regionSize += current.regionSize;
             return false;
         }
-        else if (checkDuplicates && last.relativeRegionStart ==
+        else if (checkDuplicates &&
+                 last.relativeRegionStart ==
                      current.relativeRegionStart)
         {
             return false;
@@ -90,7 +97,6 @@ generateConsolidateDiscriminatorFunc(bool extendConnected = false,
         };
     };
 };
-
 
 std::string RegionSnapshot::toStr() const
 {
@@ -115,6 +121,7 @@ MemoryRegion::MemoryRegion(MemoryRegionProperties properties,
     // nothing
 }
 
+// Could add multithreading, but it might just be bottlenecked by memory speed.
 bool MemoryRegion::snapshot()
 {
     using namespace std::chrono;
@@ -138,8 +145,12 @@ bool MemoryRegion::snapshot()
                                  << startAddr);
     Log(Debug, "Size: " << std::showbase << std::hex << size);
     Log(Debug, "perms: " << permissionsMaskToString(perms));
-    int64_t      totalBytesRead = 0;
-    const size_t chunks         = 1 << 24;
+    int64_t totalBytesRead = 0;
+
+    // Chunks exist because of the shitty thing
+    // where process_vm_readv has a maximum size
+    // that it can read.
+    const size_t chunks = 1 << 24;
     Log(Debug, "Chunk size: " << chunks);
 
     auto beforeTime = steady_clock::now().time_since_epoch();
@@ -197,8 +208,6 @@ SP_RegionSnapshot MemoryRegion::getLastSnapshot() const
 {
     return m_snapshots_l.back();
 }
-
-
 
 // For 0xc0000000 bytes, comparison took 9.8 seconds ;) (with 10 threads and 8
 // byte comparisons)
@@ -272,7 +281,7 @@ RegionSnapshot::findChangedRegions(const RegionSnapshot& otherRegion,
                    steady_clock::now().time_since_epoch() - before));
     Log(Message, "Number of bytes compared: " << this->size());
 
-    return changes;
+    return std::move(changes);
 }
 
 RegionPropertiesList RegionSnapshot::findUnchangedRegions(
@@ -287,56 +296,61 @@ RegionPropertiesList RegionSnapshot::findUnchangedRegions(
         return RegionPropertiesList();
     }
 
-    RegionAnalysisThreadPool tp(RegionAnalysisThreadPool::numThreads,
-                                0, regionProperties);
-
-    tp.startAllThreads(
-        [&compareSize, &otherRegion,
-         this](RegionAnalysisCapture capture)
+    ThreadPool<MemoryRegionProperties, NewAnalysisCapture> tp(
+        generateDefaultDiscriminator(0, this->regionProperties,
+                                     niceNumThreads),
+        [&compareSize, &otherRegion, this](NewAnalysisCapture capture)
         {
             size_t numIters = capture.size / compareSize;
             for (size_t i = 0; i < numIters; i++)
             {
-                size_t offset = capture.start + i * compareSize; 
-                size_t csize = (i == numIters - 1) ?
-                	capture.start + capture.size - offset : compareSize;
-                if (!memcmp(this->data() + offset, otherRegion.data() + offset,
-                            csize))
+                size_t offset = capture.start + i * compareSize;
+                size_t csize  = (i == numIters - 1) ?
+                     capture.start + capture.size - offset :
+                     compareSize;
+                if (!memcmp(this->data() + offset,
+                            otherRegion.data() + offset, csize))
                 {
                     if (capture.results.size() > 0 &&
                         capture.results.back().relativeRegionStart +
                                 capture.results.back().regionSize ==
                             offset)
                     {
-                        capture.results.back().regionSize += compareSize;
-                    } else {
-                        MemoryRegionProperties prop = this->regionProperties;
+                        capture.results.back().regionSize +=
+                            compareSize;
+                    }
+                    else
+                    {
+                        MemoryRegionProperties prop =
+                            this->regionProperties;
                         prop.relativeRegionStart = offset;
-                        prop.regionSize = csize;
+                        prop.regionSize          = csize;
                         capture.results.push_back(prop);
                     }
                 }
             }
-        });
+        },
+        niceNumThreads);
 
-    tp.joinAllThreads();
-    // Check duplicates is only really for overlaps.
-    return tp.consolidateResults(true, false);
+    // I must be stupid because I somehow forgot to do this.
+    tp.startThreads();
+    tp.joinThreads();
+
+    return static_cast<RegionPropertiesList>(tp.consolidateResults(
+        generateConsolidateDiscriminatorFunc(true, false)));
 }
 
 RegionPropertiesList
 RegionSnapshot::findStringLikeRegions(const size_t& minLength)
 {
-    RegionAnalysisThreadPool tp(NUMTHREADS, minLength, regionProperties);
-
-    tp.startAllThreads(
-        [this, minLength](RegionAnalysisCapture cap)
+    ThreadPool<MemoryRegionProperties, NewAnalysisCapture> tp(
+        generateDefaultDiscriminator(0, regionProperties,
+                                     niceNumThreads),
+        [this, minLength](NewAnalysisCapture cap)
         {
             for (uintptr_t i = 0; i < cap.size; i++)
             {
                 uintptr_t memoryPointer = i;
-                // Log(Debug, "I: " << i);
-                // Log(Debug, "cap: " << cap.size);
 
                 if (this->at(memoryPointer) - 31 > 0)
                 {
@@ -345,18 +359,10 @@ RegionSnapshot::findStringLikeRegions(const size_t& minLength)
                                 cap.results.back().regionSize ==
                             memoryPointer)
                     {
-                        // Log(Message, "Found consecutive stringlike");
                         cap.results.back().regionSize++;
                     }
                     else
                     {
-                        // Log(Message, "Found new stringlike");
-                        // if (stringLike.size() > 0)
-                        //     Log(Debug,
-                        //         "I: " << i << "\tstart: "
-                        //               << stringLike.back().regionStart
-                        //               << "\tsize: "
-                        //               << stringLike.back().regionSize);
                         auto rp       = this->regionProperties;
                         rp.regionSize = 1;
                         rp.relativeRegionStart = i;
@@ -366,19 +372,22 @@ RegionSnapshot::findStringLikeRegions(const size_t& minLength)
                 else if (cap.results.size() > 0 &&
                          cap.results.back().regionSize < minLength)
                 {
-                    // Log(Debug, "Popping back due to insufficient size");
                     cap.results.pop_back();
                 }
             }
-        });
+        },
+        niceNumThreads);
 
-    tp.joinAllThreads();
-    return tp.consolidateResults(true, true);
+    tp.startThreads();
+    tp.joinThreads();
+    return static_cast<RegionPropertiesList>(tp.consolidateResults(
+        generateConsolidateDiscriminatorFunc(true, true)));
 }
 
 RegionPropertiesList RegionSnapshot::findOf(const std::string& str)
 {
-    RegionAnalysisThreadPool tp(NUMTHREADS, str.length(), regionProperties);
+    RegionAnalysisThreadPool tp(NUMTHREADS, str.length(),
+                                regionProperties);
 
     tp.startAllThreads(
         [&str, this](RegionAnalysisCapture cap)
@@ -415,7 +424,8 @@ constexpr static size_t doubleSize = sizeof(double);
 RegionPropertiesList
 RegionSnapshot::findPointers(const uintptr_t& actualAddress)
 {
-    RegionAnalysisThreadPool tp(NUMTHREADS, ptrSize, regionProperties);
+    RegionAnalysisThreadPool tp(NUMTHREADS, ptrSize,
+                                regionProperties);
 
     Log(Debug,
         "Looking for address: " << std::hex << std::showbase
@@ -445,11 +455,11 @@ RegionSnapshot::findPointers(const uintptr_t& actualAddress)
 
 RegionPropertiesList RegionSnapshot::findPointerLikes()
 {
-    RegionAnalysisThreadPool tp(NUMTHREADS, 0,
-                                regionProperties);
+    RegionAnalysisThreadPool tp(NUMTHREADS, 0, regionProperties);
 
     Log(Debug,
-        "Searching for ptrlike structures, anything that points to "
+        "Searching for ptrlike structures, anything that points "
+        "to "
         "something within this region.");
     uintptr_t low  = regionProperties.getActualRegionStart();
     uintptr_t high = low + regionProperties.regionSize;
@@ -476,6 +486,7 @@ RegionPropertiesList RegionSnapshot::findPointerLikes()
     tp.joinAllThreads();
     return tp.consolidateResults(false, false);
 }
+
 RegionPropertiesList
 RegionSnapshot::findLinkedList(const uintptr_t& memberAddress,
                                const uintptr_t& numHeaderBytes)
@@ -495,7 +506,8 @@ RegionSnapshot::findLinkedList(const uintptr_t& memberAddress,
         if (numPointers > 1)
         {
             Log(Warning,
-                "Found more than 1 pointer linking back, only using "
+                "Found more than 1 pointer linking back, only "
+                "using "
                 "the first one found.");
         }
         if (numPointers > 0)
@@ -522,8 +534,7 @@ RegionPropertiesList
 RegionSnapshot::findDoubleLike(const double& lower,
                                const double& upper)
 {
-    RegionAnalysisThreadPool tp(NUMTHREADS, 0,
-                                regionProperties);
+    RegionAnalysisThreadPool tp(NUMTHREADS, 0, regionProperties);
 
     tp.startAllThreads(
         [this, &lower, &upper](RegionAnalysisCapture cap)

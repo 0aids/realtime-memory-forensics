@@ -1,4 +1,5 @@
 #include "memory_region.hpp"
+#include "threadpoolv2.hpp"
 #include "region_pool.hpp"
 #include "analysis_threadpool.hpp"
 #include "log.hpp"
@@ -12,6 +13,12 @@ extern "C"
 #include <bits/types/struct_iovec.h>
 #include <sys/uio.h>
 }
+
+static inline auto SmallRegionDiscriminator =
+    [](ssize_t i, std::vector<MemoryRegionProperties>&rl) -> SmallRegionCapture {
+        return {};
+    };
+static constexpr auto SmallRegionConsolidator = []() {};
 
 void MemoryRegionPool::threadSmallerRegions(RegionPoolCallback rpcb)
 {
@@ -38,7 +45,12 @@ void MemoryRegionPool::threadSmallerRegions(RegionPoolCallback rpcb)
     // Each thread will:
     // Get a list of memory regions that it needs to complete
     // Collate these results into an internal buffer.
-    RegionAnalysisThreadPool tp(RegionAnalysisThreadPool::numThreads, 0, {});
+    ThreadPool<MemoryRegionProperties, SmallRegionCapture> tp(
+        // Some god awful shit in here.
+        SmallRegionDiscriminator,
+        rpcb,
+        niceNumThreads
+    );
 
 
     // Afterwards we will collate all those results into another final vector.

@@ -27,12 +27,18 @@ template
 >
 class ThreadPool {
     public:
+        // A function that receives an index, and a reference to a list of the return types,
+        // which should use to create the inputs for each of the functions run by a thread.
         using DiscriminatorFunc = std::function<InputType(ssize_t index, std::vector<ResultType> &results_l)>;
+
+        // A function which receives an input created by the Discriminator function.
+        // All the data necessary must either be incorporated into the Input struct,
+        // or the lambda capture.
         using PerThreadFunc = std::function<void(InputType inputStruct)>;
 
         // Should return true if we want to add the current for consolidation
         // Otherwise returns false.
-        // This function can modify the last result if need be.
+        // This function _CAN_ modify the last result if need be.
         using ConsolidateDiscriminatorFunc = std::function<bool(ResultType &current, ResultType &last)>;
 
     private:

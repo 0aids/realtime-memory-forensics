@@ -81,6 +81,7 @@ int main()
     assert(
         unchanging.size() == 1,
         "Non-changing region should be a contiguous single output");
+    Log(Message, "Unchanging size: " << unchanging.back().regionSize);
 
     // Find the region that is changing.
     Log(Debug, "Finding a regions that are changing");
