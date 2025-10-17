@@ -1,6 +1,8 @@
 #include "tests.hpp"
 
 
+#include <sys/resource.h>
+#include "logs.hpp"
 #include "tests.hpp"
 #include <fstream>
 #include <iostream>
@@ -56,9 +58,9 @@ __attribute__((optimize("O0"))) void sampleProcess()
     char          extrashit[] = "This is some extra shit";
     volatile char i[]         = "ALL HAIL THE!!!";
     volatile char j[]         = "A FASTER!!!";
-    string*       randomthing = new string("small string");
-    double*       doubleVal   = new double(150);
-    auto          list = new std::list<char>{'a', 'b', 'c', 'd'};
+    volatile string*       randomthing = new string("small string");
+    volatile double*       doubleVal   = new double(150);
+    volatile auto          list = new std::list<char>{'a', 'b', 'c', 'd'};
     cerr << "randomthing address: " << std::hex << std::showbase
          << &randomthing << endl;
     cerr << "linked list address: " << std::hex << std::showbase
@@ -112,6 +114,7 @@ __attribute__((optimize("O0"))) void sampleProcess()
         "auctor erat sed pellentesque tempor. Etiam at congue ante. "
         "Pellentesque ");
     size_t iterations = 0;
+    volatile size_t *dumb = new size_t(0);
     while (true)
     {
         iterations++;
@@ -121,6 +124,7 @@ __attribute__((optimize("O0"))) void sampleProcess()
             i[0] = (i[0] - 64) % 26 + 65;
         }
         j[0] = (i[0] - 64) % 26 + 65;
+        *dumb += 1;
     }
     delete randomthing;
     delete otherrandomshit;
@@ -160,6 +164,10 @@ pid_t runSampleProcess()
         if (prctl(PR_SET_PDEATHSIG, SIGKILL) == -1) {
             perror("prctl failed");
             exit(EXIT_FAILURE);
+        }
+        int ret = setpriority(PRIO_PROCESS, 0, -20); // higher priority (lower nice value)
+        if (!ret) {
+            Log(Warning, "Failed to change forked process priority!");
         }
         sampleProcess();
         _exit(127);

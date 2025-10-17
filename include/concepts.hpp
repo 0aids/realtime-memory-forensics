@@ -40,7 +40,9 @@ concept Consolidatable = requires(
     {
         consolidater.consolidate()
     } -> ReturnsTOrConstT<OutputType>;
-};
+} 
+// && std::same_as<typename OutputType::Consolidator::builders, std::vector<typename OutputType::Builder>>
+;
 
 template <typename OutputType>
 concept BuildableAndConsolidatable = Consolidatable<OutputType> && Buildable<OutputType>;

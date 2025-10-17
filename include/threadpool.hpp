@@ -47,17 +47,24 @@ struct BuildJob
     // Forward any arguments required to build.
     template <typename... Args>
     BuildJob(Args&&... args) : build(std::forward<Args>(args)...){};
+
+    // Or just make use of a reference to another build.
+    BuildJob(ResultType::Builder &build) : build(build) {};
 };
 
+// A consolidator must provide a list named builders, containing the builders.
 template <BuildableAndConsolidatable ResultType>
 struct ConsolidateJob
 {
     ResultType::Consolidator consolidator;
 
-    ResultType consolidate();
+    // Collates each of the results from the consolidator.
+    inline ResultType consolidate() {
+        return consolidator.consolidate();
+    }
 
-    // template <typename... Args>
-    // ConsolidateJob() = default; 
+    template <typename... Args>
+    ConsolidateJob(Args... args);
 };
 
 using ThreadPoolTask = std::function<void()>;

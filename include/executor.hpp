@@ -69,14 +69,28 @@ template <typename CoreFuncType,
           BuildableAndConsolidatable OutputType,
           typename... CoreInputs, typename... BuildInputs>
     requires Buildable<OutputType> && Consolidatable<OutputType>
-// N to N to 1 (Last conversion is not on main thread).
+// ? to ? to 1 (Last conversion is not on main thread).
 OutputType
-makeGenericConsolidateMT(ThreadPool& tp, BuildJob<OutputType>& job,
+makeGenericConsolidateMT(ThreadPool& tp, ConsolidateJob<OutputType> consolidator,
                          std::vector<MemoryPartition> parts,
                          CoreFuncType                 coreFunc,
-                         CoreInputs... coreInputs)
+                         CoreInputs&... coreInputs)
 {
-    // Requires the consolidator concept
+    for (size_t i = 0; i < consolidator.consolidator.builders.size(); i++) 
+    {
+        tp.submitTask([
+                      &builder = consolidator.consolidator.builders[i],
+                      &part = parts[i],
+                      coreFunc,
+                      &coreInputs...]
+              ()
+              {
+                  coreFunc(builder, part, std::forward<CoreInputs>(coreInputs)...);
+              });
+    }
+    tp.joinTasks();
+
+    return consolidator.consolidate();
 }
 
 // Reference for a buildable and or consolidatable structure
@@ -96,6 +110,7 @@ struct OutputType {
 
         // For some certain things, you would ensure that
         // a certain vector is resized correctly (for threading).
+        // This is done by giving the builder some arguments.
         Builder(BuilderArgs... args);
 
         // Complete the type.
@@ -105,10 +120,17 @@ struct OutputType {
         };
     };
 
+    template <typename... ConsolidatorArgs>
     struct Consolidator {
         // The main purpose of the consolidator is to consolidate multiple builds
         // required by core functions that are special - They have an unknown amount
         // of return values in a vector.
+        std::vector<OutputType::Builder> builders;
+        OutputType consolidate();
+
+        // The constructor can take in args that it uses to build the builders.
+        Consolidator(ConsolidatorArgs... args);
+
     };
 };
 

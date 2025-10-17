@@ -170,37 +170,12 @@ RegionPropertiesList findChangedRegionsMT(const MemorySnapshot& snap1,
                                           uintptr_t compareSize)
 {
     // This one is a structure supports the BuildConsolidator concept.
-    std::vector<MemoryRegionProperties> result;
-    std::vector<BuildJob<RegionPropertiesList>> builders;
-    builders.resize(tp.numThreads());
     auto parts =
         makeMemoryPartitions(snap1.regionProperties, tp.numThreads());
+    ConsolidateJob<RegionPropertiesList> cJob;
 
-    for (size_t i = 0; i < tp.numThreads(); i++)
-    {
-        auto &builder = builders[i];
-        auto &part = parts[i];
-        tp.submitTask(
-            [&builder, &part, &snap1, &snap2, &compareSize]()
-            {
-                findChangedRegionsCore(builder,
-                                       part,
-                                       snap1, snap2,
-                                       compareSize);
-            });
-    }
-    tp.joinTasks();
-    // Now need to consolidate...
-    for (auto &builder : builders) 
-    {
-        auto buildResult = builder.getResult();
-        result.reserve(result.size() + buildResult.size());
-
-        std::copy(std::make_move_iterator(buildResult.begin()),
-                  std::make_move_iterator(buildResult.end()),
-                  std::back_inserter(result));
-    }
-    return RegionPropertiesList(std::move(result));
+    return makeGenericConsolidateMT(tp, cJob, parts, findChangedRegionsCore, 
+                            snap1, snap2, compareSize);
 }
 
 std::vector<MemorySnapshot>

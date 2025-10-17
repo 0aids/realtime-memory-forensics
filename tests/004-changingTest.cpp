@@ -10,6 +10,7 @@ int main()
     using namespace std::chrono;
 
     auto pid = runSampleProcess();
+    this_thread::sleep_for(500ms);
     auto map = readMapsFromPid(pid);
     assert(map.size() > 0, "There should be regions inside the map");
 
@@ -17,15 +18,15 @@ int main()
     size_t iter = 0;
 
     // Quickly perform the raw check for the changing region
-    // (usually UnnamedRegion-3)
     {
         bool   foundChanging = false;
-        size_t maxIter       = map.size() - 10;
+        size_t maxIter       = map.size();
 
         for (const auto& props : map)
         {
+            // if (props.regionName != "UnnamedRegion-3") continue;
             MemorySnapshot mp1 = makeSnapshotST(props);
-            this_thread::sleep_for(50ms);
+            this_thread::sleep_for(10ms);
             MemorySnapshot mp2 = makeSnapshotST(props);
 
             BuildJob<RegionPropertiesList> build;
@@ -56,9 +57,9 @@ int main()
             "There should be a changing region somewhere there...");
     }
     {
-        ThreadPool     tp(12);
+        ThreadPool     tp(10);
         MemorySnapshot mp1 = makeSnapshotST(map[iter]);
-        this_thread::sleep_for(50ms);
+        this_thread::sleep_for(10ms);
         MemorySnapshot       mp2 = makeSnapshotST(map[iter]);
         RegionPropertiesList changingRegions =
             findChangedRegionsMT(mp1, mp2, tp, 8);

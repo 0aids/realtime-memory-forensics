@@ -1,7 +1,6 @@
 #ifndef maps_hpp_INCLUDED
 #define maps_hpp_INCLUDED
 
-#include <memory_resource>
 #include <ostream>
 #include <string_view>
 #include <cstdint>
@@ -88,9 +87,23 @@ class RegionPropertiesList
 
         RegionPropertiesList consolidate() 
         {
-            // for (auto &builder : builders ) {
-            // } 
+            std::vector<MemoryRegionProperties> result;
+            // Now need to consolidate...
+            for (auto &builder : builders) 
+            {
+                auto buildResult = builder.build();
+                result.reserve(result.size() + buildResult.size());
+
+                std::copy(std::make_move_iterator(buildResult.begin()),
+                          std::make_move_iterator(buildResult.end()),
+                          std::back_inserter(result));
+            }
+            return RegionPropertiesList(std::move(result));
         }
+
+        Consolidator(size_t numThreads) {
+            builders.resize(numThreads);
+        };
     };
 
     using std::vector<MemoryRegionProperties>::size;
