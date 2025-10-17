@@ -1,6 +1,7 @@
-#pragma once
+#ifndef tests_hpp_INCLUDED
+#define tests_hpp_INCLUDED
+#include "logs.hpp"
 #include <unistd.h>
-#include <string>
 
 // Returns the PID of the sample process.
 
@@ -19,3 +20,5 @@ bool checkPtraceScope();
     }
 
 pid_t runChangingMapProcess();
+
+#endif // tests_hpp_INCLUDED

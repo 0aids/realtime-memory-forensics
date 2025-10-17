@@ -1,18 +1,19 @@
 # Make files are the bane of my existance
 CXX=g++
-ASAN = -fsanitize=undefined,address
+# Sometimes i go over the max ASAN allocation limit somehow.
+ASAN = # -fsanitize=undefined,address
 # Building with asan causes tests to fail due to asan memory limits.
 # Maybe i'm doing something wrong.
 # It seems to move the shit around.
-CXXFLAGS=-g  -Wall -Wextra -Wpedantic # $(ASAN)
+CXXFLAGS=-g  -Wall -Wextra -Wpedantic $(ASAN)
 CCSTD= -std=c++23
 DEPFLAGS= -MP -MD
 OPT= -O1
 
-PKGS = ncurses
+# PKGS =  ncurses
 
-INCLUDES = -Iinclude `pkg-config --cflags $(PKGS)`
-LIBFLAGS = `pkg-config --libs $(PKGS)`
+INCLUDES = -Iinclude # `pkg-config --cflags $(PKGS)`
+LIBFLAGS = # `pkg-config --libs $(PKGS)`
 
 CPPFILES = $(shell find src -type f -name "*.cpp" -not -path '*/.*' )
 OFILES = $(patsubst src/%.cpp, build/src/%.o, $(CPPFILES))

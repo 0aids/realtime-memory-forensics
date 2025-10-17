@@ -1,15 +1,17 @@
-#include "run_test.hpp"
-#include <list>
-#include <chrono>
+#include "tests.hpp"
+
+
+#include "tests.hpp"
 #include <fstream>
-#include <ratio>
 #include <iostream>
 #include <string>
 #include <string_view>
 #include <thread>
-#include "log.hpp"
 #include <cstdlib>
+#include <list>
 #include <unistd.h>
+#include <sys/prctl.h>
+#include <csignal>
 
 __attribute__((optimize("O0"))) void changingMapMemorySampleProcess()
 {
@@ -36,9 +38,14 @@ pid_t runChangingMapProcess()
     }
     if (pid == 0)
     {
+        if (prctl(PR_SET_PDEATHSIG, SIGKILL) == -1) {
+            perror("prctl failed");
+            exit(EXIT_FAILURE);
+        }
         changingMapMemorySampleProcess();
         _exit(127);
     }
+    Log(Debug, "Child pid: " << pid);
     return pid;
 }
 
@@ -150,8 +157,15 @@ pid_t runSampleProcess()
     }
     if (pid == 0)
     {
+        if (prctl(PR_SET_PDEATHSIG, SIGKILL) == -1) {
+            perror("prctl failed");
+            exit(EXIT_FAILURE);
+        }
         sampleProcess();
         _exit(127);
     }
+    Log(Debug, "Child pid: " << pid);
     return pid;
 }
+
+
