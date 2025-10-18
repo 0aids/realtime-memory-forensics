@@ -85,7 +85,7 @@ struct MemorySnapshot
 };
 
 // It's a threadable version, not one supposed to be public facing.
-void makeSnapshotCore(BuildJob<MemorySnapshot>& builder,
+void makeSnapshotCore(MemorySnapshot::Builder& builder,
                       MemoryPartition           partition);
 
 // Single threaded, make snapshot
@@ -102,7 +102,7 @@ makeLotsOfSnapshotsST(RegionPropertiesList rl);
 std::vector<MemorySnapshot>
 makeLotsOfSnapshotsMT(RegionPropertiesList rl, ThreadPool& tp);
 
-void findChangedRegionsCore(BuildJob<RegionPropertiesList> &build, MemoryPartition mp, 
+void findChangedRegionsCore(RegionPropertiesList::Builder &build, MemoryPartition mp, 
                             const MemorySnapshot &snap1, const MemorySnapshot &snap2,
                             uintptr_t compareSize);
 
@@ -110,5 +110,10 @@ RegionPropertiesList findChangedRegionsMT(const MemorySnapshot& snap1,
                                           const MemorySnapshot& snap2,
                                           ThreadPool&           tp,
                                           uintptr_t compareSize);
+
+RegionPropertiesList
+findChangedRegionsRegionPoolMT(const std::vector<MemorySnapshot> &snaps1,
+                             const std::vector<MemorySnapshot> &snaps2, ThreadPool &tp, 
+                               uintptr_t compareSize);
 
 #endif // snapshots_hpp_INCLUDED

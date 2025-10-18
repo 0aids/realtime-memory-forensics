@@ -29,13 +29,13 @@ int main()
             this_thread::sleep_for(10ms);
             MemorySnapshot mp2 = makeSnapshotST(props);
 
-            BuildJob<RegionPropertiesList> build;
+            RegionPropertiesList::Builder build;
             findChangedRegionsCore(
                 build,
                 makeMemoryPartitions(mp1.regionProperties, 1).front(),
                 mp1, mp2, 8);
 
-            auto changedRegions = build.getResult();
+            auto changedRegions = build.build();
             Log(Message,
                 "Number of changed regions in region ["
                     << props.regionName
@@ -69,16 +69,26 @@ int main()
         // TODO: Make a method for RegionPropertiesList that allows for creation of
         // a subset of the list
 
-        //     RegionPropertiesList rl;
-        //     for (size_t i = 0 ; i < 5; i++)
-        //     {
-        //         rl.push_back(map[i]);
-        //     }
-        //     std::vector<MemorySnapshot> mps =makeLotsOfSnapshotsST(rl);
-        //     MemorySnapshot& mp = mps[0];
-        //     assert(mp[1] == 'E' && mp[2] == 'L' && mp[3] == 'F', "There should be an ELF there...");
-        //     cerr << mp[1] << mp[2] << mp[3] << endl;
-        // }
-        return 0;
+        RegionPropertiesList rl;
+        for (size_t i = 0 ; i < map.size() - 10; i++)
+        {
+            rl.push_back(map[i]);
+        }
+        std::vector<MemorySnapshot> mps1 = makeLotsOfSnapshotsST(rl);
+        const MemorySnapshot& mp1 = mps1[0];
+        assert(mp1[1] == 'E' && mp1[2] == 'L' && mp1[3] == 'F', "There should be an ELF there...");
+        this_thread::sleep_for(10ms);
+        std::vector<MemorySnapshot> mps2 = makeLotsOfSnapshotsST(rl);
+        const MemorySnapshot& mp2 = mps2[0];
+        assert(mp2[1] == 'E' && mp2[2] == 'L' && mp2[3] == 'F', "There should be an ELF there...");
+        ThreadPool tp(10);
+        auto result = findChangedRegionsRegionPoolMT(
+            mps1,
+            mps2,
+            tp,
+            8
+        );
+        assert(result.size() > 1, "There should be a changing region after region pool multi threading...");
     }
+    return 0;
 }

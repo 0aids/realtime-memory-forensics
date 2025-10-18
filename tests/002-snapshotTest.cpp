@@ -16,7 +16,7 @@ int main()
 
     Log(Message, "Sample of map[0]: \n " << map.front());
 
-    BuildJob<MemorySnapshot> build(map.front());
+    MemorySnapshot::Builder build(map.front());
 
     MemoryPartition part = {
         0,
@@ -24,7 +24,7 @@ int main()
     };
 
     makeSnapshotCore(build, part);
-    MemorySnapshot mp = build.getResult();
+    MemorySnapshot mp = build.build();
     assert(mp.size() > 0, "There should be data that has been read");
     assert(mp.regionProperties.parentRegionSize == map.front().parentRegionSize, "The region sizes should be the same");
     assert(mp[1] == 'E' && mp[2] == 'L' && mp[3] == 'F', "There should be an ELF there...");

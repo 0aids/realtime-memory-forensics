@@ -101,8 +101,8 @@ class RegionPropertiesList
             return RegionPropertiesList(std::move(result));
         }
 
-        Consolidator(size_t numThreads) {
-            builders.resize(numThreads);
+        Consolidator(size_t numBuilders) {
+            builders.resize(numBuilders);
         };
     };
 

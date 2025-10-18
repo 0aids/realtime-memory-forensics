@@ -9,6 +9,8 @@
 #include <functional>
 #include "concepts.hpp"
 
+class MemorySnapshot;
+
 struct MemoryPartition
 {
     // Relative to the buffer that this struct is interacting with.
@@ -31,41 +33,43 @@ std::vector<VectorPartition>
 makeVectorPartitionsFromRegionPropertiesList(RegionPropertiesList& rl,
                                              size_t numParts);
 
-template <Buildable ResultType>
-struct BuildJob
-{
-    // private:
-    ResultType::Builder build;
+std::vector<VectorPartition>
+makeVectorPartitionsFromSnapshotsList(const std::vector<MemorySnapshot> snaps, size_t numParts);
+// template <Buildable ResultType>
+// struct BuildJob
+// {
+//     // private:
+//     ResultType::Builder build;
 
-  public:
-    // The result is moved.
-    inline ResultType getResult()
-    {
-        return build.build();
-    }
+//   public:
+//     // The result is moved.
+//     inline ResultType getResult()
+//     {
+//         return build.build();
+//     }
 
-    // Forward any arguments required to build.
-    template <typename... Args>
-    BuildJob(Args&&... args) : build(std::forward<Args>(args)...){};
+//     // Forward any arguments required to build.
+//     template <typename... Args>
+//     BuildJob(Args&&... args) : build(std::forward<Args>(args)...){};
 
-    // Or just make use of a reference to another build.
-    BuildJob(ResultType::Builder &build) : build(build) {};
-};
+//     // Or just make use of a reference to another build.
+//     BuildJob(ResultType::Builder &build) : build(build) {};
+// };
 
-// A consolidator must provide a list named builders, containing the builders.
-template <BuildableAndConsolidatable ResultType>
-struct ConsolidateJob
-{
-    ResultType::Consolidator consolidator;
+// // A consolidator must provide a list named builders, containing the builders.
+// template <BuildableAndConsolidatable ResultType>
+// struct ConsolidateJob
+// {
+//     ResultType::Consolidator consolidator;
 
-    // Collates each of the results from the consolidator.
-    inline ResultType consolidate() {
-        return consolidator.consolidate();
-    }
+//     // Collates each of the results from the consolidator.
+//     inline ResultType consolidate() {
+//         return consolidator.consolidate();
+//     }
 
-    template <typename... Args>
-    ConsolidateJob(Args... args);
-};
+//     template <typename... Args>
+//     ConsolidateJob(Args... args);
+// };
 
 using ThreadPoolTask = std::function<void()>;
 

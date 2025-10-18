@@ -15,12 +15,13 @@ concept BuildableAndRegionProperties =
         { rp } -> ReturnsTOrRefT<MemoryRegionProperties>;
     };
 
-template <typename CoreFuncType, Buildable OutputType,
-          typename... CoreInputs, typename... BuildInputs>
-    requires Buildable<OutputType>
+template <Buildable OutputType,
+    typename CoreFuncType,
+    typename... CoreInputs>
+        requires Buildable<OutputType>
 // 1 to 1
 // requires CoreFuncConcept<CoreFuncType, OutputType, BuildInputs...>
-OutputType makeGenericST(BuildJob<OutputType>& job,
+OutputType makeGenericST(typename OutputType::Builder& job,
                          MemoryPartition part, CoreFuncType coreFunc,
                          CoreInputs... coreInputs)
 {
@@ -30,14 +31,15 @@ OutputType makeGenericST(BuildJob<OutputType>& job,
     // auto part =
     //     makeMemoryPartitions(job.build.regionProperties, 1).front();
     coreFunc(job, part, std::forward<CoreInputs>(coreInputs)...);
-    return job.getResult();
+    return job.build();
 }
 
-template <typename CoreFuncType, Buildable OutputType,
-          typename... CoreInputs, typename... BuildInputs>
-    requires Buildable<OutputType>
+template <Buildable OutputType,
+    typename CoreFuncType,
+    typename... CoreInputs>
+        requires Buildable<OutputType>
 // N to 1
-OutputType makeGenericMT(ThreadPool& tp, BuildJob<OutputType>& job,
+OutputType makeGenericMT(ThreadPool& tp, typename OutputType::Builder& job,
                          std::vector<MemoryPartition> parts,
                          CoreFuncType                 coreFunc,
                          CoreInputs... coreInputs)
@@ -56,7 +58,7 @@ OutputType makeGenericMT(ThreadPool& tp, BuildJob<OutputType>& job,
     }
 
     tp.joinTasks();
-    return job.getResult();
+    return job.build();
 }
 
 /*
@@ -65,21 +67,22 @@ OutputType makeGenericMT(ThreadPool& tp, BuildJob<OutputType>& job,
  * supports multithreading. Creates multiple builds, multithreads them,
  * and then consolidates them.
  * */
-template <typename CoreFuncType,
+template <
           BuildableAndConsolidatable OutputType,
+typename CoreFuncType,
           typename... CoreInputs, typename... BuildInputs>
     requires Buildable<OutputType> && Consolidatable<OutputType>
-// ? to ? to 1 (Last conversion is not on main thread).
+// ? to ? to 1 (Last conversion is on main thread).
 OutputType
-makeGenericConsolidateMT(ThreadPool& tp, ConsolidateJob<OutputType> consolidator,
+makeGenericConsolidateMT(ThreadPool& tp, typename OutputType::Consolidator& consolidator,
                          std::vector<MemoryPartition> parts,
                          CoreFuncType                 coreFunc,
                          CoreInputs&... coreInputs)
 {
-    for (size_t i = 0; i < consolidator.consolidator.builders.size(); i++) 
+    for (size_t i = 0; i < consolidator.builders.size(); i++) 
     {
         tp.submitTask([
-                      &builder = consolidator.consolidator.builders[i],
+                      &builder = consolidator.builders[i],
                       &part = parts[i],
                       coreFunc,
                       &coreInputs...]

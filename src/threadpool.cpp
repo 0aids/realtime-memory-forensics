@@ -1,6 +1,7 @@
 #include "threadpool.hpp"
 #include <pthread.h>
 #include "logs.hpp"
+#include "snapshots.hpp"
 
 std::vector<MemoryPartition>
 makeMemoryPartitions(MemoryRegionProperties properties,
@@ -43,24 +44,40 @@ makeVectorPartitionsFromRegionPropertiesList(RegionPropertiesList& rl,
     uintptr_t averageSize = totalRegionSize / numParts;
 
     std::vector<VectorPartition> parts;
+    parts.reserve(numParts);
 
-    uintptr_t                    currentSize  = 0;
     size_t                       currentIndex = 0;
     for (size_t i = 0; i < numParts; i++)
     {
+        uintptr_t                    currentMemorySize  = 0;
         size_t size          = 0;
         size_t startingIndex = currentIndex;
         // The last index is guaranteed to be done properly?
-        // Idk im too tired for this shit.
-        while (currentSize < averageSize * (i + 1 + size))
+        // It should be.
+        if (numParts - 1 == i) {
+            parts.push_back({startingIndex, rl.size() - startingIndex});
+            continue;
+        }
+        while (currentMemorySize + rl[currentIndex+1].relativeRegionSize < averageSize || size == 0)
         {
-            currentSize += rl[currentIndex++].relativeRegionSize;
+            currentMemorySize += rl[currentIndex++].relativeRegionSize;
             size++;
         }
         parts.push_back({startingIndex, size});
+
     }
 
     return parts;
+}
+
+std::vector<VectorPartition>
+makeVectorPartitionsFromSnapshotsList(const std::vector<MemorySnapshot> snaps, size_t numParts) {
+    RegionPropertiesList rl;
+    for (const auto &snap : snaps) {
+        rl.push_back(snap.regionProperties);
+    }
+
+    return makeVectorPartitionsFromRegionPropertiesList(rl, numParts);
 }
 
 void ThreadPool::submitTask(ThreadPoolTask task)
