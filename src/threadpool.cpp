@@ -70,8 +70,31 @@ makeVectorPartitionsFromRegionPropertiesList(RegionPropertiesList& rl,
     return parts;
 }
 
+
+std::vector<MemoryPartition>
+makeMemoryPartitionsFromSnapshotsList(const std::vector<MemorySnapshot> &snaps) {
+    RegionPropertiesList rl;
+    for (const auto &snap : snaps) {
+        rl.push_back(snap.regionProperties);
+    }
+
+    std::vector<MemoryPartition> parts;
+    parts.reserve(rl.size());
+    for (const auto &rp : rl )
+    {
+        parts.push_back(
+            {
+                .relativeRegionStart = 0,
+                .size = rp.relativeRegionSize,
+            }
+        );
+    }
+    return parts;
+}
+
+
 std::vector<VectorPartition>
-makeVectorPartitionsFromSnapshotsList(const std::vector<MemorySnapshot> snaps, size_t numParts) {
+makeVectorPartitionsFromSnapshotsList(const std::vector<MemorySnapshot> &snaps, size_t numParts) {
     RegionPropertiesList rl;
     for (const auto &snap : snaps) {
         rl.push_back(snap.regionProperties);

@@ -102,9 +102,11 @@ makeLotsOfSnapshotsST(RegionPropertiesList rl);
 std::vector<MemorySnapshot>
 makeLotsOfSnapshotsMT(RegionPropertiesList rl, ThreadPool& tp);
 
-void findChangedRegionsCore(RegionPropertiesList::Builder &build, MemoryPartition mp, 
-                            const MemorySnapshot &snap1, const MemorySnapshot &snap2,
-                            uintptr_t compareSize);
+void findChangedRegionsCore(RegionPropertiesList::Builder& build,
+                            uintptr_t compareSize,
+                            MemoryPartition mp,
+                            const MemorySnapshot& snap1,
+                            const MemorySnapshot& snap2);
 
 RegionPropertiesList findChangedRegionsMT(const MemorySnapshot& snap1,
                                           const MemorySnapshot& snap2,

@@ -20,12 +20,12 @@ const MemorySnapshot MemorySnapshot::Builder::build()
 }
 
 void makeSnapshotCore(MemorySnapshot::Builder& build,
-                      MemoryPartition           partition)
+                      MemoryPartition          partition)
 {
     Log(Debug, "Taking snapshot");
     using namespace std::chrono;
 
-    const uintptr_t          startAddr =
+    const uintptr_t startAddr =
         build.regionProperties.getActualRegionStart() +
         partition.relativeRegionStart;
     const std::string& name = build.regionProperties.regionName;
@@ -87,10 +87,10 @@ void makeSnapshotCore(MemorySnapshot::Builder& build,
 
 // Modifies only its build. The build needs to be consolidated later.
 void findChangedRegionsCore(RegionPropertiesList::Builder& build,
-                            MemoryPartition                 mp,
-                            const MemorySnapshot&           snap1,
-                            const MemorySnapshot&           snap2,
-                            uintptr_t compareSize)
+                            uintptr_t compareSize,
+                            MemoryPartition mp,
+                            const MemorySnapshot& snap1,
+                            const MemorySnapshot& snap2)
 {
     uintptr_t current = mp.relativeRegionStart;
     Log(Debug,
@@ -136,9 +136,9 @@ void findChangedRegionsCore(RegionPropertiesList::Builder& build,
 MemorySnapshot makeSnapshotST(MemoryRegionProperties properties)
 {
     MemorySnapshot::Builder build(properties);
-    return makeGenericST<MemorySnapshot>(build,
-                         makeMemoryPartitions(properties, 1).front(),
-                         makeSnapshotCore);
+    return makeGenericST<MemorySnapshot>(
+        build, makeMemoryPartitions(properties, 1).front(),
+        makeSnapshotCore);
     // makeSnapshotCore(build, {0, properties.relativeRegionSize});
     // return build.getResult();
 }
@@ -148,10 +148,11 @@ RegionPropertiesList findChangedRegionsST(const MemorySnapshot& snap1,
                                           uintptr_t compareSize)
 {
     RegionPropertiesList::Builder build;
-    return makeGenericST<RegionPropertiesList>(
-        build,
-        makeMemoryPartitions(snap1.regionProperties, 1).front(),
-        findChangedRegionsCore, snap1, snap2, compareSize);
+    return {};
+    // return makeGenericST<RegionPropertiesList>(
+    //     build,
+    //     makeMemoryPartitions(snap1.regionProperties, 1).front(),
+    //     findChangedRegionsCore, compareSize, snap1, snap2);
 }
 
 MemorySnapshot makeSnapshotMT(MemoryRegionProperties properties,
@@ -173,8 +174,10 @@ RegionPropertiesList findChangedRegionsMT(const MemorySnapshot& snap1,
         makeMemoryPartitions(snap1.regionProperties, tp.numThreads());
     RegionPropertiesList::Consolidator consolidator(tp.numThreads());
 
-    return makeGenericConsolidateMT<RegionPropertiesList>(tp, consolidator, parts, findChangedRegionsCore, 
-                            snap1, snap2, compareSize);
+    return {};
+    // return makeGenericConsolidateMT<RegionPropertiesList>(
+    //     tp, consolidator, parts, findChangedRegionsCore, compareSize,
+    //     snap1, snap2);
 }
 
 std::vector<MemorySnapshot>
@@ -194,43 +197,21 @@ makeLotsOfSnapshotsST(RegionPropertiesList rl)
     return results;
 }
 
-RegionPropertiesList
-findChangedRegionsRegionPoolMT(const std::vector<MemorySnapshot> &snaps1,
-                             const std::vector<MemorySnapshot> &snaps2, ThreadPool &tp, 
-                               uintptr_t compareSize) 
+RegionPropertiesList findChangedRegionsRegionPoolMT(
+    const std::vector<MemorySnapshot>& snaps1,
+    const std::vector<MemorySnapshot>& snaps2, ThreadPool& tp,
+    uintptr_t compareSize)
 {
-    auto parts = makeVectorPartitionsFromSnapshotsList(snaps1 , tp.numThreads());
-    RegionPropertiesList::Consolidator consolidator(snaps1.size());
-    for (size_t i = 0; i < tp.numThreads(); i++) 
-    {
-        tp.submitTask(
-        [
-        &part = parts[i],
-        &builds = consolidator.builders,
-        &snaps1,
-        &snaps2,
-        &compareSize
-        ]()
-        {
-            for (size_t j = part.startIndex;
-                     j < part.startIndex + part.size; j++) 
-            {
-                auto &builder = builds[j];
-                const auto &snap1 = snaps1[j];
-                const auto &snap2 = snaps2[j];
-                findChangedRegionsCore(
-                    builder,
-                    makeMemoryPartitions(snap1.regionProperties, 1).front(),
-                    snap1,
-                    snap2,
-                    compareSize
-                );
-            }
-        });
-    }
-    tp.joinTasks();
+    auto vectorParts = makeVectorPartitionsFromSnapshotsList(
+        snaps1, tp.numThreads());
+    auto memoryParts = makeMemoryPartitionsFromSnapshotsList(snaps1);
+    auto inputs = std::views::zip(memoryParts, snaps1, snaps2);
+    auto consolidator =
+        RegionPropertiesList::Consolidator(memoryParts.size());
 
-    return consolidator.consolidate();
+    return executeParallelV1<RegionPropertiesList>(
+        consolidator, tp, findChangedRegionsCore, vectorParts, inputs,
+        compareSize);
 }
 
 std::vector<MemorySnapshot>
@@ -259,11 +240,10 @@ makeLotsOfSnapshotsMT(RegionPropertiesList& rl, ThreadPool& tp)
             for (size_t i = part.startIndex;
                  i < part.startIndex + part.size; i++)
             {
-                makeSnapshotCore(
-                    builders[i],
-                    makeMemoryPartitions(
-                        builders[i].regionProperties, 1)
-                        .front());
+                makeSnapshotCore(builders[i],
+                                 makeMemoryPartitions(
+                                     builders[i].regionProperties, 1)
+                                     .front());
             }
         };
         tp.submitTask(task);

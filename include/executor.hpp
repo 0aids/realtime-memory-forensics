@@ -1,6 +1,7 @@
 #ifndef executor_hpp_INCLUDED
 #define executor_hpp_INCLUDED
 #include <utility>
+#include <ranges>
 #include <functional>
 #include "logs.hpp"
 #include "concepts.hpp"
@@ -15,10 +16,9 @@ concept BuildableAndRegionProperties =
         { rp } -> ReturnsTOrRefT<MemoryRegionProperties>;
     };
 
-template <Buildable OutputType,
-    typename CoreFuncType,
-    typename... CoreInputs>
-        requires Buildable<OutputType>
+template <Buildable OutputType, typename CoreFuncType,
+          typename... CoreInputs>
+    requires Buildable<OutputType>
 // 1 to 1
 // requires CoreFuncConcept<CoreFuncType, OutputType, BuildInputs...>
 OutputType makeGenericST(typename OutputType::Builder& job,
@@ -34,15 +34,14 @@ OutputType makeGenericST(typename OutputType::Builder& job,
     return job.build();
 }
 
-template <Buildable OutputType,
-    typename CoreFuncType,
-    typename... CoreInputs>
-        requires Buildable<OutputType>
+template <Buildable OutputType, typename CoreFuncType,
+          typename... CoreInputs>
+    requires Buildable<OutputType>
 // N to 1
-OutputType makeGenericMT(ThreadPool& tp, typename OutputType::Builder& job,
-                         std::vector<MemoryPartition> parts,
-                         CoreFuncType                 coreFunc,
-                         CoreInputs... coreInputs)
+OutputType
+makeGenericMT(ThreadPool& tp, typename OutputType::Builder& job,
+              std::vector<MemoryPartition> parts,
+              CoreFuncType coreFunc, CoreInputs... coreInputs)
 {
     for (auto& part : parts)
     {
@@ -67,49 +66,92 @@ OutputType makeGenericMT(ThreadPool& tp, typename OutputType::Builder& job,
  * supports multithreading. Creates multiple builds, multithreads them,
  * and then consolidates them.
  * */
-template <
-          BuildableAndConsolidatable OutputType,
-typename CoreFuncType,
-          typename... CoreInputs, typename... BuildInputs>
+template <BuildableAndConsolidatable OutputType,
+          typename CoreFuncType, typename... CoreInputs,
+          typename... BuildInputs>
     requires Buildable<OutputType> && Consolidatable<OutputType>
-// ? to ? to 1 (Last conversion is on main thread).
-OutputType
-makeGenericConsolidateMT(ThreadPool& tp, typename OutputType::Consolidator& consolidator,
-                         std::vector<MemoryPartition> parts,
-                         CoreFuncType                 coreFunc,
-                         CoreInputs&... coreInputs)
+// X to X^2 to 1 (Last conversion is on main thread).
+OutputType makeGenericConsolidateMT(
+    ThreadPool& tp, typename OutputType::Consolidator& consolidator,
+    std::vector<MemoryPartition> memoryParts, CoreFuncType coreFunc,
+    CoreInputs&... coreInputs)
 {
-    for (size_t i = 0; i < consolidator.builders.size(); i++) 
+    for (size_t i = 0; i < consolidator.builders.size(); i++)
     {
-        tp.submitTask([
-                      &builder = consolidator.builders[i],
-                      &part = parts[i],
-                      coreFunc,
-                      &coreInputs...]
-              ()
-              {
-                  coreFunc(builder, part, std::forward<CoreInputs>(coreInputs)...);
-              });
+        tp.submitTask(
+            [&builder    = consolidator.builders[i],
+             &memoryPart = memoryParts[i], coreFunc, &coreInputs...]()
+            {
+                coreFunc(builder,
+                         std::forward<CoreInputs>(coreInputs)...);
+                // Incomplete.
+                // The forwarding does not work for the case of
+                // findChangedRegionsRegionPoolMT because
+                // snapshots need to be selected based on the thread.
+                // But this cannot be selected generically
+            });
     }
     tp.joinTasks();
 
     return consolidator.consolidate();
 }
 
+template <BuildableAndConsolidatable OutputType,
+          typename CoreFuncType, typename... ZippedInputTypes,
+          typename Zipped, typename... Nonzipped>
+// For regionPooling, the memory partitions must be passed in
+// as a nonzipped input.
+OutputType
+executeParallelV1(typename OutputType::Consolidator& consolidator,
+                  ThreadPool& tp, CoreFuncType coreFunc,
+                  const std::vector<VectorPartition>& vectorParts,
+                  Zipped zippedInputs, Nonzipped... nonzippedInputs)
+{
+    for (size_t i = 0; i < vectorParts.size(); ++i)
+    {
+        // tp.submitTask(
+        auto l = [&consolidator, coreFunc,
+                  &vectorPart = vectorParts[i], &zippedInputs,
+                  &nonzippedInputs...]()
+        {
+            for (size_t j = vectorPart.startIndex;
+                 j < vectorPart.startIndex + vectorPart.size; j++)
+            {
+                auto zippedArgsTuple = zippedInputs[j];
+                std::apply(
+                         [&](auto&&... zipped_args) {
+                             coreFunc(
+                                 consolidator.builders[j],
+                                 nonzippedInputs...,      
+                                 zipped_args...           
+                             );
+                         },
+                         zippedArgsTuple
+                     );
+            }
+        };
+        l();
+        // );
+    }
+    tp.joinTasks();
+    return consolidator.consolidate();
+}
+
 // Reference for a buildable and or consolidatable structure
 
 template <typename... BuilderArgs>
-struct OutputType {
-    struct Builder {
+struct OutputType
+{
+    struct Builder
+    {
         // The main purpose of the builder is to hold temporary data for
         // const correctness, as well as provide a standardised way for
         // separation of concerns and responsibilities (threading mainly)
 
-        int intdata;
-        double doubledata;
+        int              intdata;
+        double           doubledata;
         std::vector<int> intvectordata;
         // And so on, whatever is needed to create the OutputType
-
 
         // For some certain things, you would ensure that
         // a certain vector is resized correctly (for threading).
@@ -117,25 +159,25 @@ struct OutputType {
         Builder(BuilderArgs... args);
 
         // Complete the type.
-        OutputType build() {
+        OutputType build()
+        {
             // Some shit goes here.
             return {};
         };
     };
 
     template <typename... ConsolidatorArgs>
-    struct Consolidator {
+    struct Consolidator
+    {
         // The main purpose of the consolidator is to consolidate multiple builds
         // required by core functions that are special - They have an unknown amount
         // of return values in a vector.
         std::vector<OutputType::Builder> builders;
-        OutputType consolidate();
+        OutputType                       consolidate();
 
         // The constructor can take in args that it uses to build the builders.
         Consolidator(ConsolidatorArgs... args);
-
     };
 };
-
 
 #endif // executor_hpp_INCLUDED

@@ -33,8 +33,12 @@ std::vector<VectorPartition>
 makeVectorPartitionsFromRegionPropertiesList(RegionPropertiesList& rl,
                                              size_t numParts);
 
+
+std::vector<MemoryPartition>
+makeMemoryPartitionsFromSnapshotsList(const std::vector<MemorySnapshot> &snaps);
+
 std::vector<VectorPartition>
-makeVectorPartitionsFromSnapshotsList(const std::vector<MemorySnapshot> snaps, size_t numParts);
+makeVectorPartitionsFromSnapshotsList(const std::vector<MemorySnapshot> &snaps, size_t numParts);
 // template <Buildable ResultType>
 // struct BuildJob
 // {

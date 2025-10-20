@@ -47,4 +47,9 @@ concept Consolidatable = requires(
 template <typename OutputType>
 concept BuildableAndConsolidatable = Consolidatable<OutputType> && Buildable<OutputType>;
 
+template <typename T>
+concept IsZipped = requires {
+    T::tuple_type;
+};
+
 #endif // concepts_hpp_INCLUDED
