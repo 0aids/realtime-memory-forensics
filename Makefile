@@ -5,7 +5,8 @@ ASAN = # -fsanitize=undefined,address
 # Building with asan causes tests to fail due to asan memory limits.
 # Maybe i'm doing something wrong.
 # It seems to move the shit around.
-CXXFLAGS=-g  -Wall -Wextra -Wpedantic $(ASAN)
+# wnocpp because i compile with -O0 regularly when debugging.
+CXXFLAGS=-g  -Wall -Wextra -Wno-cpp -Wpedantic $(ASAN)
 CCSTD= -std=c++23
 DEPFLAGS= -MP -MD
 OPT= -O1

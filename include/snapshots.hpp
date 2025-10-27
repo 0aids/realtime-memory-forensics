@@ -10,24 +10,6 @@
 
 struct MemorySnapshot
 {
-  public:
-    struct Builder
-    {
-        std::vector<char>        data;
-        MemoryRegionProperties   regionProperties;
-        std::chrono::nanoseconds timeCaptured;
-
-        // Build the snapshot from the non-const values.
-        const MemorySnapshot build();
-
-        // Make sure the buffer is the correct size.
-        Builder(MemoryRegionProperties properties) :
-            regionProperties(properties)
-        {
-            data.resize(regionProperties.relativeRegionSize);
-        }
-    };
-
   private:
     const std::vector<char> m_data;
 
@@ -72,6 +54,11 @@ struct MemorySnapshot
         return m_data.data();
     }
 
+    std::span<const char> asSpan() const noexcept
+    {
+        return std::span<const char>(m_data.data(), m_data.size());
+    }
+
     const MemoryRegionProperties   regionProperties;
     const std::chrono::nanoseconds timeCaptured;
 
@@ -83,39 +70,4 @@ struct MemorySnapshot
     {
     }
 };
-
-// It's a threadable version, not one supposed to be public facing.
-void makeSnapshotCore(MemorySnapshot::Builder& builder,
-                      MemoryPartition           partition);
-
-// Single threaded, make snapshot
-MemorySnapshot makeSnapshotST(MemoryRegionProperties properties);
-
-// Multi-threaded, makes larger snapshots.
-MemorySnapshot makeSnapshotMT(MemoryRegionProperties properties,
-                              ThreadPool&            tp);
-
-// If the code for these 2 is nice i will be very happy.
-std::vector<MemorySnapshot>
-makeLotsOfSnapshotsST(RegionPropertiesList rl);
-
-std::vector<MemorySnapshot>
-makeLotsOfSnapshotsMT(RegionPropertiesList rl, ThreadPool& tp);
-
-void findChangedRegionsCore(RegionPropertiesList::Builder& build,
-                            uintptr_t compareSize,
-                            MemoryPartition mp,
-                            const MemorySnapshot& snap1,
-                            const MemorySnapshot& snap2);
-
-RegionPropertiesList findChangedRegionsMT(const MemorySnapshot& snap1,
-                                          const MemorySnapshot& snap2,
-                                          ThreadPool&           tp,
-                                          uintptr_t compareSize);
-
-RegionPropertiesList
-findChangedRegionsRegionPoolMT(const std::vector<MemorySnapshot> &snaps1,
-                             const std::vector<MemorySnapshot> &snaps2, ThreadPool &tp, 
-                               uintptr_t compareSize);
-
 #endif // snapshots_hpp_INCLUDED

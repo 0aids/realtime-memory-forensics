@@ -70,42 +70,7 @@ struct MemoryRegionProperties
 class RegionPropertiesList
     : private std::vector<MemoryRegionProperties>
 {
-  public:
-    struct Builder
-    {
-        std::vector<MemoryRegionProperties> data;
-
-        RegionPropertiesList build() {
-            return RegionPropertiesList(std::move(data));
-        }
-        Builder() = default;
-    };
-
-    struct Consolidator
-    {
-        std::vector<Builder> builders;
-
-        RegionPropertiesList consolidate() 
-        {
-            std::vector<MemoryRegionProperties> result;
-            // Now need to consolidate...
-            for (auto &builder : builders) 
-            {
-                auto buildResult = builder.build();
-                result.reserve(result.size() + buildResult.size());
-
-                std::copy(std::make_move_iterator(buildResult.begin()),
-                          std::make_move_iterator(buildResult.end()),
-                          std::back_inserter(result));
-            }
-            return RegionPropertiesList(std::move(result));
-        }
-
-        Consolidator(size_t numBuilders) {
-            builders.resize(numBuilders);
-        };
-    };
-
+public:
     using std::vector<MemoryRegionProperties>::size;
     using std::vector<MemoryRegionProperties>::push_back;
     using std::vector<MemoryRegionProperties>::clear;

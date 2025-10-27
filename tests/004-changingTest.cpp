@@ -1,8 +1,10 @@
+#include "core_wrappers.hpp"
 #include "logs.hpp"
 #include "maps.hpp"
+#include "core.hpp"
 #include "tests.hpp"
 #include "snapshots.hpp"
-#include "threadpool.hpp"
+#include <chrono>
 
 int main()
 {
@@ -19,24 +21,27 @@ int main()
 
     // Quickly perform the raw check for the changing region
     {
+        Log(Message,
+            "Checking if there is a changing region of memory!");
         bool   foundChanging = false;
         size_t maxIter       = map.size();
 
         for (const auto& props : map)
         {
             // if (props.regionName != "UnnamedRegion-3") continue;
-            MemorySnapshot mp1 = makeSnapshotST(props);
+            MemorySnapshot snap1(
+                makeSnapshotCore({.mrp = props}), props,
+                steady_clock::now().time_since_epoch());
             this_thread::sleep_for(10ms);
-            MemorySnapshot mp2 = makeSnapshotST(props);
+            MemorySnapshot snap2(
+                makeSnapshotCore({.mrp = props}), props,
+                steady_clock::now().time_since_epoch());
 
-            RegionPropertiesList::Builder build;
-            findChangedRegionsCore(
-                build,
-                8,
-                makeMemoryPartitions(mp1.regionProperties, 1).front(), 
-                mp1, mp2);
+            CoreInputs cInputs  = {.mrp   = props,
+                                   .snap1 = snap1.asSpan(),
+                                   .snap2 = snap2.asSpan()};
+            auto changedRegions = findChangedRegionsCore(cInputs, 8);
 
-            auto changedRegions = build.build();
             Log(Message,
                 "Number of changed regions in region ["
                     << props.regionName
@@ -45,6 +50,8 @@ int main()
             if (changedRegions.size() > 0)
             {
                 foundChanging = true;
+                Log(Message,
+                    "Changed region: " << changedRegions.front());
                 break;
             }
             if (iter >= maxIter)
@@ -57,39 +64,126 @@ int main()
             foundChanging,
             "There should be a changing region somewhere there...");
     }
-    // {
-    //     ThreadPool     tp(10);
-    //     MemorySnapshot mp1 = makeSnapshotST(map[iter]);
-    //     this_thread::sleep_for(10ms);
-    //     MemorySnapshot       mp2 = makeSnapshotST(map[iter]);
-    //     RegionPropertiesList changingRegions =
-    //         findChangedRegionsMT(mp1, mp2, tp, 8);
-    //     assert(changingRegions.size() > 0, "There is definitely a changing region here");
-    // }
     {
-        // TODO: Make a method for RegionPropertiesList that allows for creation of
-        // a subset of the list
-
-        RegionPropertiesList rl;
-        for (size_t i = 0 ; i < map.size() - 10; i++)
-        {
-            rl.push_back(map[i]);
-        }
-        std::vector<MemorySnapshot> mps1 = makeLotsOfSnapshotsST(rl);
-        const MemorySnapshot& mp1 = mps1[0];
-        assert(mp1[1] == 'E' && mp1[2] == 'L' && mp1[3] == 'F', "There should be an ELF there...");
+        // Double check for sanity.
+        MemoryRegionProperties props = map[iter];
+        MemorySnapshot snap1(makeSnapshotCore({.mrp = props}), props,
+                             steady_clock::now().time_since_epoch());
         this_thread::sleep_for(10ms);
-        std::vector<MemorySnapshot> mps2 = makeLotsOfSnapshotsST(rl);
-        const MemorySnapshot& mp2 = mps2[0];
-        assert(mp2[1] == 'E' && mp2[2] == 'L' && mp2[3] == 'F', "There should be an ELF there...");
-        ThreadPool tp(10);
-        auto result = findChangedRegionsRegionPoolMT(
-            mps1,
-            mps2,
-            tp,
-            8
-        );
-        assert(result.size() > 1, "There should be a changing region after region pool multi threading...");
+        MemorySnapshot snap2(makeSnapshotCore({.mrp = props}), props,
+                             steady_clock::now().time_since_epoch());
+
+        CoreInputs     cInputs = {.mrp   = props,
+                                  .snap1 = snap1.asSpan(),
+                                  .snap2 = snap2.asSpan()};
+        auto changedRegions    = findChangedRegionsCore(cInputs, 8);
+
+        Log(Message,
+            "Number of changed regions in region ["
+                << props.regionName
+                << "] : " << changedRegions.size());
+
+        assert(
+            changedRegions.size() > 0,
+            "There should be a changing region in the double check!");
+    }
+    {
+        Log(Message, "Testing with pseudo data first");
+        // Dividing region with pseudo memory region.
+        vector<char> fakeData1 = {
+            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'a', 'b', 'c',
+            'd', 'e', 'f', 'g', 'h', 'a', 'b', 'c', 'd', 'e', 'f',
+            'g', 'h', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h',
+        };
+        vector<char> fakeData2 = {
+            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'a', 'b', 'c',
+            'd', 'e', 'f', 'g', 'h', 'a', 'b', 'c', 'd', 'e', 'f',
+            'g', 'h', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'a',
+        };
+        MemoryRegionProperties mrp = {
+            .perms               = (Perms)11, // Read write private.
+            .regionName          = "Test region",
+            .parentRegionStart   = 0,
+            .parentRegionSize    = 32,
+            .relativeRegionStart = 0,
+            .relativeRegionSize  = 32,
+            .pid                 = -1,
+        };
+        MemorySnapshot snap1(fakeData1, mrp,
+                             steady_clock::now().time_since_epoch());
+        this_thread::sleep_for(10ms);
+        MemorySnapshot snap2(fakeData2, mrp,
+                             steady_clock::now().time_since_epoch());
+        size_t         numThreads = 3;
+        auto snap1Vec = divideSingleSnapshot(snap1, numThreads);
+        auto snap2Vec = divideSingleSnapshot(snap2, numThreads);
+        auto mrpVec   = divideSingleRegion(mrp, numThreads);
+        auto coreInputsVec = consolidateIntoCoreInput({
+            .mrpVec   = mrpVec,
+            .snap1Vec = snap1Vec,
+            .snap2Vec = snap2Vec,
+        });
+
+        auto tasks = createMultipleTasks(findChangedRegionsCore,
+                                         coreInputsVec, 8);
+        for (auto& task : tasks)
+        {
+            task.packagedTask();
+        }
+        auto result = consolidateNestedTaskResults(tasks);
+        assert(result.size() > 0,
+               "There is definitely a changing region here");
+    }
+    {
+        Log(Message, "Attempting TASK splitting WITHOUT MT!");
+        size_t         numThreads = 3;
+
+        MemorySnapshot snap1(makeSnapshotCore({.mrp = map[iter]}),
+                             map[iter],
+                             steady_clock::now().time_since_epoch());
+        this_thread::sleep_for(10ms);
+        MemorySnapshot snap2(makeSnapshotCore({.mrp = map[iter]}),
+                             map[iter],
+                             steady_clock::now().time_since_epoch());
+
+        auto           coreInputsVec = consolidateIntoCoreInput(
+            {.mrpVec = divideSingleRegion(map[iter], numThreads),
+                       .snap1Vec = divideSingleSnapshot(snap1, numThreads),
+                       .snap2Vec = divideSingleSnapshot(snap2, numThreads)});
+
+        auto tasks = createMultipleTasks(findChangedRegionsCore,
+                                         coreInputsVec, 8);
+        for (auto& task : tasks)
+        {
+            task.packagedTask();
+        }
+        auto result = consolidateNestedTaskResults(tasks);
+        assert(result.size() > 0,
+               "There is definitely a changing region here");
+    }
+    {
+        Log(Message, "Attempting TASK splitting WITH MT!");
+        size_t         numThreads = 3;
+        MemorySnapshot snap1(makeSnapshotCore({.mrp = map[iter]}),
+                             map[iter],
+                             steady_clock::now().time_since_epoch());
+        this_thread::sleep_for(10ms);
+        MemorySnapshot snap2(makeSnapshotCore({.mrp = map[iter]}),
+                             map[iter],
+                             steady_clock::now().time_since_epoch());
+        auto           coreInputsVec = consolidateIntoCoreInput(
+            {.mrpVec = divideSingleRegion(map[iter], numThreads),
+                       .snap1Vec = divideSingleSnapshot(snap1, numThreads),
+                       .snap2Vec = divideSingleSnapshot(snap2, numThreads)});
+
+        auto tasks = createMultipleTasks(findChangedRegionsCore,
+                                         coreInputsVec, 8);
+        TaskThreadPool tp(numThreads);
+        tp.submitMultipleTasks(tasks);
+        tp.joinAllThreads();
+        auto result = consolidateNestedTaskResults(tasks);
+        assert(result.size() > 0,
+               "There is definitely a changing region here");
     }
     return 0;
 }
