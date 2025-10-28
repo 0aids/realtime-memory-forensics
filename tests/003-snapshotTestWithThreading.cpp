@@ -40,7 +40,7 @@ int main()
         auto tasks = createMultipleTasks(makeSnapshotCore, coreInputsVec);
 
         tp.submitMultipleTasks(tasks);
-        tp.joinAllThreads();
+        tp.awaitAllTasks();
         vector<vector<char>> result;
 
         for (auto &task: tasks) {

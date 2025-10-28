@@ -52,7 +52,7 @@ std::vector<std::span<const char>> divideSingleSnapshot(const MemorySnapshot &sn
 
 
 std::vector<CoreInputs> consolidateIntoCoreInput(
-    MultipleCoreInputs c
+    const MultipleCoreInputs &c
 ) {
     std::vector<CoreInputs> coreInputsVec;
     size_t c1 = 0;
@@ -64,7 +64,7 @@ std::vector<CoreInputs> consolidateIntoCoreInput(
         total = 0;
         CoreInputs cin;
         if (c.mrpVec && c1 < c.mrpVec.value().size()) {
-            cin.mrp = c.mrpVec.value()[c1];
+            cin.mrp.emplace(c.mrpVec.value()[c1]);
             c1++;
             total++;
         }
@@ -85,4 +85,16 @@ std::vector<CoreInputs> consolidateIntoCoreInput(
     }
 
     return coreInputsVec;
+}
+
+
+std::vector<std::span<const char>> divideMultipleSnapshots(const std::vector<MemorySnapshot> &snapVec)
+{
+
+    std::vector<std::span<const char>> result;
+    result.reserve(snapVec.size());
+    for (const auto &snap: snapVec) {
+        result.push_back(snap.asSpan());
+    }
+    return result;
 }

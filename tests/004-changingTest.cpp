@@ -180,7 +180,7 @@ int main()
                                          coreInputsVec, 8);
         TaskThreadPool tp(numThreads);
         tp.submitMultipleTasks(tasks);
-        tp.joinAllThreads();
+        tp.awaitAllTasks();
         auto result = consolidateNestedTaskResults(tasks);
         assert(result.size() > 0,
                "There is definitely a changing region here");

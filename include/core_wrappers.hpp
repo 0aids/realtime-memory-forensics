@@ -1,5 +1,8 @@
 #ifndef core_wrappers_hpp_INCLUDED
 #define core_wrappers_hpp_INCLUDED
+#include <atomic>
+#include <concepts>
+#include <chrono>
 #include <future>
 #include <functional>
 #include <vector>
@@ -7,6 +10,7 @@
 #include <string>
 #include <thread>
 
+#include "MTQueue.hpp"
 #include "core.hpp"
 #include "logs.hpp"
 #include "snapshots.hpp"
@@ -28,8 +32,11 @@
        to core functions and returns a constructed lambda with the correct inputs captured.
      * Converts inputs and a corefunc, and order number of a task defined above.
  * task runner/mapper
-     * A queue of tasks is not really possible, due to the differing types of the packaged tasks.
-     * And I can't be bothered to implement it anyways.
+     * A queue of tasks that need to be done (void lambdas containing the packaged tasks).
+     * Threads will be watching the queue atomically until a void lambda has entered, in which it
+     * will the run the lambda. This will actually allow us to run the tasks sequentially
+     * without having to bunch up groups of them to be ran on a single thread manually beforehand like
+     * before ;)
  * result reducer
      * Reduces a list of tasks into its results. Since the order is preserved within the tasks,
      there is no need for having metadata for order.
@@ -78,6 +85,98 @@ auto createMultipleTasks(CoreFuncType coreFunc, const std::vector<CoreInputs> cI
     return tasksVec;
 }
 
+template <typename T, typename FuncType>
+concept ThreadPoolType = requires(T pool, Task<FuncType> task, 
+                                    std::vector<Task<FuncType>> tasksVec)
+{
+    
+    // Check for the templated 'submitTask' function
+    {
+        pool.submitTask(task)
+    };
+
+    // Check for the templated 'submitMultipleTasks' function
+    {
+        pool.submitMultipleTasks(tasksVec)
+    };
+
+    // Check for the non-templated 'awaitAllTasks' function
+    { pool.awaitAllTasks() } -> std::same_as<void>; // Checks for existence and void return type
+};
+
+class QueuedThreadPool {
+    using QTask = std::function<void()>;
+    public:
+        static constexpr auto TRYDURATION = std::chrono::milliseconds(10);
+        const size_t pu_numThreads = 1;
+        QueuedThreadPool(const size_t &numThreads) : pu_numThreads(numThreads) {
+            m_threadsList.reserve(pu_numThreads);
+            m_alive.store(true, std::memory_order_release);
+            for (size_t i = 0; i < pu_numThreads; i++) {
+                // The tasks queue is guaranteed to last until after all threads
+                // are joined in the destructor.
+                m_threadsList.emplace_back(
+                    std::thread(threadFunctions, std::ref(m_alive), std::ref(m_tasksQueue)),
+                    std::to_string(m_threadsList.size() + 1)
+                );
+
+                pthread_setname_np(m_threadsList.back().first.native_handle(),
+                                   m_threadsList.back().second.c_str());
+            }
+        }
+        ~QueuedThreadPool() {
+            // Tell all threads to stop and then join all of them.
+            m_alive.store(false, std::memory_order_release);
+            for (auto &t : m_threadsList) {
+                t.first.join();
+            }
+            return;
+        }
+
+    public:
+        template <typename CoreFuncType>
+        void submitTask(Task<CoreFuncType>& task) {
+            m_tasksQueue.enqueue(
+                [&packagedTask = task.packagedTask]()
+                  {
+                      packagedTask();
+                  }
+            );
+        }
+
+        template <typename CoreFuncType>
+        inline void submitMultipleTasks(std::vector<Task<CoreFuncType>> &tasksVec)
+        {
+            for (auto &task : tasksVec) {
+                submitTask(task);
+            }
+        }
+
+        void awaitAllTasks() {
+            using namespace std::chrono_literals;
+            while (
+                !m_tasksQueue.isEmpty()
+            ) {
+                std::this_thread::sleep_for(10ms);
+            }
+        }
+
+    private:
+        std::vector<std::pair<std::thread, std::string>> m_threadsList;
+        std::atomic<bool> m_alive;
+        SPMCQueue<QTask> m_tasksQueue;
+
+        static void threadFunctions(std::atomic<bool> &alive, SPMCQueue<QTask> &q) {
+            // Just check if we should still be alive, and then close if need be.
+            while (alive.load(std::memory_order_acquire)) {
+                auto func = q.tryDequeueFor(TRYDURATION);
+                if (!func) continue;
+                func.value()();
+            }
+        }
+
+};
+
 class TaskThreadPool
 {
   public:
@@ -109,7 +208,7 @@ class TaskThreadPool
         }
     }
 
-    void joinAllThreads() {
+    void awaitAllTasks() {
         if (pr_threads.size() == 0) {
             Log(Warning, "Attempted to join an empty thread pool");
             return;
@@ -134,6 +233,7 @@ template <typename CoreFuncType>
 ReturnTypeOfT<CoreFuncType> consolidateNestedTaskResults(std::vector<Task<CoreFuncType>> &tasks) {
     using OutputType = ReturnTypeOfT<CoreFuncType>;
     size_t numElements = 0;
+    // Unconsolidated outputs -> unco
     std::vector<OutputType> uncoOutputs;
     uncoOutputs.reserve(tasks.size());
 
@@ -174,7 +274,6 @@ std::vector<T> consolidateNestedVector(std::vector<std::vector<T>> &vector) {
 
     // There better be nrvo
     return toReturn;
-
 }
 
 // Divides an mrp into multiple mrps, with differing relative region starts and sizes.
@@ -191,7 +290,11 @@ struct MultipleCoreInputs {
 std::vector<std::span<const char>> divideSingleSnapshot(const MemorySnapshot &snap, size_t quantity);
 
 std::vector<CoreInputs> consolidateIntoCoreInput(
-    MultipleCoreInputs c
+    const MultipleCoreInputs &c
 );
+
+// A stupid one for now, just for testing. It will just break the list up into spans.
+std::vector<std::span<const char>> divideMultipleSnapshots(const std::vector<MemorySnapshot> &snapVec);
+
 
 #endif // core_wrappers_hpp_INCLUDED

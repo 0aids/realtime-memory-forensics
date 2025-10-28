@@ -18,6 +18,7 @@ std::vector<char> makeSnapshotCore(const CoreInputs& core)
     if (!core.mrp)
     {
         Log(Error, "A MemeoryRegionProperties was not supplied!");
+        return {};
     }
     const MemoryRegionProperties& mrp = core.mrp.value();
     Log(Debug, "Taking snapshot");

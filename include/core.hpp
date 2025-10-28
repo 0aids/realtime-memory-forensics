@@ -13,7 +13,7 @@ struct CoreInputs {
     using OptRef = std::optional<std::reference_wrapper<T>>;
 
     // This is all required informatino that could be necessary.
-    OptRef<const MemoryRegionProperties> mrp = {};
+    std::optional<const MemoryRegionProperties> mrp = {};
     std::optional<std::span<const char>> snap1 = {};
     std::optional<std::span<const char>> snap2 = {};
 };
