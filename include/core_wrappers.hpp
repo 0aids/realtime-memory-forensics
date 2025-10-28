@@ -283,18 +283,18 @@ RegionPropertiesList divideSingleRegion(const MemoryRegionProperties& mrp, size_
 // perInput assignment.
 struct MultipleCoreInputs {
     const std::optional<RegionPropertiesList> mrpVec = {};
-    const std::optional<std::vector<std::span<const char>>> snap1Vec = {};
-    const std::optional<std::vector<std::span<const char>>> snap2Vec = {};
+    const std::optional<std::vector<MemorySnapshotSpan>> snap1Vec = {};
+    const std::optional<std::vector<MemorySnapshotSpan>> snap2Vec = {};
 };
 
-std::vector<std::span<const char>> divideSingleSnapshot(const MemorySnapshot &snap, size_t quantity);
+std::vector<MemorySnapshotSpan> divideSingleSnapshot(const MemorySnapshot &snap, size_t quantity);
 
 std::vector<CoreInputs> consolidateIntoCoreInput(
     const MultipleCoreInputs &c
 );
 
 // A stupid one for now, just for testing. It will just break the list up into spans.
-std::vector<std::span<const char>> divideMultipleSnapshots(const std::vector<MemorySnapshot> &snapVec);
+std::vector<MemorySnapshotSpan> divideMultipleSnapshots(const std::vector<MemorySnapshot> &snapVec);
 
 
 #endif // core_wrappers_hpp_INCLUDED

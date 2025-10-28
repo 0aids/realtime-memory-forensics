@@ -32,6 +32,11 @@ Using the found desired sub region, an api is available which would let us poll
 said variable. Checks will be done every poll in order to ensure that the
 memorymap has not changed.
 
+# TODO:
+1. Simplify certain aspects of the API.
+    Make it so I don't have to write 60 lines of code to setup a multi-threaded change detection.
+    On a whole region.
+
 # Styling guide for myself to be consistent
 
 ```cpp

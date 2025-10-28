@@ -39,8 +39,8 @@ int main()
                 steady_clock::now().time_since_epoch());
 
             CoreInputs cInputs  = {.mrp   = props,
-                                   .snap1 = snap1.asSpan(),
-                                   .snap2 = snap2.asSpan()};
+                                   .snap1 = snap1.asSnapshotSpan(),
+                                   .snap2 = snap2.asSnapshotSpan()};
             auto changedRegions = findChangedRegionsCore(cInputs, 8);
 
             Log(Message,

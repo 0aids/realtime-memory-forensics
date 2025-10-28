@@ -30,8 +30,8 @@ divideSingleRegion(const MemoryRegionProperties& mrp, size_t quantity)
     return mrpVec;
 }
 
-std::vector<std::span<const char>> divideSingleSnapshot(const MemorySnapshot &snap, size_t quantity) {
-    std::vector<std::span<const char>> spanVec;
+std::vector<MemorySnapshotSpan> divideSingleSnapshot(const MemorySnapshot &snap, size_t quantity) {
+    std::vector<MemorySnapshotSpan> spanVec;
     size_t avgSize = snap.size() / quantity;
 
     for (size_t i = 0; i < quantity; i++)
@@ -40,7 +40,7 @@ std::vector<std::span<const char>> divideSingleSnapshot(const MemorySnapshot &sn
             avgSize;
         size_t offset = 
             avgSize * i;
-        spanVec.push_back(snap.asSpan().subspan(
+        spanVec.push_back(snap.asSnapshotSpan().subspan(
             offset,
             numBytes
         ));
@@ -69,12 +69,12 @@ std::vector<CoreInputs> consolidateIntoCoreInput(
             total++;
         }
         if (c.snap1Vec && c2 < c.snap1Vec.value().size()) {
-            cin.snap1 = c.snap1Vec.value()[c2];
+            cin.snap1.emplace(c.snap1Vec.value()[c2]);
             c2++;
             total++;
         }
         if (c.snap2Vec && c3 < c.snap2Vec.value().size()) {
-            cin.snap2 = c.snap2Vec.value()[c3];
+            cin.snap2.emplace(c.snap2Vec.value()[c3]);
             c3++;
             total++;
         }
@@ -88,13 +88,13 @@ std::vector<CoreInputs> consolidateIntoCoreInput(
 }
 
 
-std::vector<std::span<const char>> divideMultipleSnapshots(const std::vector<MemorySnapshot> &snapVec)
+std::vector<MemorySnapshotSpan> divideMultipleSnapshots(const std::vector<MemorySnapshot> &snapVec)
 {
 
-    std::vector<std::span<const char>> result;
+    std::vector<MemorySnapshotSpan> result;
     result.reserve(snapVec.size());
     for (const auto &snap: snapVec) {
-        result.push_back(snap.asSpan());
+        result.push_back(snap.asSnapshotSpan());
     }
     return result;
 }

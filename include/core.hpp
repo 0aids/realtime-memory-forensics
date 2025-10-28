@@ -8,14 +8,10 @@
 #include "snapshots.hpp"
 
 struct CoreInputs {
-    template <typename T>
-    // Optional reference
-    using OptRef = std::optional<std::reference_wrapper<T>>;
-
     // This is all required informatino that could be necessary.
     std::optional<const MemoryRegionProperties> mrp = {};
-    std::optional<std::span<const char>> snap1 = {};
-    std::optional<std::span<const char>> snap2 = {};
+    std::optional<MemorySnapshotSpan> snap1 = {};
+    std::optional<MemorySnapshotSpan> snap2 = {};
 };
 
 std::vector<char> makeSnapshotCore(const CoreInputs& core);
