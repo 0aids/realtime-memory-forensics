@@ -2,7 +2,6 @@
 #define snapshots_hpp_INCLUDED
 
 #include "maps.hpp"
-#include "threadpool.hpp"
 #include <cmath>
 #include <vector>
 #include <chrono>

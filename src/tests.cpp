@@ -55,7 +55,7 @@ __attribute__((optimize("O0"))) void sampleProcess()
 {
     using namespace std;
 
-    char          extrashit[] = "This is some extra shit";
+    volatile char          extrashit[] = "This is some extra shit";
     volatile char i[]         = "ALL HAIL THE!!!";
     volatile char j[]         = "A FASTER!!!";
     volatile string*       randomthing = new string("small string");

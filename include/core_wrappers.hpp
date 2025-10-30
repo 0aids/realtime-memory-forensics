@@ -296,5 +296,11 @@ std::vector<CoreInputs> consolidateIntoCoreInput(
 // A stupid one for now, just for testing. It will just break the list up into spans.
 std::vector<MemorySnapshotSpan> divideMultipleSnapshots(const std::vector<MemorySnapshot> &snapVec);
 
+// Schedules them based on the mrps provided. Will break apart the mrps into smaller ones
+// similarly with all the snaps.
+std::vector<CoreInputs> scheduleMultipleCoreInputs(
+    const MultipleCoreInputs &mci,
+    const uintptr_t taskByteSizes
+);
 
 #endif // core_wrappers_hpp_INCLUDED

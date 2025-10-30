@@ -1,9 +1,11 @@
 #include "maps.hpp"
+#include <fcntl.h>
 #include <fstream>
 #include <string>
 #include "logs.hpp"
 #include <algorithm>
 #include <cstring>
+#include <unistd.h>
 
 Perms parsePerms(char r, char w, char x, char p) {
     Perms perms{};
@@ -47,6 +49,11 @@ Perms parsePerms(const std::string_view &s) {
 static constexpr std::string pidToMapLocation(pid_t pid)
 {
     return "/proc/" + std::to_string(pid) + "/maps";
+}
+
+static constexpr std::string pidToPagemap(pid_t pid)
+{
+    return "/proc/" + std::to_string(pid) + "/pagemap";
 }
 
 RegionPropertiesList readMapsFromPid(pid_t pid)
@@ -157,6 +164,21 @@ RegionPropertiesList RegionPropertiesList::filterRegionsByPerms(
     return rl;
 }
 
+RegionPropertiesList RegionPropertiesList::filterRegionsByNotPerms(
+    const std::string_view& perms)
+{
+    Perms permsToMatch = parsePerms(perms);
+    RegionPropertiesList rl;
+    for (size_t i = 0; i < this->size(); i++) {
+        const Perms &p = this->at(i).perms;
+        if ((p & permsToMatch) != permsToMatch) 
+            {
+                rl.push_back(this->at(i));
+            }
+    }
+    return rl;
+}
+
 RegionPropertiesList
 RegionPropertiesList::sortRegionsBySize(const bool increasing)
 {
@@ -181,12 +203,134 @@ RegionPropertiesList::sortRegionsBySize(const bool increasing)
     return rl;
 }
 
+std::ostream &operator<<(std::ostream &s, const Perms &p) {
+    if ((bool)(p & Perms::READ))
+        s << 'r';
+    if ((bool)(p & Perms::WRITE))
+        s << 'w';
+    if ((bool)(p & Perms::EXECUTE))
+        s << 'x';
+    if ((bool)(p & Perms::PRIVATE))
+        s << 'p';
+    if ((bool)(p & Perms::SHARED))
+        s << 's';
+    return s;
+}
+
 std::ostream &operator<<(std::ostream &s, const MemoryRegionProperties &m) {
     s << std::hex << std::showbase <<
      "Region Name: " << m.regionName << "\n" <<
      "Parent Region Start: " << m.parentRegionStart << "\n" <<
      "Parent Region Size: " << m.parentRegionSize << "\n" <<
      "Relative Region Start: " << m.relativeRegionStart << "\n" << 
-     "Relative Region Size: " << m.relativeRegionSize << "\n";
+     "Relative Region Size: " << m.relativeRegionSize << "\n" <<
+     "Relative Region Size: " << m.perms << "\n";
      return s;
+}
+
+// Returns a large list of PAGE_SIZE regions.
+// I'm lazy to consolidate them, plus it sort of serves as a pseudo
+// scheduler that makes large regions smaller.
+RegionPropertiesList getActiveRegions(const MemoryRegionProperties &mrp) {
+    RegionPropertiesList regions;
+    long pageSize = sysconf(_SC_PAGE_SIZE);
+    const std::string pagemapPath = pidToPagemap(mrp.pid);
+    int fd = open(pagemapPath.c_str(), O_RDONLY);
+    const uint64_t ACTIVE_BIT = (1ULL << 63);
+    for (uintptr_t addr = mrp.getActualRegionStart();
+         addr < mrp.getActualRegionStart() + mrp.relativeRegionSize;
+         addr += pageSize)
+    {
+        // Multiply by 8 because each 8 byte chunk represents a page.
+        uintptr_t offset = (addr / pageSize) * 8;
+        if (lseek(fd, offset, SEEK_SET) == (off_t) -1) {
+            Log(Error, "Failed to seek the pagemap!");
+            perror("failed to seek pagemap");
+            continue;
+        }
+
+        uint64_t entry;
+        if (read(fd, &entry, 8) != 8) {
+            Log(Error, "Failed to READ the pagemap!")
+            perror("failed to read pagemap");
+            continue;
+        }
+
+        if (entry & ACTIVE_BIT) {
+            MemoryRegionProperties newMrp = mrp;
+            newMrp.relativeRegionSize = pageSize;
+            newMrp.relativeRegionStart = addr;
+            regions.push_back(newMrp);
+        }
+    }
+    return regions;
+}
+
+RegionPropertiesList getActiveRegionsFromRegionPropertiesList(
+    const RegionPropertiesList &rpl
+)
+{
+    if (rpl.size() == 0){
+        Log(Warning, "Given an empty RegionPropertiesList!!!");
+        return {};
+    }
+    RegionPropertiesList regions;
+    long pageSize = sysconf(_SC_PAGE_SIZE);
+    const std::string pagemapPath = pidToPagemap(rpl[0].pid);
+    int fd = open(pagemapPath.c_str(), O_RDONLY);
+    if (fd < 0) {
+        Log(Error, "Failed to open the pageMap!!!!");
+        return {};
+    }
+    const uint64_t ACTIVE_BIT = (1ULL << 63);
+    for (const auto &mrp:rpl) {
+        for (uintptr_t addr = mrp.getActualRegionStart();
+             addr < mrp.getActualRegionStart() + mrp.relativeRegionSize;
+             addr += pageSize)
+        {
+            // Multiply by 8 because each 8 byte chunk represents a page.
+            uintptr_t offset = (addr / pageSize) * 8;
+            if (lseek(fd, offset, SEEK_SET) == (off_t) -1) {
+                Log(Error, "Failed to seek the pagemap!");
+                perror("failed to seek pagemap");
+                continue;
+            }
+
+            uint64_t entry;
+            if (read(fd, &entry, 8) != 8) {
+                Log(Error, "Failed to READ the pagemap!")
+                perror("failed to read pagemap");
+                continue;
+            }
+
+            if (entry & ACTIVE_BIT) {
+                MemoryRegionProperties newMrp = mrp;
+                newMrp.relativeRegionSize = pageSize;
+                newMrp.relativeRegionStart = addr - mrp.parentRegionStart;
+                regions.push_back(newMrp);
+            }
+        }
+    }
+    close(fd);
+    return regions;
+}
+RegionPropertiesList breakIntoRegionChunks(
+    const RegionPropertiesList &rpl, size_t overlap
+){
+    long pageSize = sysconf(_SC_PAGE_SIZE);
+    RegionPropertiesList regions;
+    for (const auto &mrp:rpl) {
+        for (uintptr_t addr = mrp.getActualRegionStart();
+             addr < mrp.getActualRegionStart() + mrp.relativeRegionSize;
+             addr += pageSize)
+        {
+            // Multiply by 8 because each 8 byte chunk represents a page.
+            uintptr_t offset = (addr / pageSize) * 8;
+            MemoryRegionProperties newMrp = mrp;
+            newMrp.relativeRegionSize = pageSize;
+            newMrp.relativeRegionStart = addr - mrp.parentRegionStart;
+            regions.push_back(newMrp);
+        }
+    }
+    return regions;
 }

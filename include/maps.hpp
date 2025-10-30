@@ -50,16 +50,16 @@ Perms parsePerms(const std::string_view& p);
 
 struct MemoryRegionProperties
 {
-    const Perms       perms;
-    const std::string regionName;
-    const uintptr_t   parentRegionStart; // Inclusive
+    const Perms       perms = Perms::EMPTY;
+    const std::string regionName = "";
+    const uintptr_t   parentRegionStart = 0; // Inclusive
     const uintptr_t
-        parentRegionSize; // Exclusive (start + end - 1 is the last)
+        parentRegionSize = 0; // Exclusive (start + end - 1 is the last)
     uintptr_t
-        relativeRegionStart; // Relative to the parent region start
-    uintptr_t   relativeRegionSize; // Relative to parent region size
+        relativeRegionStart = 0; // Relative to the parent region start
+    uintptr_t   relativeRegionSize = 0; // Relative to parent region size
 
-    const pid_t pid;
+    const pid_t pid = 0;
 
     inline uintptr_t getActualRegionStart() const
     {
@@ -104,6 +104,13 @@ public:
     RegionPropertiesList
     filterRegionsByPerms(const std::string_view& perms);
 
+    // Must not have the permission.
+    // IS if the perm is 'S' to be ignored, will
+    // let 'rwp', 'rxp' in, but not 'rs' etc.
+    // Probably only going to be used remove shared perms.
+    RegionPropertiesList
+    filterRegionsByNotPerms(const std::string_view& perms);
+
     // Does not do it in place.
     RegionPropertiesList
     sortRegionsBySize(const bool increasing = true);
@@ -122,5 +129,17 @@ public:
 RegionPropertiesList readMapsFromPid(pid_t pid);
 std::ostream&        operator<<(std::ostream&                 s,
                          const MemoryRegionProperties& m);
+
+// Reads the pagemap of the region given to eliminate / split the region
+// up into regions that are actually in memory at the moment of scanning.
+RegionPropertiesList getActiveRegions(const MemoryRegionProperties &mrp);
+
+RegionPropertiesList getActiveRegionsFromRegionPropertiesList(
+    const RegionPropertiesList &rpl
+);
+
+RegionPropertiesList breakIntoRegionChunks(
+    const RegionPropertiesList &rpl, size_t overlap
+);
 
 #endif // maps_hpp_INCLUDED

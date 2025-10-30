@@ -32,11 +32,10 @@ class LoggerWrapper
 {
   private:
     std::optional<std::stringstream> m_ss;
-    LogLevel                         level;
 
   public:
     template <typename T>
-    LoggerWrapper& operator<<(const T& in)
+    constexpr LoggerWrapper& operator<<(const T& in)
     {
         if (m_ss)
         {
@@ -45,15 +44,15 @@ class LoggerWrapper
         return *this;
     }
 
-    LoggerWrapper() = default;
+    constexpr LoggerWrapper() = default;
 
-    LoggerWrapper(const std::string_view initial)
+    constexpr LoggerWrapper(const std::string_view initial)
     {
         m_ss.emplace();
         *m_ss << initial;
     }
 
-    ~LoggerWrapper()
+    constexpr ~LoggerWrapper()
     {
         if (m_ss)
         {
@@ -86,7 +85,7 @@ class Logger
 
   public:
     static inline LogLevel currentLevel = Debug;
-    static LoggerWrapper   log(const LogLevel         level,
+    constexpr static LoggerWrapper   log(const LogLevel         level,
                                const std::string_view filename,
                                const std::string_view functionName,
                                size_t                 lineNumber)

@@ -123,7 +123,7 @@ findChangedRegionsCore(const CoreInputs& core,
             {
                 MemoryRegionProperties nmrp = mrp;
                 nmrp.relativeRegionSize     = curSize;
-                nmrp.relativeRegionStart    = current;
+                nmrp.relativeRegionStart    = mrp.relativeRegionStart + current;
                 data.push_back(std::move(nmrp));
             }
         }
@@ -131,4 +131,40 @@ findChangedRegionsCore(const CoreInputs& core,
     }
     Log(Debug, "Found changes: " << data.size());
     return std::move(data);
+}
+
+std::vector<MemoryRegionProperties>
+findStringCore(
+    const CoreInputs& core,
+    const std::string_view &str
+) {
+    if (!core.snap1) {
+        Log(Warning, "Snap1 was NOT provided!");
+        return {};
+    }
+    std::vector<MemoryRegionProperties> result;
+    const auto &snap1 = core.snap1.value();
+    for (uintptr_t i = 0;
+         i + str.length() <= snap1.size(); i++)
+    {
+        size_t count = 0;
+        for (uintptr_t j = 0; j < str.length(); j++)
+        {
+            if (snap1[i + j] != str[j])
+            {
+                break;
+            }
+            count++;
+        }
+        if (count == str.length())
+        {
+            MemoryRegionProperties newRegion =
+                snap1.regionProperties;
+            newRegion.relativeRegionStart = i + snap1.regionProperties.relativeRegionStart;
+            newRegion.relativeRegionSize  = str.length();
+            result.push_back(newRegion);
+        }
+    }
+
+    return result;
 }

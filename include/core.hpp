@@ -22,4 +22,10 @@ std::vector<MemoryRegionProperties>
 findChangedRegionsCore(const CoreInputs& core,
                        const uintptr_t &cmpSize);
 
+std::vector<MemoryRegionProperties>
+findStringCore(
+    const CoreInputs& core,
+    const std::string_view &str
+);
+
 #endif

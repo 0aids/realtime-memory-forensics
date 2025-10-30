@@ -33,9 +33,12 @@ said variable. Checks will be done every poll in order to ensure that the
 memorymap has not changed.
 
 # TODO:
-1. Simplify certain aspects of the API.
+1. Add a more general task splitter and consolidator for the main data types such that
+    large tasks are split up into smaller ones, and are consolidated properly.
+2. Simplify certain aspects of the API.
     Make it so I don't have to write 60 lines of code to setup a multi-threaded change detection.
     On a whole region.
+3. Add the ability to determine regions of memory that are actually in ram rn.
 
 # Styling guide for myself to be consistent
 

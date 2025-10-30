@@ -11,7 +11,7 @@ template <typename T>
 class SPMCQueue
 {
   public:
-    constexpr static size_t DEFSIZE = 128;
+    constexpr static size_t DEFSIZE = 0x80000;
 
   private:
     std::array<T, DEFSIZE> m_data;
