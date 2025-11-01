@@ -59,7 +59,7 @@ class LoggerWrapper
             // Prevent funky shit happening when printing.
             std::lock_guard<std::mutex> lock(logMutex);
             std::cerr << m_ss.value().str() << RESET_COLOR
-                      << std::endl;
+                      << "\n"; // stop blocking.
         }
     }
 };

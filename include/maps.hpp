@@ -65,6 +65,8 @@ struct MemoryRegionProperties
     {
         return parentRegionStart + relativeRegionStart;
     }
+
+    auto operator<=>(const MemoryRegionProperties&) const = default;
 };
 
 class RegionPropertiesList

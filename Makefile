@@ -11,10 +11,9 @@ CCSTD= -std=c++23
 DEPFLAGS= -MP -MD
 OPT= -O1
 
-# PKGS =  ncurses
-
-INCLUDES = -Iinclude # `pkg-config --cflags $(PKGS)`
-LIBFLAGS = # `pkg-config --libs $(PKGS)`
+PKGS = sdl3 # imgui is manually compiled and linked as per wiki instructions
+INCLUDES = -Iinclude -Iexternal/imgui `pkg-config --cflags $(PKGS)`
+LIBFLAGS = `pkg-config --libs $(PKGS)`
 
 CPPFILES = $(shell find src -type f -name "*.cpp" -not -path '*/.*' )
 OFILES = $(patsubst src/%.cpp, build/src/%.o, $(CPPFILES))
@@ -27,7 +26,7 @@ TESTOFILES = $(patsubst tests/%.cpp, build/tests/%.o, $(TESTFILES))
 TESTDFILES  = $(patsubst tests/%.cpp, build/tests/%.d, $(TESTFILES))
 TESTEXEFILES = $(patsubst tests/%.cpp, build/tests/%, $(TESTFILES))
 HFILES = $(shell find include -type f -name "*.hpp" -not -path '*/.*' )
-DFILES = $(patsubst %.hpp, build/%.d, $(HFILES)) $(TESTDFILES)
+DFILES = $(patsubst %.o, %.d, $(OFILES)) $(TESTDFILES)
 
 files:
 	@echo "CPPFILES: $(CPPFILES)"

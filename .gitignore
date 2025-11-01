@@ -1,4 +1,6 @@
 build
+old
+external
 .*
 !.gitignore
 mem-anal

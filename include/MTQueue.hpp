@@ -1,6 +1,7 @@
 #ifndef MTQueue_hpp_INCLUDED
 #define MTQueue_hpp_INCLUDED
 #include <array>
+#include <vector>
 #include <cstddef>
 #include <atomic>
 #include <semaphore>
@@ -14,7 +15,7 @@ class SPMCQueue
     constexpr static size_t DEFSIZE = 0x80000;
 
   private:
-    std::array<T, DEFSIZE> m_data;
+    std::unique_ptr<std::array<T, DEFSIZE>> m_data = std::make_unique<std::array<T, DEFSIZE>>();
     std::counting_semaphore<DEFSIZE> m_semaphore{0};
 
     // why does it have to be braces?
@@ -30,7 +31,7 @@ class SPMCQueue
     {
         using namespace std;
         size_t curTail = tail.fetch_add(1, memory_order_acq_rel);
-        T toReturn = std::move(m_data[curTail % DEFSIZE]);
+        T toReturn = std::move((*m_data)[curTail % DEFSIZE]);
 
         return toReturn;
     }
@@ -52,7 +53,7 @@ class SPMCQueue
         }
 
         // Make a copy here
-        m_data[curHead % DEFSIZE] = value;
+        (*m_data)[curHead % DEFSIZE] = value;
 
         head.store(curHead + 1, memory_order_release);
         m_semaphore.release();

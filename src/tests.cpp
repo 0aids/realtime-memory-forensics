@@ -58,6 +58,7 @@ __attribute__((optimize("O0"))) void sampleProcess()
     volatile char          extrashit[] = "This is some extra shit";
     volatile char i[]         = "ALL HAIL THE!!!";
     volatile char j[]         = "A FASTER!!!";
+    volatile double *d = new double(5);
     volatile string*       randomthing = new string("small string");
     volatile double*       doubleVal   = new double(150);
     volatile auto          list = new std::list<char>{'a', 'b', 'c', 'd'};
@@ -124,6 +125,7 @@ __attribute__((optimize("O0"))) void sampleProcess()
             i[0] = (i[0] - 64) % 26 + 65;
         }
         j[0] = (i[0] - 64) % 26 + 65;
+        *d+=0.5;
         *dumb += 1;
     }
     delete randomthing;

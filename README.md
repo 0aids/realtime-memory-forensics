@@ -33,12 +33,32 @@ said variable. Checks will be done every poll in order to ensure that the
 memorymap has not changed.
 
 # TODO:
-1. Add a more general task splitter and consolidator for the main data types such that
-    large tasks are split up into smaller ones, and are consolidated properly.
+1. Why am I getting duplicate results? As far as I know
+    the regions are not overlapping.
+
 2. Simplify certain aspects of the API.
     Make it so I don't have to write 60 lines of code to setup a multi-threaded change detection.
     On a whole region.
-3. Add the ability to determine regions of memory that are actually in ram rn.
+
+3. Add extra core functions and pointer finding.
+    maybe even linked list detection with a range of pointers given.
+
+3. Add a basic gui that allows me to view regions of memory and change their
+    interpretations (double, float, etc) on the fly really quickly.
+    Also allow for scanning of said memory, and better dynamic
+    runtime user modification of regions of memory being read.
+    Add the ability to create windows which are views into regions of memory.
+    These windows can have parts casted into different data types.
+
+# issues
+1. There seems to be some problem with the logging system in multi-threaded contexts,
+    which completely prevents any logs from showing if there are a large amount of tasks.
+    I'm pretty sure snapshotting works correctly, however.
+
+# Alternative plans
+If the position of the player is actually encrypted, I will have to decrypt it somehow.
+I know that the player moves at a pace about 26 units per second (or 16 on a new acc).
+Maybe I could use this to decrypt the player's movement.
 
 # Styling guide for myself to be consistent
 

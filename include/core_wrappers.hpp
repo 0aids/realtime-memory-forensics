@@ -56,17 +56,25 @@ struct Task
 inline std::span<const char> spanFromRegionProperties(const MemoryRegionProperties &mrp, 
                                                     const MemorySnapshot &snap);
 
+inline uint64_t taskNumber = 0;
 // How do I create multiple tasks?
 template <typename CoreFuncType,
           typename... UniqueInputs>
 auto createTask(CoreFuncType coreFunc, const CoreInputs& cInputs,
                 UniqueInputs... uInputs)
 {
-    auto lambda = [=]() { return coreFunc(cInputs, uInputs...); };
+    taskNumber++;
+    // task number needs to be captured otherwise the logs don't show for some reason.
+    auto lambda = [coreFunc, cInputs, uInputs..., taskNumber = taskNumber]() { 
+        // if (taskNumber % 1000 == 0)
+        //     Log(Warning, "Task number: " << taskNumber);
+        return coreFunc(cInputs, uInputs...); };
     std::packaged_task ptask(lambda);
 
     // Idk why std::move is requried here, the operator= moves by default.
-    return Task<CoreFuncType>{.result = ptask.get_future(), .packagedTask=std::move(ptask)};
+    auto t = Task<CoreFuncType>{.result = {}, .packagedTask=std::move(ptask)};
+    t.result = t.packagedTask.get_future();
+    return t;
 }
 
 template <typename CoreFuncType,
@@ -296,6 +304,7 @@ std::vector<CoreInputs> consolidateIntoCoreInput(
 // A stupid one for now, just for testing. It will just break the list up into spans.
 std::vector<MemorySnapshotSpan> divideMultipleSnapshots(const std::vector<MemorySnapshot> &snapVec);
 
+// *Unimplemented*.
 // Schedules them based on the mrps provided. Will break apart the mrps into smaller ones
 // similarly with all the snaps.
 std::vector<CoreInputs> scheduleMultipleCoreInputs(

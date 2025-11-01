@@ -13,6 +13,9 @@ extern "C"
 #include <sys/uio.h>
 }
 
+// A vector of chars, not snapshot because it'll be easier
+// to combine them when needed?
+// Consider the possibility of changing it.
 std::vector<char> makeSnapshotCore(const CoreInputs& core)
 {
     if (!core.mrp)
@@ -83,69 +86,66 @@ std::vector<char> makeSnapshotCore(const CoreInputs& core)
         totalBytesRead += nread;
     }
 
-    return std::move(data);
+    return data;
 }
 
 std::vector<MemoryRegionProperties>
 findChangedRegionsCore(const CoreInputs& core,
-                       const uintptr_t &cmpSize)
+                       const uintptr_t&  cmpSize)
 {
-    if (!core.snap1 || !core.snap2 || !core.mrp) {
+    // TODO: requirement of core.mrp is redundant, as the snapshots
+    // now supply that metadata.
+    if (!core.snap1 || !core.snap2 || !core.mrp)
+    {
         Log(Error, "Missing a snapshot!");
         return {};
     }
-    const auto &snap1 = core.snap1.value();
-    const auto &snap2 = core.snap2.value();
-    const MemoryRegionProperties &mrp = core.mrp.value();
-    size_t    numIters = snap1.size() / cmpSize;
-    uintptr_t current  = 0;
+    const auto&                   snap1    = core.snap1.value();
+    const auto&                   snap2    = core.snap2.value();
+    const MemoryRegionProperties& mrp      = core.mrp.value();
+    size_t                        numIters = snap1.size() / cmpSize;
+    uintptr_t                     current  = 0;
     Log(Debug, "Number of iterations required: " << numIters);
 
     std::vector<MemoryRegionProperties> data;
     for (size_t i = 0; i < numIters; ++i)
     {
-        uintptr_t curSize = (i == numIters - 1) ?
-            snap1.size() - current :
-            cmpSize;
-
         if (memcmp(snap1.data() + current, snap2.data() + current,
-                   curSize))
+                   cmpSize))
         {
             Log(Message, "Found a change!");
             if (data.size() > 0 &&
                 data.back().relativeRegionStart +
                         data.back().relativeRegionSize ==
-                    current)
+                    mrp.relativeRegionStart + current)
             {
-                data.back().relativeRegionSize += curSize;
+                data.back().relativeRegionSize += cmpSize;
             }
             else
             {
                 MemoryRegionProperties nmrp = mrp;
-                nmrp.relativeRegionSize     = curSize;
-                nmrp.relativeRegionStart    = mrp.relativeRegionStart + current;
+                nmrp.relativeRegionSize     = cmpSize;
+                nmrp.relativeRegionStart += current;
                 data.push_back(std::move(nmrp));
             }
         }
-        current += curSize;
+        current += cmpSize;
     }
     Log(Debug, "Found changes: " << data.size());
-    return std::move(data);
+    return data;
 }
 
 std::vector<MemoryRegionProperties>
-findStringCore(
-    const CoreInputs& core,
-    const std::string_view &str
-) {
-    if (!core.snap1) {
+findStringCore(const CoreInputs& core, const std::string_view& str)
+{
+    if (!core.snap1)
+    {
         Log(Warning, "Snap1 was NOT provided!");
         return {};
     }
     std::vector<MemoryRegionProperties> result;
-    const auto &snap1 = core.snap1.value();
-    for (uintptr_t i = 0;
-         i + str.length() <= snap1.size(); i++)
+    const auto&                         snap1 = core.snap1.value();
+    for (uintptr_t i = 0; i + str.length() <= snap1.size(); i++)
     {
         size_t count = 0;
         for (uintptr_t j = 0; j < str.length(); j++)
@@ -158,13 +158,51 @@ findStringCore(
         }
         if (count == str.length())
         {
-            MemoryRegionProperties newRegion =
-                snap1.regionProperties;
-            newRegion.relativeRegionStart = i + snap1.regionProperties.relativeRegionStart;
-            newRegion.relativeRegionSize  = str.length();
+            MemoryRegionProperties newRegion = snap1.regionProperties;
+            // The cause of all my problems:
+            // forgetting to add the offset because of the span...
+            newRegion.relativeRegionStart =
+                i + snap1.regionProperties.relativeRegionStart;
+            newRegion.relativeRegionSize = str.length();
             result.push_back(newRegion);
         }
     }
 
     return result;
+}
+
+std::vector<MemoryRegionProperties>
+findUnchangedRegionsCore(const CoreInputs& core, const uintptr_t& cmpSize)
+{
+    if (!core.snap1 || !core.snap2)
+    {
+        Log(Error, "Missing a snapshot!");
+        return {};
+    }
+    auto snap1 = core.snap1.value();
+    auto snap2 = core.snap2.value();
+    std::vector<MemoryRegionProperties> results;
+    for (size_t i = 0; i < snap1.size() / cmpSize; ++i)
+    {
+        if (!memcmp(snap1.data() + (i * cmpSize),
+                    snap2.data() + (i * cmpSize), cmpSize))
+        {
+            if (results.size() > 0 &&
+                results.back().relativeRegionStart +
+                        results.back().relativeRegionSize ==
+                    snap1.regionProperties.relativeRegionStart + i * cmpSize)
+            {
+                results.back().relativeRegionSize += cmpSize;
+            }
+            else
+            {
+                auto newRegionProperties = snap1.regionProperties;
+                newRegionProperties.relativeRegionSize          = cmpSize;
+                newRegionProperties.relativeRegionStart += i * cmpSize;
+                results.push_back(
+                    std::move(newRegionProperties));
+            };
+        }
+    }
+    return results;
 }

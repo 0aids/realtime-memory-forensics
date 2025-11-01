@@ -2,93 +2,23 @@
   {
     "arguments": [
       "/nix/store/bcw9f6r9v2fm3kv7d15fcrya0mf34xds-gcc-wrapper-14.3.0/bin/g++",
+      "-Iinclude",
+      "-Iexternal/imgui",
+      "-I/nix/store/f40bf9j54gkmy8h5vjxizz9nm3xrks1h-sdl3-3.2.20-dev/include",
+      "-O1",
+      "-std=c++23",
       "-g",
       "-Wall",
       "-Wextra",
+      "-Wno-cpp",
       "-Wpedantic",
-      "-O1",
-      "-std=c++23",
-      "-Iinclude",
-      "-Isrc",
-      "-D_DEFAULT_SOURCE",
-      "-D_XOPEN_SOURCE=600",
-      "-I/nix/store/dq8kr0g1dhg017y6ys0hxnjkqmlaqyaw-ncurses-6.5-dev/include",
       "-c",
       "-o",
-      "build/interrim/main.o",
+      "build/src/main.o",
       "src/main.cpp"
     ],
     "directory": "/home/aids/git/beebot/memory-analysis",
     "file": "/home/aids/git/beebot/memory-analysis/src/main.cpp",
-    "output": "/home/aids/git/beebot/memory-analysis/build/interrim/main.o"
-  },
-  {
-    "arguments": [
-      "/nix/store/bcw9f6r9v2fm3kv7d15fcrya0mf34xds-gcc-wrapper-14.3.0/bin/g++",
-      "-c",
-      "-g",
-      "-Wall",
-      "-Wextra",
-      "-Wpedantic",
-      "-O1",
-      "-std=c++23",
-      "-Iinclude",
-      "-Isrc",
-      "-D_DEFAULT_SOURCE",
-      "-D_XOPEN_SOURCE=600",
-      "-I/nix/store/dq8kr0g1dhg017y6ys0hxnjkqmlaqyaw-ncurses-6.5-dev/include",
-      "-o",
-      "build/tests/sampleProcess",
-      "tests/sampleProcess.cpp"
-    ],
-    "directory": "/home/aids/git/beebot/memory-analysis",
-    "file": "/home/aids/git/beebot/memory-analysis/tests/sampleProcess.cpp",
-    "output": "/home/aids/git/beebot/memory-analysis/build/tests/sampleProcess"
-  },
-  {
-    "arguments": [
-      "/nix/store/bcw9f6r9v2fm3kv7d15fcrya0mf34xds-gcc-wrapper-14.3.0/bin/g++",
-      "-c",
-      "-g",
-      "-Wall",
-      "-Wextra",
-      "-Wpedantic",
-      "-O1",
-      "-std=c++23",
-      "-Iinclude",
-      "-Isrc",
-      "-D_DEFAULT_SOURCE",
-      "-D_XOPEN_SOURCE=600",
-      "-I/nix/store/dq8kr0g1dhg017y6ys0hxnjkqmlaqyaw-ncurses-6.5-dev/include",
-      "-o",
-      "build/tests/test1",
-      "tests/test1.cpp"
-    ],
-    "directory": "/home/aids/git/beebot/memory-analysis",
-    "file": "/home/aids/git/beebot/memory-analysis/tests/test1.cpp",
-    "output": "/home/aids/git/beebot/memory-analysis/build/tests/test1"
-  },
-  {
-    "arguments": [
-      "/nix/store/bcw9f6r9v2fm3kv7d15fcrya0mf34xds-gcc-wrapper-14.3.0/bin/g++",
-      "-c",
-      "-g",
-      "-Wall",
-      "-Wextra",
-      "-Wpedantic",
-      "-O1",
-      "-std=c++23",
-      "-Iinclude",
-      "-Isrc",
-      "-D_DEFAULT_SOURCE",
-      "-D_XOPEN_SOURCE=600",
-      "-I/nix/store/dq8kr0g1dhg017y6ys0hxnjkqmlaqyaw-ncurses-6.5-dev/include",
-      "-o",
-      "build/tests/test2",
-      "tests/test2.cpp"
-    ],
-    "directory": "/home/aids/git/beebot/memory-analysis",
-    "file": "/home/aids/git/beebot/memory-analysis/tests/test2.cpp",
-    "output": "/home/aids/git/beebot/memory-analysis/build/tests/test2"
+    "output": "/home/aids/git/beebot/memory-analysis/build/src/main.o"
   }
 ]
