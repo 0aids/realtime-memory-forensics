@@ -39,7 +39,7 @@ concept Numeric = std::integral<T> || std::floating_point<T>;
 template <Numeric NumType>
 std::vector<MemoryRegionProperties>
 findNumericWithinRange(const CoreInputs& core,
-                       const NumType &max, const NumType &min)
+                       const NumType &min, const NumType &max)
 {
     if (!core.snap1)
     {
@@ -77,6 +77,7 @@ findNumericWithinRange(const CoreInputs& core,
     return data;
 }
 
+// IMPORTANT: DO NOT USE!!! currently broken
 template <Numeric NumType>
 std::vector<MemoryRegionProperties>
 findChangedNumericCore(const CoreInputs& core,
@@ -122,6 +123,8 @@ findChangedNumericCore(const CoreInputs& core,
     return data;
 }
 
+// TODO: Fix this and the one above for proper alignment assurance
+// IMPORTANT: DO NOT USE!!! currently broken.
 template <Numeric NumType>
 std::vector<MemoryRegionProperties>
 findUnchangedNumericCore(const CoreInputs& core,

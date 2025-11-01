@@ -1,63 +1,25 @@
-# Make files are the bane of my existance
-CXX=g++
-# Sometimes i go over the max ASAN allocation limit somehow.
-ASAN = # -fsanitize=undefined,address
-# Building with asan causes tests to fail due to asan memory limits.
-# Maybe i'm doing something wrong.
-# It seems to move the shit around.
-# wnocpp because i compile with -O0 regularly when debugging.
-CXXFLAGS=-g  -Wall -Wextra -Wno-cpp -Wpedantic $(ASAN)
-CCSTD= -std=c++23
-DEPFLAGS= -MP -MD
-OPT= -O1
+NumProcessors = `getconf NPROCESSORS_CONF`
 
-PKGS = sdl3 # imgui is manually compiled and linked as per wiki instructions
-INCLUDES = -Iinclude -Iexternal/imgui `pkg-config --cflags $(PKGS)`
-LIBFLAGS = `pkg-config --libs $(PKGS)`
+.PHONY: all build configure clean test rebuild debug _debug
 
-CPPFILES = $(shell find src -type f -name "*.cpp" -not -path '*/.*' )
-OFILES = $(patsubst src/%.cpp, build/src/%.o, $(CPPFILES))
+all: configure build
 
-# maybe I should learn cmake. or meson, or an actually good build system.
-# I love make it's so easyyyyy :) :):)(:
-OFILES_FOR_TEST = $(filter-out %main.o, $(OFILES))
-TESTFILES = $(shell find tests -type f -name "*.cpp" -not -path '*/.*')
-TESTOFILES = $(patsubst tests/%.cpp, build/tests/%.o, $(TESTFILES))
-TESTDFILES  = $(patsubst tests/%.cpp, build/tests/%.d, $(TESTFILES))
-TESTEXEFILES = $(patsubst tests/%.cpp, build/tests/%, $(TESTFILES))
-HFILES = $(shell find include -type f -name "*.hpp" -not -path '*/.*' )
-DFILES = $(patsubst %.o, %.d, $(OFILES)) $(TESTDFILES)
-
-files:
-	@echo "CPPFILES: $(CPPFILES)"
-	@echo "OFILES: $(OFILES)"
-	@echo "TESTFILES: $(TESTFILES)"
-	@echo "TESTEXEFILES: $(TESTEXEFILES)"
-	@echo "HFILES: $(HFILES)"
-	@echo "DFILES: $(DFILES)"
-	@echo "OFILES_FOR_TEST: $(OFILES_FOR_TEST)"
-
-mem-anal: $(OFILES)
-	$(CXX) $(INCLUDES) $(OPT) $(DEPFLAGS) $(CCSTD) $(LIBFLAGS) $(CXXFLAGS) -o $@ $^
-
-tests:    $(TESTEXEFILES) $(OFILES_FOR_TEST)
+debug: _debug build
 
 
-build/tests/% : build/tests/%.o $(OFILES_FOR_TEST)
-	@mkdir -p build/tests
-	$(CXX) $(INCLUDES) $(OPT) $(DEPFLAGS) $(CCSTD) $(LIBFLAGS) $(CXXFLAGS) -o $@ $^
+configure:
+	cmake -S . -B build
 
-build/tests/%.o: tests/%.cpp
-	@mkdir -p build/tests
-	$(CXX) $(INCLUDES) $(OPT) $(DEPFLAGS) $(CCSTD) $(LIBFLAGS) $(CXXFLAGS) -c -o $@ $<
+build:
+	cmake --build build -j $(NumProcessors)
 
-
-build/src/%.o : src/%.cpp
-	@mkdir -p build/`dirname $<`
-	$(CXX) $(INCLUDES) $(OPT) $(DEPFLAGS) $(CCSTD) $(CXXFLAGS) -c -o $@ $< 
-	
+test: clean _debug build
+	ctest --test-dir build
 
 clean:
 	rm -rf build
 
--include $(DFILES)
+rebuild: clean all
+
+_debug:
+	cmake -DDisableOPT=ON -S . -B build

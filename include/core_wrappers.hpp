@@ -56,16 +56,14 @@ struct Task
 inline std::span<const char> spanFromRegionProperties(const MemoryRegionProperties &mrp, 
                                                     const MemorySnapshot &snap);
 
-inline uint64_t taskNumber = 0;
 // How do I create multiple tasks?
 template <typename CoreFuncType,
           typename... UniqueInputs>
-auto createTask(CoreFuncType coreFunc, const CoreInputs& cInputs,
+auto createTask(CoreFuncType coreFunc, const CoreInputs cInputs,
                 UniqueInputs... uInputs)
 {
-    taskNumber++;
     // task number needs to be captured otherwise the logs don't show for some reason.
-    auto lambda = [coreFunc, cInputs, uInputs..., taskNumber = taskNumber]() { 
+    auto lambda = [=]() { 
         // if (taskNumber % 1000 == 0)
         //     Log(Warning, "Task number: " << taskNumber);
         return coreFunc(cInputs, uInputs...); };

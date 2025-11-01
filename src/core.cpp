@@ -103,15 +103,16 @@ findChangedRegionsCore(const CoreInputs& core,
     const auto&                   snap1    = core.snap1.value();
     const auto&                   snap2    = core.snap2.value();
     const MemoryRegionProperties& mrp      = core.mrp.value();
-    size_t                        numIters = snap1.size() / cmpSize;
+    size_t                        numIters = snap1.size() / cmpSize + 1;
     uintptr_t                     current  = 0;
     Log(Debug, "Number of iterations required: " << numIters);
 
     std::vector<MemoryRegionProperties> data;
     for (size_t i = 0; i < numIters; ++i)
     {
+        size_t actualCmpSize = (i == numIters - 1) ? snap1.size() - current : cmpSize;
         if (memcmp(snap1.data() + current, snap2.data() + current,
-                   cmpSize))
+                   actualCmpSize))
         {
             Log(Message, "Found a change!");
             if (data.size() > 0 &&
@@ -119,17 +120,17 @@ findChangedRegionsCore(const CoreInputs& core,
                         data.back().relativeRegionSize ==
                     mrp.relativeRegionStart + current)
             {
-                data.back().relativeRegionSize += cmpSize;
+                data.back().relativeRegionSize += actualCmpSize;
             }
             else
             {
                 MemoryRegionProperties nmrp = mrp;
-                nmrp.relativeRegionSize     = cmpSize;
+                nmrp.relativeRegionSize     = actualCmpSize;
                 nmrp.relativeRegionStart += current;
                 data.push_back(std::move(nmrp));
             }
         }
-        current += cmpSize;
+        current += actualCmpSize;
     }
     Log(Debug, "Found changes: " << data.size());
     return data;
@@ -174,35 +175,45 @@ findStringCore(const CoreInputs& core, const std::string_view& str)
 std::vector<MemoryRegionProperties>
 findUnchangedRegionsCore(const CoreInputs& core, const uintptr_t& cmpSize)
 {
-    if (!core.snap1 || !core.snap2)
+    // TODO: requirement of core.mrp is redundant, as the snapshots
+    // now supply that metadata.
+    if (!core.snap1 || !core.snap2 || !core.mrp)
     {
         Log(Error, "Missing a snapshot!");
         return {};
     }
-    auto snap1 = core.snap1.value();
-    auto snap2 = core.snap2.value();
-    std::vector<MemoryRegionProperties> results;
-    for (size_t i = 0; i < snap1.size() / cmpSize; ++i)
+    const auto&                   snap1    = core.snap1.value();
+    const auto&                   snap2    = core.snap2.value();
+    const MemoryRegionProperties& mrp      = core.mrp.value();
+    size_t                        numIters = snap1.size() / cmpSize + 1;
+    uintptr_t                     current  = 0;
+    Log(Debug, "Number of iterations required: " << numIters);
+
+    std::vector<MemoryRegionProperties> data;
+    for (size_t i = 0; i < numIters; ++i)
     {
-        if (!memcmp(snap1.data() + (i * cmpSize),
-                    snap2.data() + (i * cmpSize), cmpSize))
+        size_t actualCmpSize = (i == numIters - 1) ? snap1.size() - current : cmpSize;
+        if (!memcmp(snap1.data() + current, snap2.data() + current,
+                   actualCmpSize))
         {
-            if (results.size() > 0 &&
-                results.back().relativeRegionStart +
-                        results.back().relativeRegionSize ==
-                    snap1.regionProperties.relativeRegionStart + i * cmpSize)
+            Log(Message, "Found no change!");
+            if (data.size() > 0 &&
+                data.back().relativeRegionStart +
+                        data.back().relativeRegionSize ==
+                    mrp.relativeRegionStart + current)
             {
-                results.back().relativeRegionSize += cmpSize;
+                data.back().relativeRegionSize += actualCmpSize;
             }
             else
             {
-                auto newRegionProperties = snap1.regionProperties;
-                newRegionProperties.relativeRegionSize          = cmpSize;
-                newRegionProperties.relativeRegionStart += i * cmpSize;
-                results.push_back(
-                    std::move(newRegionProperties));
-            };
+                MemoryRegionProperties nmrp = mrp;
+                nmrp.relativeRegionSize     = actualCmpSize;
+                nmrp.relativeRegionStart += current;
+                data.push_back(std::move(nmrp));
+            }
         }
+        current += actualCmpSize;
     }
-    return results;
+    Log(Debug, "Found changes: " << data.size());
+    return data;
 }
