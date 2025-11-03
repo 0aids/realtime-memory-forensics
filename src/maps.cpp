@@ -228,6 +228,13 @@ std::ostream &operator<<(std::ostream &s, const MemoryRegionProperties &m) {
      return s;
 }
 
+std::string MemoryRegionProperties::toStr() const {
+    std::stringstream ss;
+    ss << *this;
+    return ss.str();
+}
+
+
 // Returns a large list of PAGE_SIZE regions.
 // I'm lazy to consolidate them, plus it sort of serves as a pseudo
 // scheduler that makes large regions smaller.

@@ -67,6 +67,8 @@ struct MemoryRegionProperties
     }
 
     auto operator<=>(const MemoryRegionProperties&) const = default;
+
+    std::string toStr() const;
 };
 
 class RegionPropertiesList
