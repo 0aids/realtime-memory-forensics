@@ -1,4 +1,5 @@
 #include "gui.hpp"
+#include <array>
 #include "backends/imgui_impl_opengl3.h"
 #include "backends/imgui_impl_sdl3.h"
 #include "core.hpp"
@@ -200,72 +201,121 @@ void demoWindows(GuiState& gs)
     }
 }
 
-static const size_t groupings[] = {8, 4, 2, 1}; // bytes
-static const auto tableDefFlags = 
-    ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoClip
-        | ImGuiTableFlags_NoBordersInBody;
+static const std::array<size_t, 4> groupings = {8, 4, 2, 1}; // bytes
+static const auto tableDefFlags = ImGuiTableFlags_SizingStretchSame |
+    ImGuiTableFlags_NoClip | ImGuiTableFlags_NoBordersInBody;
+
+void guiSnapshotTableFast(RefreshableSnapshotMenuState &rsms, const uint64_t data) {
+}
 
 // Always guarantee it to be 64 bit, and have the initial be static_casted.
 // All values larger than the groupInd's will be truncated to fit.
-void guiSnapshotTable(RefreshableSnapshotMenuState &rsms, const uint64_t data, const size_t groupInd)
+// TODO: Nested tables are slow as shit for some reason. 
+void guiSnapshotTableRecursive(RefreshableSnapshotMenuState& rsms,
+                      const uint64_t data, const size_t groupInd)
 {
+    if (rsms.curOffset >= rsms.rs.snap().size())
+        return;
+    // Starts at 64, then 32, then 16, then 8
     const size_t sizeBytes = groupings[groupInd];
-    const uint64_t defMask = (~0ULL) >> ((8 - sizeBytes) * 8);
-    bool burh = false;
-    // Create a default mask of 1s for the current size.
-    if (ImGui::BeginTable(dataTypeTable[groupInd], groupings[groupInd - 1] / sizeBytes,
-    tableDefFlags)) {
-        // Most likely 2 loops
-        int numLoops = groupings[groupInd - 1] / sizeBytes;
-        for (int  i = 0; i < numLoops; i++) {
-            uint64_t mask = defMask << (i * sizeBytes * 8);
-            uint64_t truncatedData = (data & mask) >> (i * sizeBytes * 8);
-            ImGui::TableNextColumn();
-            if (dataSizeTable[rsms.curType] == sizeBytes)
-            {
-                // I hope you memcpy
-                char str[16] = {0};
-                sprintf(str, "##ID: %lu", rsms.curOffset);
+    size_t       numLoops  = 2;
+    bool         baseCase  = false;
 
-                ImGui::SetNextItemAllowOverlap();
-                ImGui::Selectable(str, &burh);
-                ImGui::SameLine();
+    if (dataSizeTable[rsms.types[rsms.curOffset]] == sizeBytes ||
+        groupInd == groupings.size() - 1)
+    {
+        numLoops = 1;
+        baseCase = true;
+    }
+    if (dataSizeTable[rsms.curType] == sizeBytes ||
+        (rsms.types[rsms.curOffset] != HEX &&
+         dataSizeTable[rsms.types[rsms.curOffset]] == sizeBytes))
+    {
+        char str[16] = {0};
+        sprintf(str, "##ID: %lu", rsms.curOffset);
+        bool selected =
+            rsms.selection.Contains(rsms.curOffset);
+
+        ImGui::SetNextItemAllowOverlap();
+        ImGui::SetNextItemSelectionUserData(rsms.curOffset);
+        ImGui::Selectable(str, selected);
+        if (rsms.changeRequest && selected)
+        {
+            Log(Debug, "Selection ID: " << rsms.curOffset);
+            if (rsms.types[rsms.curOffset] != HEX)
+            {
+                memset(rsms.types.data() + rsms.curOffset, HEX,
+                       sizeBytes);
             }
-            // If smallest datatype. false is a placeholder.
-            if (false || groupInd + 1 == sizeof(groupings) / sizeof(groupings[0])) {
-                ImGui::Text(dataConvTable[0], truncatedData);
+            else
+            {
+                memset(rsms.types.data() + rsms.curOffset,
+                       rsms.curType, sizeBytes);
+            }
+        }
+        ImGui::SameLine();
+    }
+
+    if (ImGui::BeginTable(dataTypeTable[groupInd], numLoops,
+                          tableDefFlags))
+    {
+        for (size_t i = 0; i < numLoops; i++)
+        {
+            ImGui::TableNextColumn();
+
+            if (baseCase)
+            {
+                ImGui::Text(dataConvTable[rsms.types[rsms.curOffset]],
+                            data);
                 rsms.curOffset += sizeBytes;
             }
-            else if (groupInd + 1 < sizeof(groupings) / sizeof(groupings[0])) {
-                guiSnapshotTable(rsms, truncatedData, groupInd + 1);
+            else
+            {
+                // Get the size of the next version and truncate for next values.
+                size_t         nextSize = groupings[groupInd + 1];
+                const uint64_t defMask =
+                    (~0ULL) >> ((8 - groupings[groupInd + 1]) * 8);
+                uint64_t mask = defMask << (i * nextSize * 8);
+                uint64_t truncatedData =
+                    (data & mask) >> (i * nextSize * 8);
+                guiSnapshotTableRecursive(rsms, truncatedData, groupInd + 1);
             }
         }
         ImGui::EndTable();
     }
-
 }
 
-
 // TODO: Fix stupid shit for a case where snapshot size is < 8;
-void refreshableSnapshotMenu(RefreshableSnapshotMenuState &rsms)
+void refreshableSnapshotMenu(RefreshableSnapshotMenuState& rsms)
 {
     using namespace std::chrono;
-    ImGui::Begin(rsms.rs.mrp.regionName.c_str());
+    if (!ImGui::Begin(rsms.rs.mrp.regionName.c_str()))
+    {
+        ImGui::End();
+        return;
+    }
     ImGui::Text("%s\n", rsms.rs.mrp.toStr().c_str());
 
     ImGui::Checkbox("Toggle auto refreshing", &rsms.autoRefresh);
-    if (!rsms.autoRefresh) {
+    if (!rsms.autoRefresh)
+    {
         if (ImGui::Button("Refresh"))
         {
             rsms.rs.refresh();
         }
-    } 
+    }
     else
-    { 
-        ImGui::DragScalar("Refresh Rate (ms)", ImGuiDataType_U32, &rsms.refreshRateMS, 2.5f, 0, NULL, "%u ms");
-        if (steady_clock::now().time_since_epoch() - rsms.lastRefreshTime > milliseconds(rsms.refreshRateMS)) {
+    {
+        ImGui::DragScalar("Refresh Rate (ms)", ImGuiDataType_U32,
+                          &rsms.refreshRateMS, 2.5f, 0, NULL,
+                          "%u ms");
+        if (steady_clock::now().time_since_epoch() -
+                rsms.lastRefreshTime >
+            milliseconds(rsms.refreshRateMS))
+        {
             rsms.rs.refresh();
-            rsms.lastRefreshTime = steady_clock::now().time_since_epoch();
+            rsms.lastRefreshTime =
+                steady_clock::now().time_since_epoch();
         }
     }
 
@@ -284,9 +334,8 @@ void refreshableSnapshotMenu(RefreshableSnapshotMenuState &rsms)
         ImGui::EndCombo();
     }
 
-    static const size_t groupings[] = {8, 4, 1}; // bytes
-
-    size_t              numCols = (rsms.rs.snap().size() / groupings[0] > 2) ? 2 : 1;
+    size_t numCols =
+        (rsms.rs.snap().size() / groupings[0] > 2) ? 2 : 1;
 
     rsms.curOffset = 0;
 
@@ -294,63 +343,75 @@ void refreshableSnapshotMenu(RefreshableSnapshotMenuState &rsms)
     // Nested tables: Starts of with 8 byte sizes, 4 bytes, and 1 byte sized tables.
     // These tables are selectable (to some size, depending on the size of the chosen
     //                              datatype)
-
-    // Align the tables nicer with no padding.
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(7, 1));
-    ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(0, 0));
-    if (ImGui::BeginTable("Snapshot Hex contents", numCols + 1,
-                          ImGuiTableFlags_SizingStretchSame))
+    if (ImGui::BeginChild(
+            "##SnapView",
+            ImVec2(-FLT_MIN, ImGui::GetFontSize() * 20)))
     {
-        for (size_t i = 0; i < rsms.rs.snap().size() / groupings[0]; i++)
+        // Align the tables nicer with no padding.
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 1));
+        ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(0, 0));
+
+        ImGuiMultiSelectFlags flags =
+            ImGuiMultiSelectFlags_ClearOnEscape |
+            ImGuiMultiSelectFlags_BoxSelect1d;
+        ImGuiMultiSelectIO* ms_io =
+            ImGui::BeginMultiSelect(flags, rsms.selection.Size,
+                                    rsms.rs.mrp.relativeRegionSize);
+        rsms.selection.ApplyRequests(ms_io);
+
+        rsms.changeRequest = ImGui::Shortcut(ImGuiKey_Space) &&
+            (rsms.selection.Size > 0);
+
+
+        ImGuiListClipper clipper;
+        size_t           numRows =
+            rsms.rs.snap().size() / (groupings[0] * numCols) + 1;
+        // clipper.Begin(numRows);
+
+        if (ImGui::BeginTable("Snapshot Hex contents", numCols + 1,
+                              ImGuiTableFlags_SizingStretchSame))
         {
-            const uint64_t* value64 =
-                reinterpret_cast<const uint64_t*>(rsms.rs.snap().data() +
-                                                  i * groupings[0]);
-            // Some logic here to convert into 64 bit data types if necessary.
-            ImGui::TableNextColumn();
-            if (false)
+            for (size_t i = 0;
+                 i < rsms.rs.snap().size() / groupings[0]; i++)
             {
-                ImGui::Text("%lu", *value64);
-                rsms.curOffset += 8;
-            }
-            else {
-                guiSnapshotTable(rsms, *value64, 1);
-            }
-
-            // last loop, add an ascii thing to the end.
-            if ((i + 1) % numCols == 0)
-            {
-                char strVer[17] = {0};
-                int offset = ((int)i - 1) > 0 ? i - 1 : 0;
-                memcpy(strVer,
-                       rsms.rs.snap().data() + offset * groupings[0],
-                       groupings[0] * numCols);
-                for (size_t j = 0; j < groupings[0] * numCols; j++)
-                {
-                    if (strVer[j] - 31 > 0)
-                        continue;
-                    strVer[j] = '.';
-                }
-
-                // Stupid shit to align the others.
+                // WARNING: This will not work with regions of less than 8 bytes!!!
+                // FIXME: ^^^^^
+                const uint64_t* value64 =
+                    reinterpret_cast<const uint64_t*>(
+                        rsms.rs.snap().data() + i * groupings[0]);
                 ImGui::TableNextColumn();
-                // ImGui::BeginTable("guh", 1);
-                // ImGui::TableNextColumn();
-                // ImGui::BeginTable("guh", 1);
-                // ImGui::TableNextColumn();
-                // ImGui::BeginTable("guh", 1);
-                // ImGui::TableNextColumn();
-                ImGui::Text("%s", strVer);
-                // ImGui::EndTable();
-                // ImGui::EndTable();
-                // ImGui::EndTable();
-                ImGui::TableNextRow();
+                guiSnapshotTableRecursive(rsms, *value64, 0);
+
+                // last col for a row, add an ascii thing to the end.
+                if ((i + 1) % numCols == 0)
+                {
+                    char strVer[17] = {0};
+                    int  offset     = ((int)i - 1) > 0 ? i - 1 : 0;
+                    memcpy(strVer,
+                           rsms.rs.snap().data() +
+                               offset * groupings[0],
+                           groupings[0] * numCols);
+                    for (size_t j = 0; j < groupings[0] * numCols;
+                         j++)
+                    {
+                        if (strVer[j] - 31 > 0)
+                            continue;
+                        strVer[j] = '.';
+                    }
+
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%s", strVer);
+                    ImGui::TableNextRow();
+                }
             }
         }
         ImGui::EndTable();
+        ms_io = ImGui::EndMultiSelect();
+        rsms.selection.ApplyRequests(ms_io);
     }
     ImGui::PopStyleVar();
     ImGui::PopStyleVar();
 
+    ImGui::EndChild();
     ImGui::End();
 }

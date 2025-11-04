@@ -15,7 +15,7 @@ option(DisableOPT "Disable optimization using -O0" OFF)
 if (DisableOPT)
     add_compile_options(-O0)
 else()
-    add_compile_options(-O3)
+    add_compile_options(-O3 -DIMGUI_DISABLE_DEMO_WINDOWS)
 endif()
 
 

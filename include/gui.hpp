@@ -76,7 +76,7 @@ static const size_t dataSizeTable[] = {
     1, 1, 1, 1, 2, 2, 4, 4, 8, 8, 4, 8,
 };
 
-enum e_dataTypes
+enum e_dataTypes : uint8_t
 {
     HEX,
     CHAR,
@@ -92,32 +92,29 @@ enum e_dataTypes
     DOUBLE,
 };
 
-struct ByteView
-{
-    uintptr_t   startAddress;
-    uintptr_t   size; // Number of indices
-    e_dataTypes datatype;
-};
-
-class ByteViewComparator {
-    bool operator()(const ByteView &lhs, const ByteView &rhs) const{
-        return (lhs.startAddress < rhs.startAddress);
-    }
-};
-
 struct RefreshableSnapshotMenuState
 {
     RefreshableSnapshot rs;
-    // For automatic sorting, allowing iteration through.
-    std::set<ByteView, ByteViewComparator> states = {};
+
+    std::vector<e_dataTypes> types{};
 
     e_dataTypes curType = HEX;
 
+    // Used for keeping track of the current index in the snapshot for
+    // gui creation.
     uintptr_t curOffset = 0;
+
+    ImGuiSelectionBasicStorage selection;
+    size_t numRows;
+    bool changeRequest = false;
 
     bool autoRefresh = false;
     uint32_t refreshRateMS = 1000;
     std::chrono::nanoseconds lastRefreshTime = {};
+    // TODO: Get rid of this stupid init.
+    void init() {
+        types.resize(rs.snap().size());
+    }
 };
 
 void refreshableSnapshotMenu(RefreshableSnapshotMenuState &rsms);

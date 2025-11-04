@@ -501,9 +501,11 @@ int main(int, char**)
     RefreshableSnapshotMenuState rsms = {{
         .mrp = breakIntoRegionChunks(map, 0).front()}};
     rsms.rs.refresh();
+    rsms.init();
 
     RefreshableSnapshotMenuState crsms = {{.mrp = result.front()}};
     crsms.rs.refresh();
+    crsms.init();
 
     GuiState gs;
     if (!initGui(gs))
@@ -540,6 +542,7 @@ int main(int, char**)
             SDL_Delay(10);
             continue;
         }
+        // SDL_Delay(10);
         // Imgui shit
 
         initGuiFrame();
