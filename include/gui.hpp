@@ -105,6 +105,8 @@ enum e_dataTypes : uint8_t
 
 struct RefreshableSnapshotMenu
 {
+    // WARNING: Do NOT use the rs.refresh()!!! Use refreshSnapshot() instead because it updates the types
+    // vector if necessary.
 private:
     RefreshableSnapshot      rs;
 
@@ -119,6 +121,15 @@ private:
     uint32_t                   refreshRateMS   = 1000;
     std::chrono::nanoseconds   lastRefreshTime = {};
     void modifyPropertiesSubMenu();
+
+    void refreshSnapshot()
+    {
+        if (rs.mrp.relativeRegionSize != rs.snap().regionProperties.relativeRegionSize) {
+            types.clear();
+            types.resize(rs.mrp.relativeRegionSize, HEX);
+        }
+        rs.refresh();
+    }
 
 public:
     RefreshableSnapshotMenu(const MemoryRegionProperties &mrp)

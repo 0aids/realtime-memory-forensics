@@ -201,7 +201,24 @@ void demoWindows(GuiState& gs)
     }
 }
 
-void RefreshableSnapshotMenu::modifyPropertiesSubMenu() {
+void RefreshableSnapshotMenu::modifyPropertiesSubMenu()
+{
+    const static uintptr_t minSize = 0x8;
+    auto& mrp = this->rs.mrp;
+    ImGui::DragScalar("Relative Region Start", ImGuiDataType_U64,
+                      &mrp.relativeRegionStart, 8.f, 0,
+                      &mrp.parentRegionSize - minSize, "%#lx", ImGuiSliderFlags_AlwaysClamp );
+    uintptr_t maxSize =
+        mrp.parentRegionSize - mrp.relativeRegionStart;
+    if (mrp.relativeRegionSize + mrp.relativeRegionStart >
+        mrp.parentRegionSize)
+    {
+        mrp.relativeRegionSize =
+            mrp.parentRegionSize - mrp.relativeRegionStart;
+    }
+    ImGui::DragScalar("Relative Region Size", ImGuiDataType_U64,
+                      &mrp.relativeRegionSize, 8.f, &minSize, &maxSize,
+                      "%#lx", ImGuiSliderFlags_AlwaysClamp | ImGuiSliderFlags_NoSpeedTweaks);
 }
 
 // TODO: Disable selection of a datatype if the size is too big for the snapshot.
@@ -212,7 +229,7 @@ void RefreshableSnapshotMenu::runMenu()
     using namespace std::chrono;
     // Used for keeping track of the current index in the snapshot for
     // gui creation.
-    uintptr_t                  curOffset = 0;
+    uintptr_t curOffset = 0;
 
     if (!ImGui::Begin(this->rs.mrp.regionName.c_str()))
     {
@@ -220,7 +237,7 @@ void RefreshableSnapshotMenu::runMenu()
     }
     if (ImGui::TreeNode("Region Properties"))
     {
-        ImGui::Text("%s", this->rs.mrp.toStr().c_str());
+        ImGui::Text("%s", this->rs.snap().regionProperties.toStr().c_str());
         ImGui::TreePop();
     }
     if (ImGui::TreeNode("Modify Properties"))
@@ -236,7 +253,7 @@ void RefreshableSnapshotMenu::runMenu()
         {
             if (ImGui::Button("Refresh"))
             {
-                this->rs.refresh();
+                this->refreshSnapshot();
             }
         }
         else
@@ -248,7 +265,7 @@ void RefreshableSnapshotMenu::runMenu()
                     this->lastRefreshTime >
                 milliseconds(this->refreshRateMS))
             {
-                this->rs.refresh();
+                this->refreshSnapshot();
                 this->lastRefreshTime =
                     steady_clock::now().time_since_epoch();
             }
@@ -306,7 +323,7 @@ void RefreshableSnapshotMenu::runMenu()
         ImGui::CalcTextSize("00").x + 5;
     static const float singleByteHeight = ImGui::CalcTextSize("00").y;
 
-    curOffset       = 0;
+    curOffset            = 0;
     size_t textCursorPos = 1;
     ImGui::TableNextColumn();
     char labelBuffer[32] = {0};
@@ -339,8 +356,7 @@ void RefreshableSnapshotMenu::runMenu()
             float cellWidth = singleByteWidth * curSize;
             ImGui::SameLine(textCursorPos);
             uint64_t val;
-            memcpy(&val, this->rs.snap().data() + curOffset,
-                   curSize);
+            memcpy(&val, this->rs.snap().data() + curOffset, curSize);
             ImGui::Text(dataConvTable[curType], val);
             textCursorPos += cellWidth;
             selOffset += cellWidth;
@@ -357,7 +373,8 @@ void RefreshableSnapshotMenu::runMenu()
             if (this->types[initialOff] != HEX)
             {
                 Log(Debug, "type unknown -> hex");
-                memset(this->types.data() + initialOff, HEX, resetSize);
+                memset(this->types.data() + initialOff, HEX,
+                       resetSize);
             }
             else
             {
@@ -368,7 +385,8 @@ void RefreshableSnapshotMenu::runMenu()
         }
 
         // // Print ascii conversion.
-        if (curOffset % numCols == 0 || curOffset == this->rs.snap().size())
+        if (curOffset % numCols == 0 ||
+            curOffset == this->rs.snap().size())
         {
             ImGui::TableNextColumn();
             char strVer[17] = {0};
