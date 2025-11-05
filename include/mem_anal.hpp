@@ -8,6 +8,35 @@
 #include "snapshots.hpp"
 #include <sched.h>
 #include <vector>
+#include "core.hpp"
+
+
+// NOTE: Do not use the mrp when looping through the snapshot.
+// The snap holds the most recently used value.
+struct RefreshableSnapshot
+{
+  private:
+    std::optional<MemorySnapshot> _snap = {};
+
+  public:
+    MemoryRegionProperties mrp;
+
+    void                   refresh()
+    {
+        _snap.reset();
+        _snap.emplace(
+            makeSnapshotCore({.mrp = mrp}));
+    }
+
+    const MemorySnapshot& snap()
+    {
+        return _snap.value();
+    }
+
+    RefreshableSnapshot(const MemoryRegionProperties &mrp) : mrp(mrp)
+    {
+    }
+};
 
 // Holds the entire context.
 // We will continuously append new RegionPropertiesList
@@ -20,14 +49,19 @@ public:
     RegionPropertiesList m_originalProperties;
     std::vector<RegionPropertiesList> m_rplHistory;
 
-    // Optional to allow destruction and reconstruction in place,
-    // without having to remove const correctness of snapshots
-    std::vector<std::optional<MemorySnapshot>> m_highInterestSnapshots;
+    std::vector<RefreshableSnapshot> m_highInterestSnapshots;
 
-    // A current list of the ones that we are doing.
-    std::vector<MemorySnapshot> m_currentSnapshots;
+    std::vector<MemorySnapshot> m_lastSnaps1;
+    std::vector<MemorySnapshot> m_lastSnaps2;
 
+    std::vector<CoreInputs> m_nextInputs;
+
+    void populateInputs();
+
+    // Clear all original properties, current snapshots and high interest snapshots.
     void clearAll();
+
+    // Updates our original properties.
     void updateOriginalProperties();
 };
 

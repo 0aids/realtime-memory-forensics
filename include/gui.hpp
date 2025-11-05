@@ -11,9 +11,28 @@
 #include <functional>
 #include <optional>
 #include <string>
-#include <set>
+#include <map>
 #include "maps.hpp"
 #include "snapshots.hpp"
+#include "mem_anal.hpp"
+
+struct MemoryRegionPropertiesPickerMenu {
+};
+
+struct AnalysisMenu {
+    bool enabled;
+    const pid_t pid;
+
+    Program analysisState{};
+
+    struct Comparator {
+        bool operator()(const pid_t &pid1, const pid_t &pid2) const {
+            return pid1 < pid2;
+        }
+    };
+
+    void draw();
+};
 
 struct GuiState
 {
@@ -24,52 +43,25 @@ struct GuiState
 
     float                                          mainScale;
 
+    bool validState;
+    bool showMemAnalWindow;
     bool                                           showDemoWindow;
     bool                                           showAnotherWindow;
     ImVec4                                         bgColor;
 
-    std::optional<std::reference_wrapper<ImGuiIO>> _io;
+    std::map<pid_t, AnalysisMenu, AnalysisMenu::Comparator> analysisMenuList;
 
-    ImGuiIO&                                       io()
-    {
-        return _io.value().get();
-    }
-};
+    ImGuiIO io;
 
-bool initGui(GuiState& gs);
+    GuiState();
 
-void endGuiFrame(GuiState& gs);
+    void startFrame();
 
-void initGuiFrame();
+    void endFrame();
 
-void demoWindows(GuiState& gs);
-
-// NOTE: Do not use the mrp when looping through the snapshot.
-// The snap holds the most recently used value.
-struct RefreshableSnapshot
-{
-  private:
-    std::optional<MemorySnapshot> _snap = {};
-
-  public:
-    MemoryRegionProperties mrp;
-
-    void                   refresh()
-    {
-        _snap.reset();
-        _snap.emplace(
-            makeSnapshotCore({.mrp = mrp}), mrp,
-            std::chrono::steady_clock::now().time_since_epoch());
-    }
-
-    const MemorySnapshot& snap()
-    {
-        return _snap.value();
-    }
-
-    RefreshableSnapshot(const MemoryRegionProperties &mrp) : mrp(mrp)
-    {
-    }
+    // Draw the main window.
+    void draw();
+    
 };
 
 // TODO: Convert this table into something neater?
@@ -103,12 +95,14 @@ enum e_dataTypes : uint8_t
     DOUBLE,
 };
 
+// Should this be owning? I don't think so.
 struct RefreshableSnapshotMenu
 {
+    bool enabled = true;
+private:
     // WARNING: Do NOT use the rs.refresh()!!! Use refreshSnapshot() instead because it updates the types
     // vector if necessary.
-private:
-    RefreshableSnapshot      rs;
+    RefreshableSnapshot      &rs;
 
     std::vector<e_dataTypes> types{};
 
@@ -132,14 +126,15 @@ private:
     }
 
 public:
-    RefreshableSnapshotMenu(const MemoryRegionProperties &mrp)
-    : rs(mrp)
+    RefreshableSnapshotMenu(RefreshableSnapshot &rs)
+    : rs(rs)
     {
         rs.refresh();
         types.resize(rs.snap().size(), HEX);
     }
 
-    void runMenu();
+    void draw();
 };
+
 
 #endif // gui_hpp_INCLUDED

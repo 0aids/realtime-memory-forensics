@@ -1,4 +1,5 @@
 #include "core_wrappers.hpp"
+#include "snapshots.hpp"
 
 inline std::span<const char>
 spanFromRegionProperties(const MemoryRegionProperties& mrp,
@@ -88,9 +89,8 @@ std::vector<CoreInputs> consolidateIntoCoreInput(
 }
 
 
-std::vector<MemorySnapshotSpan> divideMultipleSnapshots(const std::vector<MemorySnapshot> &snapVec)
+std::vector<MemorySnapshotSpan> makeSnapshotSpans(const std::vector<MemorySnapshot> &snapVec)
 {
-
     std::vector<MemorySnapshotSpan> result;
     result.reserve(snapVec.size());
     for (const auto &snap: snapVec) {

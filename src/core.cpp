@@ -5,6 +5,7 @@
 #include "snapshots.hpp"
 #include "core.hpp"
 #include "logs.hpp"
+#include <chrono>
 #include <unistd.h>
 #include <cstdint>
 extern "C"
@@ -16,12 +17,12 @@ extern "C"
 // A vector of chars, not snapshot because it'll be easier
 // to combine them when needed?
 // Consider the possibility of changing it.
-std::vector<char> makeSnapshotCore(const CoreInputs& core)
+MemorySnapshot makeSnapshotCore(const CoreInputs& core)
 {
     if (!core.mrp)
     {
         Log(Error, "A MemeoryRegionProperties was not supplied!");
-        return {};
+        return MemorySnapshot({}, {}, {});
     }
     const MemoryRegionProperties& mrp = core.mrp.value();
     Log(Debug, "Taking snapshot");
@@ -74,19 +75,19 @@ std::vector<char> makeSnapshotCore(const CoreInputs& core)
                     "Completely failed to read the region. Error "
                     "is below.");
                 perror("process_vm_readv");
-                return {};
+                return MemorySnapshot({}, {}, {});
             }
             Log(Error,
                 "Read " << nread << "/" << mrp.relativeRegionSize
                         << "bytes. Failed to read all the bytes "
                            "from that region.");
 
-            return {};
+            return MemorySnapshot({}, {}, {});
         }
         totalBytesRead += nread;
     }
 
-    return data;
+    return MemorySnapshot(data, mrp, steady_clock::now().time_since_epoch());
 }
 
 std::vector<MemoryRegionProperties>

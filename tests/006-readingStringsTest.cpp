@@ -23,7 +23,7 @@ int main()
         for (const auto& r : map)
         {
             auto snap =
-                MemorySnapshot(makeSnapshotCore({.mrp = r}), r, 0ms);
+                MemorySnapshot(makeSnapshotCore({.mrp = r}));
             auto res = findStringCore(
                 {.snap1 = snap.asSnapshotSpan()},
                 " Lorem ipsum dolor sit amet, consectetur adipiscing "
@@ -40,7 +40,7 @@ int main()
                 }
                 cerr << endl;
                 auto snap = MemorySnapshot(
-                    makeSnapshotCore({.mrp = res[0]}), res[0], 0ms);
+                    makeSnapshotCore({.mrp = res[0]}));
                 for (size_t i = 0; i < snap.size(); i++)
                 {
                     cerr << snap[i];
@@ -74,7 +74,7 @@ int main()
         std::vector<MemorySnapshotSpan> spans;
 
         for (size_t i = 0; i < tasks.size(); i++) {
-            snapshots.emplace_back(tasks[i].result.get(), newMap[i], 0ms);
+            snapshots.emplace_back(tasks[i].result.get());
             spans.push_back(snapshots.back().asSnapshotSpan());
         }
         inputs = consolidateIntoCoreInput({.mrpVec = newMap, .snap1Vec = spans});
@@ -91,7 +91,7 @@ int main()
         if (res.size() > 0)
         {
             auto snap = MemorySnapshot(
-                makeSnapshotCore({.mrp = res[0]}), res[0], 0ms);
+                makeSnapshotCore({.mrp = res[0]}));
             for (size_t i = 0; i < snap.size(); i++)
             {
                 cerr << snap[i];

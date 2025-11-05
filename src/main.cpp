@@ -96,17 +96,11 @@ void findPlayerPosition(const size_t& maxSnapshotsPerIteration,
                 for (size_t j = 0; j < numSnapshots; j++)
                 {
                     snapshotsList1.push_back(
-                        MemorySnapshot(tasks1[j].result.get(),
-                                       currentlyProcessing[j],
-                                       chrono::steady_clock::now()
-                                           .time_since_epoch()));
+                        MemorySnapshot(tasks1[j].result.get()));
                     spansList1.push_back(
                         snapshotsList1.back().asSnapshotSpan());
                     snapshotsList2.push_back(
-                        MemorySnapshot(tasks2[j].result.get(),
-                                       currentlyProcessing[j],
-                                       chrono::steady_clock::now()
-                                           .time_since_epoch()));
+                        MemorySnapshot(tasks2[j].result.get()));
                     spansList2.push_back(
                         snapshotsList2.back().asSnapshotSpan());
                 }
@@ -197,17 +191,13 @@ void findPlayerPosition(const size_t& maxSnapshotsPerIteration,
                 for (size_t j = 0; j < numSnapshots; j++)
                 {
                     snapshotsList1.push_back(
-                        MemorySnapshot(tasks1[j].result.get(),
-                                       currentlyProcessing[j],
-                                       chrono::steady_clock::now()
-                                           .time_since_epoch()));
+                        tasks1[j].result.get()
+                    );
                     spansList1.push_back(
                         snapshotsList1.back().asSnapshotSpan());
                     snapshotsList2.push_back(
-                        MemorySnapshot(tasks2[j].result.get(),
-                                       currentlyProcessing[j],
-                                       chrono::steady_clock::now()
-                                           .time_since_epoch()));
+                        tasks2[j].result.get()
+                    );
                     spansList2.push_back(
                         snapshotsList2.back().asSnapshotSpan());
                 }
@@ -277,10 +267,7 @@ void findPlayerPosition(const size_t& maxSnapshotsPerIteration,
                 for (size_t j = 0; j < numSnapshots; j++)
                 {
                     snapshotsList1.push_back(
-                        MemorySnapshot(tasks1[j].result.get(),
-                                       currentlyProcessing[j],
-                                       chrono::steady_clock::now()
-                                           .time_since_epoch()));
+                        MemorySnapshot(tasks1[j].result.get()));
                     spansList1.push_back(
                         snapshotsList1.back().asSnapshotSpan());
                 }
@@ -402,8 +389,7 @@ void findPlayerName(const size_t&         maxSnapshotsPerIteration,
         for (size_t j = 0; j < numSnapshots; j++)
         {
             snapshotsList1.push_back(MemorySnapshot(
-                tasks1[j].result.get(), currentlyProcessing[j],
-                chrono::steady_clock::now().time_since_epoch()));
+                tasks1[j].result.get()));
             spansList1.push_back(
                 snapshotsList1.back().asSnapshotSpan());
         }
@@ -478,13 +464,11 @@ int main(int, char**)
         for (size_t j = 0; j < snapTasks1.size(); j++)
         {
             snapshotsList1.push_back(MemorySnapshot(
-                snapTasks1[j].result.get(), cinputs[j].mrp.value(),
-                chrono::steady_clock::now().time_since_epoch()));
+                snapTasks1[j].result.get()));
             spansList1.push_back(
                 snapshotsList1.back().asSnapshotSpan());
             snapshotsList2.push_back(MemorySnapshot(
-                snapTasks2[j].result.get(), cinputs[j].mrp.value(),
-                chrono::steady_clock::now().time_since_epoch()));
+                snapTasks2[j].result.get()));
             spansList2.push_back(
                 snapshotsList2.back().asSnapshotSpan());
         }
@@ -498,14 +482,18 @@ int main(int, char**)
         tp.awaitAllTasks();
         result = consolidateNestedTaskResults(tasks);
     }
-    RefreshableSnapshotMenu rsms(breakIntoRegionChunks(map, 0).front());
 
-    RefreshableSnapshotMenu crsms(result.front());
+    RefreshableSnapshot rs( breakIntoRegionChunks(map, 0).front()); 
+    RefreshableSnapshot crs(result.front());
 
-    GuiState gs;
-    if (!initGui(gs))
-    {
-        Log(Error, "Failed to initialize the gui!");
+    RefreshableSnapshotMenu rsms(rs);
+
+    RefreshableSnapshotMenu crsms(crs);
+
+    // Default construct the gui state.
+    GuiState gs{};
+    if (!gs.validState) {
+        Log(Error, "Failed to initalize the GUI!");
         return 1;
     }
 
@@ -537,18 +525,17 @@ int main(int, char**)
             SDL_Delay(10);
             continue;
         }
-        // SDL_Delay(10);
         // Imgui shit
 
-        initGuiFrame();
+        gs.startFrame();
 
-        demoWindows(gs);
+        gs.draw();
 
-        rsms.runMenu();
-        crsms.runMenu();
+        rsms.draw();
+        crsms.draw();
 
 
-        endGuiFrame(gs);
+        gs.endFrame();
     }
 
     // Cleanup

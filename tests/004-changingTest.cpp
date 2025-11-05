@@ -30,12 +30,10 @@ int main()
         {
             // if (props.regionName != "UnnamedRegion-3") continue;
             MemorySnapshot snap1(
-                makeSnapshotCore({.mrp = props}), props,
-                steady_clock::now().time_since_epoch());
+                makeSnapshotCore({.mrp = props}));
             this_thread::sleep_for(10ms);
             MemorySnapshot snap2(
-                makeSnapshotCore({.mrp = props}), props,
-                steady_clock::now().time_since_epoch());
+                makeSnapshotCore({.mrp = props}));
 
             CoreInputs cInputs  = {.mrp   = props,
                                    .snap1 = snap1.asSnapshotSpan(),
@@ -67,11 +65,9 @@ int main()
     {
         // Double check for sanity.
         MemoryRegionProperties props = map[iter];
-        MemorySnapshot snap1(makeSnapshotCore({.mrp = props}), props,
-                             steady_clock::now().time_since_epoch());
+        MemorySnapshot snap1(makeSnapshotCore({.mrp = props}));
         this_thread::sleep_for(10ms);
-        MemorySnapshot snap2(makeSnapshotCore({.mrp = props}), props,
-                             steady_clock::now().time_since_epoch());
+        MemorySnapshot snap2(makeSnapshotCore({.mrp = props}));
 
         CoreInputs     cInputs = {.mrp   = props,
                                   .snap1 = snap1.asSnapshotSpan(),
@@ -138,13 +134,9 @@ int main()
         Log(Message, "Attempting TASK splitting WITHOUT MT!");
         size_t         numThreads = 3;
 
-        MemorySnapshot snap1(makeSnapshotCore({.mrp = map[iter]}),
-                             map[iter],
-                             steady_clock::now().time_since_epoch());
+        MemorySnapshot snap1(makeSnapshotCore({.mrp = map[iter]}));
         this_thread::sleep_for(10ms);
-        MemorySnapshot snap2(makeSnapshotCore({.mrp = map[iter]}),
-                             map[iter],
-                             steady_clock::now().time_since_epoch());
+        MemorySnapshot snap2(makeSnapshotCore({.mrp = map[iter]}));
 
         auto           coreInputsVec = consolidateIntoCoreInput(
             {.mrpVec = divideSingleRegion(map[iter], numThreads),
@@ -164,13 +156,9 @@ int main()
     {
         Log(Message, "Attempting TASK splitting WITH MT!");
         size_t         numThreads = 3;
-        MemorySnapshot snap1(makeSnapshotCore({.mrp = map[iter]}),
-                             map[iter],
-                             steady_clock::now().time_since_epoch());
+        MemorySnapshot snap1(makeSnapshotCore({.mrp = map[iter]}));
         this_thread::sleep_for(10ms);
-        MemorySnapshot snap2(makeSnapshotCore({.mrp = map[iter]}),
-                             map[iter],
-                             steady_clock::now().time_since_epoch());
+        MemorySnapshot snap2(makeSnapshotCore({.mrp = map[iter]}));
         auto           coreInputsVec = consolidateIntoCoreInput(
             {.mrpVec = divideSingleRegion(map[iter], numThreads),
                        .snap1Vec = divideSingleSnapshot(snap1, numThreads),

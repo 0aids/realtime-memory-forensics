@@ -236,7 +236,9 @@ std::string MemoryRegionProperties::toStr() const {
 
 
 // Returns a large list of PAGE_SIZE regions.
-// I'm lazy to consolidate them, plus it sort of serves as a pseudo
+// Honestly there's no reason to consolidate them
+// target data structures are rarely larger than PAGE_SIZE,
+// plus it sort of serves as a pseudo
 // scheduler that makes large regions smaller.
 RegionPropertiesList getActiveRegions(const MemoryRegionProperties &mrp) {
     RegionPropertiesList regions;

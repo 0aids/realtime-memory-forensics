@@ -15,7 +15,7 @@ int main()
     assert(map.size() > 0, "There should be regions inside the map");
 
     Log(Message, "Sample of map[0]: \n " << map.front());
-    MemorySnapshot mp(makeSnapshotCore({.mrp = map[0]}), map[0], steady_clock::now().time_since_epoch());
+    MemorySnapshot mp(makeSnapshotCore({.mrp = map[0]}));
     assert(mp[1] == 'E' && mp[2] == 'L' && mp[3] == 'F', "There should be an ELF there...");
     cerr << mp[1] << mp[2] << mp[3] << endl;
 

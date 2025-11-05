@@ -6,20 +6,27 @@
 #include "imgui.h"
 #include <chrono>
 
-bool initGui(GuiState& gs)
+void AnalysisMenu::draw() {
+    std::string menuLabel = "Analysis Menu: " + std::to_string(this->pid);
+    ImGui::Begin(menuLabel.c_str(), &(this->enabled));
+    ImGui::End();
+}
+
+GuiState::GuiState()
 {
     // Setup SDL
     // [If using SDL_MAIN_USE_CALLBACKS: all code below until the main loop starts would likely be your SDL_AppInit() function]
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD))
     {
         printf("Error: SDL_Init(): %s\n", SDL_GetError());
-        return false;
+        validState = false;
+        return;
     }
 
     // Decide GL+GLSL versions
 #if defined(IMGUI_IMPL_OPENGL_ES2)
     // GL ES 2.0 + GLSL 100 (WebGL 1.0)
-    gs.glslVersion = "#version 100";
+    this->glslVersion = "#version 100";
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
                         SDL_GL_CONTEXT_PROFILE_ES);
@@ -27,7 +34,7 @@ bool initGui(GuiState& gs)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
 #elif defined(IMGUI_IMPL_OPENGL_ES3)
     // GL ES 3.0 + GLSL 300 es (WebGL 2.0)
-    gs.glslVersion = "#version 300 es";
+    this->glslVersion = "#version 300 es";
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
                         SDL_GL_CONTEXT_PROFILE_ES);
@@ -35,7 +42,7 @@ bool initGui(GuiState& gs)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
 #elif defined(__APPLE__)
     // GL 3.2 Core + GLSL 150
-    gs.glslVersion = "#version 150";
+    this->glslVersion = "#version 150";
     SDL_GL_SetAttribute(
         SDL_GL_CONTEXT_FLAGS,
         SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG); // Always required on Mac
@@ -45,7 +52,7 @@ bool initGui(GuiState& gs)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
 #else
     // GL 3.0 + GLSL 130
-    gs.glslVersion = "#version 130";
+    this->glslVersion = "#version 130";
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
                         SDL_GL_CONTEXT_PROFILE_CORE);
@@ -57,39 +64,42 @@ bool initGui(GuiState& gs)
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-    gs.mainScale =
+    this->mainScale =
         SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
-    gs.windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE |
+    this->windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE |
         SDL_WINDOW_HIDDEN | SDL_WINDOW_HIGH_PIXEL_DENSITY;
-    gs.window = SDL_CreateWindow(
-        "Dear ImGui SDL3+OpenGL3 example", (int)(1280 * gs.mainScale),
-        (int)(800 * gs.mainScale), gs.windowFlags);
-    if (gs.window == nullptr)
+    this->window = SDL_CreateWindow("Dear ImGui SDL3+OpenGL3 example",
+                                    (int)(1280 * this->mainScale),
+                                    (int)(800 * this->mainScale),
+                                    this->windowFlags);
+    if (this->window == nullptr)
     {
         printf("Error: SDL_CreateWindow(): %s\n", SDL_GetError());
-        return false;
+        validState = false;
+        return;
     }
-    gs.glContext = SDL_GL_CreateContext(gs.window);
-    if (gs.glContext == nullptr)
+    this->glContext = SDL_GL_CreateContext(this->window);
+    if (this->glContext == nullptr)
     {
         printf("Error: SDL_GL_CreateContext(): %s\n", SDL_GetError());
-        return false;
+        validState = false;
+        return;
     }
 
-    SDL_GL_MakeCurrent(gs.window, gs.glContext);
+    SDL_GL_MakeCurrent(this->window, this->glContext);
     SDL_GL_SetSwapInterval(1); // Enable vsync
-    SDL_SetWindowPosition(gs.window, SDL_WINDOWPOS_CENTERED,
+    SDL_SetWindowPosition(this->window, SDL_WINDOWPOS_CENTERED,
                           SDL_WINDOWPOS_CENTERED);
-    SDL_ShowWindow(gs.window);
+    SDL_ShowWindow(this->window);
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    gs._io = ImGui::GetIO();
-    (void)gs._io;
-    gs.io().ConfigFlags |=
+    this->io = ImGui::GetIO();
+    (void)this->io;
+    this->io.ConfigFlags |=
         ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
-    gs.io().ConfigFlags |=
+    this->io.ConfigFlags |=
         ImGuiConfigFlags_NavEnableGamepad; // Enable Gamepad Controls
 
     // Setup Dear ImGui style
@@ -99,13 +109,13 @@ bool initGui(GuiState& gs)
     // Setup scaling
     ImGuiStyle& style = ImGui::GetStyle();
     style.ScaleAllSizes(
-        gs.mainScale); // Bake a fixed style scale. (until we have a solution for dynamic style scaling, changing this requires resetting Style + calling this again)
+        this->mainScale); // Bake a fixed style scale. (until we have a solution for dynamic style scaling, changing this requires resetting Style + calling this again)
     style.FontScaleDpi =
-        gs.mainScale; // Set initial font scale. (using io.ConfigDpiScaleFonts=true makes this unnecessary. We leave both here for documentation purpose)
+        this->mainScale; // Set initial font scale. (using io.ConfigDpiScaleFonts=true makes this unnecessary. We leave both here for documentation purpose)
 
     // Setup Platform/Renderer backends
-    ImGui_ImplSDL3_InitForOpenGL(gs.window, gs.glContext);
-    ImGui_ImplOpenGL3_Init(gs.glslVersion.c_str());
+    ImGui_ImplSDL3_InitForOpenGL(this->window, this->glContext);
+    ImGui_ImplOpenGL3_Init(this->glslVersion.c_str());
 
     // Load Fonts
     // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
@@ -125,27 +135,28 @@ bool initGui(GuiState& gs)
     //IM_ASSERT(font != nullptr);
 
     // Our state
-    gs.showDemoWindow    = true;
-    gs.showAnotherWindow = false;
-    gs.bgColor           = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-    return true;
+    this->showDemoWindow    = false;
+    this->showAnotherWindow = false;
+    this->showMemAnalWindow = true;
+    this->bgColor           = ImVec4(0.2f, 0.2f, 0.2f, 1.00f);
+    validState              = true;
 }
 
-void endGuiFrame(GuiState& gs)
+void GuiState::endFrame()
 {
     // Rendering
     ImGui::Render();
-    glViewport(0, 0, (int)gs.io().DisplaySize.x,
-               (int)gs.io().DisplaySize.y);
-    glClearColor(gs.bgColor.x * gs.bgColor.w,
-                 gs.bgColor.y * gs.bgColor.w,
-                 gs.bgColor.z * gs.bgColor.w, gs.bgColor.w);
+    glViewport(0, 0, (int)this->io.DisplaySize.x,
+               (int)this->io.DisplaySize.y);
+    glClearColor(this->bgColor.x * this->bgColor.w,
+                 this->bgColor.y * this->bgColor.w,
+                 this->bgColor.z * this->bgColor.w, this->bgColor.w);
     glClear(GL_COLOR_BUFFER_BIT);
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-    SDL_GL_SwapWindow(gs.window);
+    SDL_GL_SwapWindow(this->window);
 }
 
-void initGuiFrame()
+void GuiState::startFrame()
 {
     // Start the Dear ImGui frame
     ImGui_ImplOpenGL3_NewFrame();
@@ -153,61 +164,100 @@ void initGuiFrame()
     ImGui::NewFrame();
 }
 
-void demoWindows(GuiState& gs)
+void GuiState::draw()
 {
-    if (gs.showDemoWindow)
+    static char inputBuffer[1024] = {0};
+    if (ImGui::BeginMainMenuBar())
     {
-        ImGui::ShowDemoWindow(&gs.showDemoWindow);
+        if (ImGui::BeginMenu("Main Menu"))
+        {
+            ImGui::MenuItem("Show Main Window", "Ctrl + m",
+                            &this->showMemAnalWindow);
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Demo stuff"))
+        {
+            ImGui::MenuItem("Show Demo", NULL, &this->showDemoWindow);
+            ImGui::MenuItem("Show extra window", NULL,
+                            &this->showAnotherWindow);
+            ImGui::EndMenu();
+        }
+        ImGui::EndMainMenuBar();
     }
-    // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
+    if (this->showMemAnalWindow)
     {
-        static float f       = 0.0f;
-        static int   counter = 0;
+        ImGui::Begin("Mem-Anal!", &this->showMemAnalWindow,
+                     ImGuiWindowFlags_MenuBar);
+        if (ImGui::Button("Open PID"))
+            ImGui::OpenPopup("Enter PID");
+        if (ImGui::TreeNode("Currently open PIDs"))
+        {
+            ImGui::BeginChild("##PID Menu", ImVec2(-FLT_MIN, ImGui::GetFontSize() * 10));
+            for (auto &[pid, menu] : this->analysisMenuList)
+            {
+                bool *enabled = &(menu.enabled);
+                ImGui::MenuItem(std::to_string(pid).c_str(), NULL, enabled);
 
-        ImGui::Begin(
-            "Hello, world!"); // Create a window called "Hello, world!" and append into it.
+                if (*enabled) {
+                    menu.draw();
+                }
+                
+            }
+            ImGui::EndChild();
+            ImGui::TreePop();
+        }
 
-        ImGui::Text(
-            "This is some useful text."); // Display some text (you can use a format strings too)
-        ImGui::Checkbox(
-            "Demo Window",
-            &gs.showDemoWindow); // Edit bools storing our window open/close state
-        ImGui::Checkbox("Another Window", &gs.showAnotherWindow);
+        if (ImGui::BeginPopupModal("Enter PID", NULL,
+                                   ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            ImGui::Text("Enter PID (Empty to cancel):");
+            if (ImGui::IsWindowAppearing())
+            {
+                ImGui::SetKeyboardFocusHere();
+            }
+            if (ImGui::InputText(
+                    "PID##Enter PID InputBox", inputBuffer, 1024,
+                    ImGuiInputTextFlags_EnterReturnsTrue |
+                        ImGuiInputTextFlags_CharsDecimal))
+            {
+                if (inputBuffer[0] != '\0'){
+                    pid_t pid = std::stoi(inputBuffer);
+                    this->analysisMenuList.insert({pid, {false, pid}});
+                    memset(inputBuffer, 0, 1024);
+                }
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
 
-        ImGui::SliderFloat(
-            "float", &f, 0.0f,
-            1.0f); // Edit 1 float using a slider from 0.0f to 1.0f
-        ImGui::ColorEdit3(
-            "clear color",
-            (float*)&gs
-                .bgColor); // Edit 3 floats representing a color
-
-        if (ImGui::Button(
-                "Button")) // Buttons return true when clicked (most widgets return true when edited/activated)
-            counter++;
-        ImGui::SameLine();
-        ImGui::Text("counter = %d", counter);
-
-        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
-                    1000.0f / gs.io().Framerate, gs.io().Framerate);
         ImGui::End();
     }
 
-    if (gs.showAnotherWindow)
+    if (this->showAnotherWindow)
     {
         ImGui::Begin("Another Window");
         ImGui::Text("This is another window!");
         ImGui::End();
+    }
+    if (this->showDemoWindow)
+    {
+        ImGui::ShowDemoWindow(&this->showDemoWindow);
+    }
+    if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_M,
+                        ImGuiInputFlags_RouteAlways))
+    {
+        this->showMemAnalWindow = !this->showMemAnalWindow;
     }
 }
 
 void RefreshableSnapshotMenu::modifyPropertiesSubMenu()
 {
     const static uintptr_t minSize = 0x8;
-    auto& mrp = this->rs.mrp;
+    auto&                  mrp     = this->rs.mrp;
     ImGui::DragScalar("Relative Region Start", ImGuiDataType_U64,
                       &mrp.relativeRegionStart, 8.f, 0,
-                      &mrp.parentRegionSize - minSize, "%#lx", ImGuiSliderFlags_AlwaysClamp );
+                      &mrp.parentRegionSize - minSize, "%#lx",
+                      ImGuiSliderFlags_AlwaysClamp);
     uintptr_t maxSize =
         mrp.parentRegionSize - mrp.relativeRegionStart;
     if (mrp.relativeRegionSize + mrp.relativeRegionStart >
@@ -217,27 +267,37 @@ void RefreshableSnapshotMenu::modifyPropertiesSubMenu()
             mrp.parentRegionSize - mrp.relativeRegionStart;
     }
     ImGui::DragScalar("Relative Region Size", ImGuiDataType_U64,
-                      &mrp.relativeRegionSize, 8.f, &minSize, &maxSize,
-                      "%#lx", ImGuiSliderFlags_AlwaysClamp | ImGuiSliderFlags_NoSpeedTweaks);
+                      &mrp.relativeRegionSize, 8.f, &minSize,
+                      &maxSize, "%#lx",
+                      ImGuiSliderFlags_AlwaysClamp |
+                          ImGuiSliderFlags_NoSpeedTweaks);
 }
 
 // TODO: Disable selection of a datatype if the size is too big for the snapshot.
 // BUG TODO: Bounds checking. I am definitely not doing bounds checking rn.
 // cannot be fucking assed.
-void RefreshableSnapshotMenu::runMenu()
+void RefreshableSnapshotMenu::draw()
 {
+    using namespace std::string_literals;
     using namespace std::chrono;
+    if (!this->enabled)
+        return;
     // Used for keeping track of the current index in the snapshot for
     // gui creation.
     uintptr_t curOffset = 0;
 
-    if (!ImGui::Begin(this->rs.mrp.regionName.c_str()))
+    // This seems very サス.
+    if (!ImGui::Begin(("Refreshable Snapshot Window: "s +
+                       this->rs.mrp.regionName)
+                          .c_str(),
+                      &this->enabled))
     {
         ImGui::End();
     }
     if (ImGui::TreeNode("Region Properties"))
     {
-        ImGui::Text("%s", this->rs.snap().regionProperties.toStr().c_str());
+        ImGui::Text("%s",
+                    this->rs.snap().regionProperties.toStr().c_str());
         ImGui::TreePop();
     }
     if (ImGui::TreeNode("Modify Properties"))

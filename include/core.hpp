@@ -16,7 +16,7 @@ struct CoreInputs {
     std::optional<MemorySnapshotSpan> snap2 = {};
 };
 
-std::vector<char> makeSnapshotCore(const CoreInputs& core);
+MemorySnapshot makeSnapshotCore(const CoreInputs& core);
 
 // We need to know the parent region as well as its local offset.
 // The copy of MemoryRegionProperties with the initial offset must be given.

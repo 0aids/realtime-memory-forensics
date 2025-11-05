@@ -40,14 +40,12 @@ int main()
 
         for (size_t j = 0; j < tasks1.size(); j++)
         {
-            snapshotsList1.push_back(MemorySnapshot(
-                tasks1[j].result.get(), maps[j],
-                chrono::steady_clock::now().time_since_epoch()));
+            snapshotsList1.push_back(
+                tasks1[j].result.get());
             spansList1.push_back(
                 snapshotsList1.back().asSnapshotSpan());
-            snapshotsList2.push_back(MemorySnapshot(
-                tasks2[j].result.get(), maps[j],
-                chrono::steady_clock::now().time_since_epoch()));
+            snapshotsList2.push_back(
+                tasks2[j].result.get());
             spansList2.push_back(
                 snapshotsList2.back().asSnapshotSpan());
         }
@@ -88,14 +86,12 @@ int main()
 
         for (size_t j = 0; j < tasks1.size(); j++)
         {
-            snapshotsList1.push_back(MemorySnapshot(
-                tasks1[j].result.get(), maps[j],
-                chrono::steady_clock::now().time_since_epoch()));
+            snapshotsList1.push_back(
+                tasks1[j].result.get());
             spansList1.push_back(
                 snapshotsList1.back().asSnapshotSpan());
-            snapshotsList2.push_back(MemorySnapshot(
-                tasks2[j].result.get(), maps[j],
-                chrono::steady_clock::now().time_since_epoch()));
+            snapshotsList2.push_back(
+                tasks2[j].result.get());
             spansList2.push_back(
                 snapshotsList2.back().asSnapshotSpan());
         }
@@ -143,14 +139,12 @@ int main()
 
         for (size_t j = 0; j < tasks1.size(); j++)
         {
-            snapshotsList1.push_back(MemorySnapshot(
-                tasks1[j].result.get(), newMaps[j],
-                chrono::steady_clock::now().time_since_epoch()));
+            snapshotsList1.push_back(
+                tasks1[j].result.get());
             spansList1.push_back(
                 snapshotsList1.back().asSnapshotSpan());
-            snapshotsList2.push_back(MemorySnapshot(
-                tasks2[j].result.get(), newMaps[j],
-                chrono::steady_clock::now().time_since_epoch()));
+            snapshotsList2.push_back(
+                tasks2[j].result.get());
             spansList2.push_back(
                 snapshotsList2.back().asSnapshotSpan());
         }

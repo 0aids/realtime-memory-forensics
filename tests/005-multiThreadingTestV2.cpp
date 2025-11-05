@@ -31,12 +31,10 @@ int main()
         {
             // if (props.regionName != "UnnamedRegion-3") continue;
             MemorySnapshot snap1(
-                makeSnapshotCore({.mrp = props}), props,
-                steady_clock::now().time_since_epoch());
+                makeSnapshotCore({.mrp = props}));
             this_thread::sleep_for(10ms);
             MemorySnapshot snap2(
-                makeSnapshotCore({.mrp = props}), props,
-                steady_clock::now().time_since_epoch());
+                makeSnapshotCore({.mrp = props}));
 
             CoreInputs cInputs  = {.mrp   = props,
                                    .snap1 = snap1.asSnapshotSpan(),
@@ -105,15 +103,15 @@ int main()
 
             for (size_t it = 0; it < tasks1.size(); it++) {
                 Log(Debug, "Mrp: " << coreInputsVec[it].mrp.value());
-                snapshotsVec1.push_back({tasks1[it].result.get(), coreInputsVec[it].mrp.value(), 100ms});
-                snapshotsVec2.push_back({tasks2[it].result.get(), coreInputsVec[it].mrp.value(), 100ms});
+                snapshotsVec1.push_back({tasks1[it].result.get()});
+                snapshotsVec2.push_back({tasks2[it].result.get()});
             }
 
             auto comparisonVec = consolidateIntoCoreInput(
                 {
                     .mrpVec = mrpVec,
-                    .snap1Vec = divideMultipleSnapshots(snapshotsVec1),
-                    .snap2Vec = divideMultipleSnapshots(snapshotsVec2)
+                    .snap1Vec = makeSnapshotSpans(snapshotsVec1),
+                    .snap2Vec = makeSnapshotSpans(snapshotsVec2)
                 }
             );
 
