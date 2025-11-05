@@ -302,12 +302,6 @@ std::vector<CoreInputs> consolidateIntoCoreInput(
 // Converts a list of snapshots into its equivalent list of spans.
 std::vector<MemorySnapshotSpan> makeSnapshotSpans(const std::vector<MemorySnapshot> &snapVec);
 
-// *Unimplemented*.
-// Schedules them based on the mrps provided. Will break apart the mrps into smaller ones
-// similarly with all the snaps.
-std::vector<CoreInputs> scheduleMultipleCoreInputs(
-    const MultipleCoreInputs &mci,
-    const uintptr_t taskByteSizes
-);
+std::vector<MemorySnapshot> convertTasksIntoSnapshots(std::vector<Task<MemorySnapshot (*)(const CoreInputs &)>> &tasks);
 
 #endif // core_wrappers_hpp_INCLUDED

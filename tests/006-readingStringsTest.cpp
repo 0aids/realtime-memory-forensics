@@ -70,13 +70,9 @@ int main()
 
         tp.submitMultipleTasks(tasks);
         tp.awaitAllTasks();
-        std::vector<MemorySnapshot> snapshots;
-        std::vector<MemorySnapshotSpan> spans;
+        std::vector<MemorySnapshot> snapshots = convertTasksIntoSnapshots(tasks);
+        std::vector<MemorySnapshotSpan> spans = makeSnapshotSpans(snapshots) ;
 
-        for (size_t i = 0; i < tasks.size(); i++) {
-            snapshots.emplace_back(tasks[i].result.get());
-            spans.push_back(snapshots.back().asSnapshotSpan());
-        }
         inputs = consolidateIntoCoreInput({.mrpVec = newMap, .snap1Vec = spans});
 
         auto newTasks = createMultipleTasks(findStringCore, inputs, "Lorem ipsum");

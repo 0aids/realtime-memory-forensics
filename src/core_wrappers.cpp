@@ -98,3 +98,13 @@ std::vector<MemorySnapshotSpan> makeSnapshotSpans(const std::vector<MemorySnapsh
     }
     return result;
 }
+
+std::vector<MemorySnapshot> convertTasksIntoSnapshots(std::vector<Task<MemorySnapshot (*)(const CoreInputs &)>> &tasks)
+{
+    std::vector<MemorySnapshot> result;
+    result.reserve(tasks.size());
+    for (auto &task: tasks) {
+        result.push_back(task.result.get());
+    }
+    return result;
+}
