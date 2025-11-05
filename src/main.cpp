@@ -498,14 +498,9 @@ int main(int, char**)
         tp.awaitAllTasks();
         result = consolidateNestedTaskResults(tasks);
     }
-    RefreshableSnapshotMenuState rsms = {{
-        .mrp = breakIntoRegionChunks(map, 0).front()}};
-    rsms.rs.refresh();
-    rsms.init();
+    RefreshableSnapshotMenu rsms(breakIntoRegionChunks(map, 0).front());
 
-    RefreshableSnapshotMenuState crsms = {{.mrp = result.front()}};
-    crsms.rs.refresh();
-    crsms.init();
+    RefreshableSnapshotMenu crsms(result.front());
 
     GuiState gs;
     if (!initGui(gs))
@@ -549,8 +544,9 @@ int main(int, char**)
 
         demoWindows(gs);
 
-        refreshableSnapshotMenuFast(rsms);
-        refreshableSnapshotMenu(crsms);
+        rsms.runMenu();
+        crsms.runMenu();
+
 
         endGuiFrame(gs);
     }

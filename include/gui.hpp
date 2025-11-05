@@ -12,6 +12,7 @@
 #include <optional>
 #include <string>
 #include <set>
+#include "maps.hpp"
 #include "snapshots.hpp"
 
 struct GuiState
@@ -43,34 +44,44 @@ void initGuiFrame();
 
 void demoWindows(GuiState& gs);
 
+// NOTE: Do not use the mrp when looping through the snapshot.
+// The snap holds the most recently used value.
 struct RefreshableSnapshot
 {
+  private:
     std::optional<MemorySnapshot> _snap = {};
-    MemoryRegionProperties        mrp;
 
-    void                          refresh()
+  public:
+    MemoryRegionProperties mrp;
+
+    void                   refresh()
     {
         _snap.reset();
-        _snap.emplace(makeSnapshotCore({.mrp = mrp}), mrp,
-                      std::chrono::steady_clock::now().time_since_epoch());
+        _snap.emplace(
+            makeSnapshotCore({.mrp = mrp}), mrp,
+            std::chrono::steady_clock::now().time_since_epoch());
     }
 
-    MemorySnapshot& snap()
+    const MemorySnapshot& snap()
     {
         return _snap.value();
     }
+
+    RefreshableSnapshot(const MemoryRegionProperties &mrp) : mrp(mrp)
+    {
+    }
 };
 
+// TODO: Convert this table into something neater?
+// The table is needed for the combo on the refreshable snasphot menu.
 static const char* dataTypeTable[] = {
     "hex",      "char",    "uint8_t",  "int8_t",
     "uint16_t", "int16_t", "uint32_t", "int32_t",
     "uint64_t", "int64_t", "float",    "double",
 };
-static const char* dataConvTable[] = {
-    "%02hhx", "%c", "%hhu", "%hhd", 
-    "%hu", "%hd", "%u", "%d", 
-    "%lu", "%ld", "%f", "%lf"
-};
+static const char* dataConvTable[] = {"%02hhx", "%c",  "%hhu", "%hhd",
+                                      "%hu",    "%hd", "%u",   "%d",
+                                      "%lu",    "%ld", "%f",   "%lf"};
 
 static const size_t dataSizeTable[] = {
     1, 1, 1, 1, 2, 2, 4, 4, 8, 8, 4, 8,
@@ -92,32 +103,32 @@ enum e_dataTypes : uint8_t
     DOUBLE,
 };
 
-struct RefreshableSnapshotMenuState
+struct RefreshableSnapshotMenu
 {
-    RefreshableSnapshot rs;
+private:
+    RefreshableSnapshot      rs;
 
     std::vector<e_dataTypes> types{};
 
-    e_dataTypes curType = HEX;
+    e_dataTypes              curType = HEX;
 
-    // Used for keeping track of the current index in the snapshot for
-    // gui creation.
-    uintptr_t curOffset = 0;
+    ImGuiSelectionBasicStorage selection{};
+    bool                       changeRequest = false;
 
-    ImGuiSelectionBasicStorage selection;
-    size_t numRows;
-    bool changeRequest = false;
+    bool                       autoRefresh     = false;
+    uint32_t                   refreshRateMS   = 1000;
+    std::chrono::nanoseconds   lastRefreshTime = {};
+    void modifyPropertiesSubMenu();
 
-    bool autoRefresh = false;
-    uint32_t refreshRateMS = 1000;
-    std::chrono::nanoseconds lastRefreshTime = {};
-    // TODO: Get rid of this stupid init.
-    void init() {
+public:
+    RefreshableSnapshotMenu(const MemoryRegionProperties &mrp)
+    : rs(mrp)
+    {
+        rs.refresh();
         types.resize(rs.snap().size(), HEX);
     }
-};
 
-void refreshableSnapshotMenu(RefreshableSnapshotMenuState &rsms);
-void refreshableSnapshotMenuFast(RefreshableSnapshotMenuState &rsms);
+    void runMenu();
+};
 
 #endif // gui_hpp_INCLUDED
