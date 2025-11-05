@@ -205,8 +205,6 @@ static const std::array<size_t, 4> groupings = {8, 4, 2, 1}; // bytes
 static const auto tableDefFlags = ImGuiTableFlags_SizingStretchSame |
     ImGuiTableFlags_NoClip | ImGuiTableFlags_NoBordersInBody;
 
-void guiSnapshotTableFast(RefreshableSnapshotMenuState &rsms, const uint64_t data) {
-}
 
 // Always guarantee it to be 64 bit, and have the initial be static_casted.
 // All values larger than the groupInd's will be truncated to fit.
@@ -412,6 +410,176 @@ void refreshableSnapshotMenu(RefreshableSnapshotMenuState& rsms)
     ImGui::PopStyleVar();
     ImGui::PopStyleVar();
 
+    ImGui::EndChild();
+    ImGui::End();
+}
+void refreshableSnapshotMenuFast(RefreshableSnapshotMenuState &rsms) {
+    using namespace std::chrono;
+    if (!ImGui::Begin(rsms.rs.mrp.regionName.c_str())) {
+        ImGui::End();
+    }
+    ImGui::Text("%s\n", rsms.rs.mrp.toStr().c_str());
+
+    ImGui::Checkbox("Toggle auto refreshing", &rsms.autoRefresh);
+    if (!rsms.autoRefresh)
+    {
+        if (ImGui::Button("Refresh"))
+        {
+            rsms.rs.refresh();
+        }
+    }
+    else
+    {
+        ImGui::DragScalar("Refresh Rate (ms)", ImGuiDataType_U32,
+                          &rsms.refreshRateMS, 2.5f, 0, NULL,
+                          "%u ms");
+        if (steady_clock::now().time_since_epoch() -
+                rsms.lastRefreshTime >
+            milliseconds(rsms.refreshRateMS))
+        {
+            rsms.rs.refresh();
+            rsms.lastRefreshTime =
+                steady_clock::now().time_since_epoch();
+        }
+    }
+
+    if (ImGui::BeginCombo("datatype chooser",
+                          dataTypeTable[rsms.curType], 0))
+    {
+        for (size_t n = 0; n < IM_ARRAYSIZE(dataTypeTable); n++)
+        {
+            const bool isSelected = (rsms.curType == n);
+            if (ImGui::Selectable(dataTypeTable[n], isSelected))
+                rsms.curType = static_cast<e_dataTypes>(n);
+
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+
+    const size_t numCols = 16;
+    const size_t selSize = dataSizeTable[rsms.curType];
+    if (!ImGui::BeginChild(
+            "##SnapView",
+            ImVec2(-FLT_MIN, ImGui::GetFontSize() * 40)))
+    {
+        ImGui::EndChild();
+        ImGui::End();
+    }
+    static const std::vector<char> a = {
+        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 
+        'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+        'a', 'b', 'c', 'd', 'e', 'f',
+        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 
+        'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+        'a', 'b', 'c', 'd', 'e', 'f',
+    };
+    auto tableFlags = 
+        ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit;
+
+    ImGuiMultiSelectFlags flags =
+        ImGuiMultiSelectFlags_ClearOnEscape |
+        ImGuiMultiSelectFlags_BoxSelect1d;
+    ImGuiMultiSelectIO* ms_io =
+        ImGui::BeginMultiSelect(flags, rsms.selection.Size,
+                                rsms.rs.mrp.relativeRegionSize);
+    rsms.selection.ApplyRequests(ms_io);
+
+    rsms.changeRequest = ImGui::Shortcut(ImGuiKey_Space) &&
+        (rsms.selection.Size > 0);
+
+    if (!ImGui::BeginTable("Snapshot Table", 2, tableFlags)) {
+        ImGui::EndTable();
+        ImGui::EndChild();
+        ImGui::End();
+    }
+    static const auto singleCharSize = ImGui::CalcTextSize("00");
+
+    rsms.curOffset = 0;
+    ImGui::TableNextColumn();
+    ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, {0.5, 0.5});
+    // Case 1:
+        // SelSize <= CurSize - The curSize elements can be safely handled normally
+    // Case 2:
+        // SelSize > CurSize - The curSize elements new to be resized to fit inside the
+        // selection's string.
+    while (rsms.curOffset < rsms.rs.snap().size()) {
+        auto curType = rsms.types[rsms.curOffset];
+        auto curSize = dataSizeTable[curType];
+        const auto initialOff = rsms.curOffset;
+        if (rsms.curOffset % numCols != 0)
+        {
+            ImGui::SameLine();
+            // if (rsms.curOffset % 2 == 0) ImGui::SameLine(0, 10);
+            // if (rsms.curOffset % 4 == 0) ImGui::SameLine(0, 20);
+        }
+
+        char str[128] = {0};
+        size_t offset = 0;
+        for (size_t it = 0; it < selSize;) {
+            uint64_t value = 0;
+            memcpy(&value, rsms.rs.snap().data() + rsms.curOffset, curSize);
+            offset += sprintf(str + offset, dataConvTable[curType], rsms.rs.snap()[rsms.curOffset]);
+            if (it < selSize - 1)
+                offset += sprintf(str + offset, " ");
+            rsms.curOffset += curSize;
+            it += curSize;
+        }
+
+        // ImVec2 size = {singleCharSize.x * curSize, singleCharSize.y};
+        auto size = ImGui::CalcTextSize(str);
+        memcpy(str+offset, "##%lu", 5);
+        sprintf(str, str, rsms.curOffset);
+
+        bool selected = rsms.selection.Contains(rsms.curOffset);
+        ImGui::SetNextItemSelectionUserData(rsms.curOffset);
+        ImGui::Selectable(str, selected, ImGuiSelectableFlags_None, size);
+
+        if (rsms.changeRequest && selected)
+        {
+            Log(Debug, "Selection ID: " << initialOff);
+            Log(Debug, "CurSize: " << curSize);
+            Log(Debug, "SelSize: " << selSize);
+            if (rsms.types[initialOff] != HEX)
+            {
+                Log(Debug, "type unknown -> hex");
+                memset(rsms.types.data() + initialOff, HEX,
+                       curSize);
+            }
+            else
+            {
+                Log(Debug, "type hex -> unknown");
+                memset(rsms.types.data() + initialOff,
+                       rsms.curType, selSize);
+            }
+        }
+
+        // Print ascii conversion.
+        if (rsms.curOffset % numCols == 0) {
+            ImGui::TableNextColumn();
+            char strVer[17] = {0};
+            memcpy(strVer,
+                   rsms.rs.snap().data() +
+                       rsms.curOffset - numCols,
+                   numCols);
+            for (size_t j = 0; j < numCols;
+                 j++)
+            {
+                if (strVer[j] - 31 > 0)
+                    continue;
+                strVer[j] = '.';
+            }
+
+            ImGui::Text("%s", strVer);
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+        }
+    }
+    ms_io = ImGui::EndMultiSelect();
+    rsms.selection.ApplyRequests(ms_io);
+    ImGui::PopStyleVar();
+    ImGui::EndTable();
     ImGui::EndChild();
     ImGui::End();
 }

@@ -67,7 +67,7 @@ static const char* dataTypeTable[] = {
     "uint64_t", "int64_t", "float",    "double",
 };
 static const char* dataConvTable[] = {
-    "%02x", "%c", "%hhu", "%hhd", 
+    "%02hhx", "%c", "%hhu", "%hhd", 
     "%hu", "%hd", "%u", "%d", 
     "%lu", "%ld", "%f", "%lf"
 };
@@ -113,10 +113,11 @@ struct RefreshableSnapshotMenuState
     std::chrono::nanoseconds lastRefreshTime = {};
     // TODO: Get rid of this stupid init.
     void init() {
-        types.resize(rs.snap().size());
+        types.resize(rs.snap().size(), HEX);
     }
 };
 
 void refreshableSnapshotMenu(RefreshableSnapshotMenuState &rsms);
+void refreshableSnapshotMenuFast(RefreshableSnapshotMenuState &rsms);
 
 #endif // gui_hpp_INCLUDED

@@ -6,10 +6,12 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_COMPILER g++)
+# doesn't work ;_;
+# set(CMAKE_USE_RELATIVE_PATHS True)
 
 include(FetchContent)
 
-add_compile_options(-g -Wall -Wextra -Wno-cpp -Wpedantic)
+add_compile_options(-g -Wall -Wextra -Wno-cpp -Wpedantic --warn-no-format-security)
 
 option(DisableOPT "Disable optimization using -O0" OFF)
 if (DisableOPT)

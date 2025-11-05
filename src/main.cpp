@@ -549,7 +549,7 @@ int main(int, char**)
 
         demoWindows(gs);
 
-        refreshableSnapshotMenu(rsms);
+        refreshableSnapshotMenuFast(rsms);
         refreshableSnapshotMenu(crsms);
 
         endGuiFrame(gs);
