@@ -8,12 +8,14 @@
 #include <optional>
 
 void AnalysisMenu::draw() {
-    if (this->enabled)
-    {
-        std::string menuLabel = "Analysis Menu: " + std::to_string(this->pid);
-        ImGui::Begin(menuLabel.c_str(), &(this->enabled));
-        ImGui::End();
-    }
+    if (!this->enabled)
+        return;
+
+    std::string menuLabel = "Analysis Menu: " + std::to_string(this->pid);
+    ImGui::Begin(menuLabel.c_str(), &(this->enabled));
+
+
+    ImGui::End();
 }
 
 GuiState::GuiState(std::optional<pid_t> opt_pid)
@@ -321,6 +323,7 @@ void RefreshableSnapshotMenu::draw()
                       &this->enabled))
     {
         ImGui::End();
+        return;
     }
     if (ImGui::TreeNode("Region Properties"))
     {
@@ -380,13 +383,9 @@ void RefreshableSnapshotMenu::draw()
     const size_t numCols =
         (rs_sptr->snap().size() > 8) ? 16 : rs_sptr->snap().size();
     const size_t selSize = dataSizeTable[this->curType];
-    if (!ImGui::BeginChild(
+    ImGui::BeginChild(
             "##SnapView",
-            ImVec2(-FLT_MIN, ImGui::GetFontSize() * 40)))
-    {
-        ImGui::EndChild();
-        ImGui::End();
-    }
+            ImVec2(-FLT_MIN, ImGui::GetFontSize() * 40));
 
     auto tableFlags =
         ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit;
@@ -401,12 +400,7 @@ void RefreshableSnapshotMenu::draw()
     this->changeRequest =
         ImGui::Shortcut(ImGuiKey_Space) && (this->selection.Size > 0);
 
-    if (!ImGui::BeginTable("Snapshot Table", 2, tableFlags))
-    {
-        ImGui::EndTable();
-        ImGui::EndChild();
-        ImGui::End();
-    }
+    ImGui::BeginTable("Snapshot Table", 2, tableFlags);
     static const float singleByteWidth =
         ImGui::CalcTextSize("00").x + 5;
     static const float singleByteHeight = ImGui::CalcTextSize("00").y;
