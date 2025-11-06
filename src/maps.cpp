@@ -164,6 +164,21 @@ RegionPropertiesList RegionPropertiesList::filterRegionsByPerms(
     return rl;
 }
 
+RegionPropertiesList RegionPropertiesList::filterRegionsByHasPerms(
+    const std::string_view& perms)
+{
+    Perms permsToMatch = parsePerms(perms);
+    RegionPropertiesList rl;
+    for (size_t i = 0; i < this->size(); i++) {
+        const Perms &p = this->at(i).perms;
+        if ((p & permsToMatch) == permsToMatch) 
+            {
+                rl.push_back(this->at(i));
+            }
+    }
+    return rl;
+}
+
 RegionPropertiesList RegionPropertiesList::filterRegionsByNotPerms(
     const std::string_view& perms)
 {

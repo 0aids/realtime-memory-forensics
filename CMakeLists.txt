@@ -70,6 +70,9 @@ target_link_libraries(mem-anal PRIVATE memLib
 )
 
 
-enable_testing()
+option(BuildTests "Build the tests" OFF)
+if (BuildTests)
+    enable_testing()
 
-add_subdirectory(tests)
+    add_subdirectory(tests)
+endif()

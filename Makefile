@@ -13,7 +13,9 @@ configure:
 build:
 	cmake --build build -j $(NumProcessors)
 
-test: clean _debug build
+test:
+	cmake -DDisableOPT=ON -DBuildTests=ON -S . -B build
+	cmake --build build -j $(NumProcessors)
 	ctest --test-dir build
 
 clean:

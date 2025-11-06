@@ -85,6 +85,7 @@ public:
     using std::vector<MemoryRegionProperties>::front;
     using std::vector<MemoryRegionProperties>::back;
     using std::vector<MemoryRegionProperties>::at;
+    using std::vector<MemoryRegionProperties>::data;
     using std::vector<MemoryRegionProperties>::operator[];
 
     // Inclusive
@@ -107,6 +108,11 @@ public:
     // IE "rxp", "p", "rwp", "rws"
     RegionPropertiesList
     filterRegionsByPerms(const std::string_view& perms);
+
+    // Must contain the given perms.
+    // IE "r" -> any region that has readable permissions
+    RegionPropertiesList
+    filterRegionsByHasPerms(const std::string_view& perms);
 
     // Must not have the permission.
     // IS if the perm is 'S' to be ignored, will

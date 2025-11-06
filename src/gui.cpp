@@ -5,14 +5,18 @@
 #include "core.hpp"
 #include "imgui.h"
 #include <chrono>
+#include <optional>
 
 void AnalysisMenu::draw() {
-    std::string menuLabel = "Analysis Menu: " + std::to_string(this->pid);
-    ImGui::Begin(menuLabel.c_str(), &(this->enabled));
-    ImGui::End();
+    if (this->enabled)
+    {
+        std::string menuLabel = "Analysis Menu: " + std::to_string(this->pid);
+        ImGui::Begin(menuLabel.c_str(), &(this->enabled));
+        ImGui::End();
+    }
 }
 
-GuiState::GuiState()
+GuiState::GuiState(std::optional<pid_t> opt_pid)
 {
     // Setup SDL
     // [If using SDL_MAIN_USE_CALLBACKS: all code below until the main loop starts would likely be your SDL_AppInit() function]
@@ -140,6 +144,11 @@ GuiState::GuiState()
     this->showMemAnalWindow = true;
     this->bgColor           = ImVec4(0.2f, 0.2f, 0.2f, 1.00f);
     validState              = true;
+
+    if (opt_pid.has_value()) {
+        pid_t pid = opt_pid.value();
+        opt_demoTestState.emplace(pid);
+    }
 }
 
 void GuiState::endFrame()
@@ -180,10 +189,21 @@ void GuiState::draw()
             ImGui::MenuItem("Show Demo", NULL, &this->showDemoWindow);
             ImGui::MenuItem("Show extra window", NULL,
                             &this->showAnotherWindow);
+            if (opt_demoTestState)
+            {
+                DemoTestState &ds = opt_demoTestState.value();
+                ImGui::MenuItem("Show refreshable snapshot demo", NULL, &ds.rsms.enabled);
+                ImGui::MenuItem("Show changing refreshable snapshot demo", NULL, &ds.crsms.enabled);
+                ImGui::MenuItem("Show AnalysisMenu Demo", NULL, &ds.demoAnalysisMenu.enabled);
+            }
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();
     }
+    if (opt_demoTestState) {
+        opt_demoTestState.value().draw();
+    }
+
     if (this->showMemAnalWindow)
     {
         ImGui::Begin("Mem-Anal!", &this->showMemAnalWindow,
@@ -198,9 +218,7 @@ void GuiState::draw()
                 bool *enabled = &(menu.enabled);
                 ImGui::MenuItem(std::to_string(pid).c_str(), NULL, enabled);
 
-                if (*enabled) {
-                    menu.draw();
-                }
+                menu.draw();
                 
             }
             ImGui::EndChild();
@@ -222,7 +240,7 @@ void GuiState::draw()
             {
                 if (inputBuffer[0] != '\0'){
                     pid_t pid = std::stoi(inputBuffer);
-                    this->analysisMenuList.insert({pid, {false, pid}});
+                    this->analysisMenuList.insert({pid, {pid}});
                     memset(inputBuffer, 0, 1024);
                 }
                 ImGui::CloseCurrentPopup();
@@ -252,8 +270,14 @@ void GuiState::draw()
 
 void RefreshableSnapshotMenu::modifyPropertiesSubMenu()
 {
+    auto rs_sptr = m_rs_wptr.lock();
+    if (!this->enabled || !rs_sptr)
+    {
+        this->enabled = false;
+        return;
+    }
     const static uintptr_t minSize = 0x8;
-    auto&                  mrp     = this->rs.mrp;
+    auto&                  mrp     = rs_sptr->mrp;
     ImGui::DragScalar("Relative Region Start", ImGuiDataType_U64,
                       &mrp.relativeRegionStart, 8.f, 0,
                       &mrp.parentRegionSize - minSize, "%#lx",
@@ -280,15 +304,19 @@ void RefreshableSnapshotMenu::draw()
 {
     using namespace std::string_literals;
     using namespace std::chrono;
-    if (!this->enabled)
+    auto rs_sptr = m_rs_wptr.lock();
+    if (!this->enabled || !rs_sptr)
+    {
+        this->enabled = false;
         return;
+    }
     // Used for keeping track of the current index in the snapshot for
     // gui creation.
     uintptr_t curOffset = 0;
 
     // This seems very サス.
     if (!ImGui::Begin(("Refreshable Snapshot Window: "s +
-                       this->rs.mrp.regionName)
+                       rs_sptr->mrp.regionName)
                           .c_str(),
                       &this->enabled))
     {
@@ -297,7 +325,7 @@ void RefreshableSnapshotMenu::draw()
     if (ImGui::TreeNode("Region Properties"))
     {
         ImGui::Text("%s",
-                    this->rs.snap().regionProperties.toStr().c_str());
+                    rs_sptr->snap().regionProperties.toStr().c_str());
         ImGui::TreePop();
     }
     if (ImGui::TreeNode("Modify Properties"))
@@ -350,7 +378,7 @@ void RefreshableSnapshotMenu::draw()
     }
 
     const size_t numCols =
-        (this->rs.snap().size() > 8) ? 16 : this->rs.snap().size();
+        (rs_sptr->snap().size() > 8) ? 16 : rs_sptr->snap().size();
     const size_t selSize = dataSizeTable[this->curType];
     if (!ImGui::BeginChild(
             "##SnapView",
@@ -367,7 +395,7 @@ void RefreshableSnapshotMenu::draw()
         ImGuiMultiSelectFlags_ClearOnEscape |
         ImGuiMultiSelectFlags_BoxSelect1d;
     ImGuiMultiSelectIO* ms_io = ImGui::BeginMultiSelect(
-        flags, this->selection.Size, this->rs.snap().size());
+        flags, this->selection.Size, rs_sptr->snap().size());
     this->selection.ApplyRequests(ms_io);
 
     this->changeRequest =
@@ -387,7 +415,7 @@ void RefreshableSnapshotMenu::draw()
     size_t textCursorPos = 1;
     ImGui::TableNextColumn();
     char labelBuffer[32] = {0};
-    while (curOffset < this->rs.snap().size())
+    while (curOffset < rs_sptr->snap().size())
     {
         const auto initialOff = curOffset;
         auto       curType    = this->types[curOffset];
@@ -416,7 +444,7 @@ void RefreshableSnapshotMenu::draw()
             float cellWidth = singleByteWidth * curSize;
             ImGui::SameLine(textCursorPos);
             uint64_t val;
-            memcpy(&val, this->rs.snap().data() + curOffset, curSize);
+            memcpy(&val, rs_sptr->snap().data() + curOffset, curSize);
             ImGui::Text(dataConvTable[curType], val);
             textCursorPos += cellWidth;
             selOffset += cellWidth;
@@ -446,7 +474,7 @@ void RefreshableSnapshotMenu::draw()
 
         // // Print ascii conversion.
         if (curOffset % numCols == 0 ||
-            curOffset == this->rs.snap().size())
+            curOffset == rs_sptr->snap().size())
         {
             ImGui::TableNextColumn();
             char strVer[17] = {0};
@@ -455,7 +483,7 @@ void RefreshableSnapshotMenu::draw()
             if (boundsOffset == 0)
                 boundsOffset = numCols;
             memcpy(strVer,
-                   this->rs.snap().data() + curOffset - boundsOffset,
+                   rs_sptr->snap().data() + curOffset - boundsOffset,
                    boundsOffset);
             for (size_t j = 0; j < numCols; j++)
             {

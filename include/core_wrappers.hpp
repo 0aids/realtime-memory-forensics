@@ -126,6 +126,7 @@ class QueuedThreadPool {
                     std::to_string(m_threadsList.size() + 1)
                 );
 
+                // For debugging purposes.
                 pthread_setname_np(m_threadsList.back().first.native_handle(),
                                    m_threadsList.back().second.c_str());
             }
@@ -150,8 +151,8 @@ class QueuedThreadPool {
             );
         }
 
-        template <typename CoreFuncType>
-        inline void submitMultipleTasks(std::vector<Task<CoreFuncType>> &tasksVec)
+        template <std::ranges::range TaskList>
+        inline void submitMultipleTasks(TaskList &tasksVec)
         {
             for (auto &task : tasksVec) {
                 submitTask(task);
@@ -180,7 +181,6 @@ class QueuedThreadPool {
                 func.value()();
             }
         }
-
 };
 
 class TaskThreadPool
@@ -189,7 +189,6 @@ class TaskThreadPool
     const size_t pu_numThreads = 1;
 
     template <typename CoreFuncType>
-    // Only takes the packaged task, but also takes ownership of it.
     void submitTask(Task<CoreFuncType>& task)
     {
         using namespace std::chrono;

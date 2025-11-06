@@ -9,61 +9,14 @@
 #include <cstdint>
 #include <cstdio>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <map>
 #include "maps.hpp"
 #include "snapshots.hpp"
 #include "mem_anal.hpp"
-
-struct MemoryRegionPropertiesPickerMenu {
-};
-
-struct AnalysisMenu {
-    bool enabled;
-    const pid_t pid;
-
-    Program analysisState{};
-
-    struct Comparator {
-        bool operator()(const pid_t &pid1, const pid_t &pid2) const {
-            return pid1 < pid2;
-        }
-    };
-
-    void draw();
-};
-
-struct GuiState
-{
-    SDL_Window*                                    window;
-    SDL_WindowFlags                                windowFlags;
-    std::string                                    glslVersion;
-    SDL_GLContext                                  glContext;
-
-    float                                          mainScale;
-
-    bool validState;
-    bool showMemAnalWindow;
-    bool                                           showDemoWindow;
-    bool                                           showAnotherWindow;
-    ImVec4                                         bgColor;
-
-    std::map<pid_t, AnalysisMenu, AnalysisMenu::Comparator> analysisMenuList;
-
-    ImGuiIO io;
-
-    GuiState();
-
-    void startFrame();
-
-    void endFrame();
-
-    // Draw the main window.
-    void draw();
-    
-};
-
+#include "tests.hpp"
 // TODO: Convert this table into something neater?
 // The table is needed for the combo on the refreshable snasphot menu.
 static const char* dataTypeTable[] = {
@@ -102,7 +55,7 @@ struct RefreshableSnapshotMenu
 private:
     // WARNING: Do NOT use the rs.refresh()!!! Use refreshSnapshot() instead because it updates the types
     // vector if necessary.
-    RefreshableSnapshot      &rs;
+    std::weak_ptr<RefreshableSnapshot>      m_rs_wptr;
 
     std::vector<e_dataTypes> types{};
 
@@ -118,23 +71,111 @@ private:
 
     void refreshSnapshot()
     {
-        if (rs.mrp.relativeRegionSize != rs.snap().regionProperties.relativeRegionSize) {
-            types.clear();
-            types.resize(rs.mrp.relativeRegionSize, HEX);
+        auto data = m_rs_wptr.lock();
+        if (data)
+        {
+            enabled = false;
+            return;
         }
-        rs.refresh();
+        if (data->mrp.relativeRegionSize != data->snap().regionProperties.relativeRegionSize) {
+            types.clear();
+            types.resize(data->mrp.relativeRegionSize, HEX);
+        }
+        data->refresh();
     }
 
 public:
-    RefreshableSnapshotMenu(RefreshableSnapshot &rs)
-    : rs(rs)
+    RefreshableSnapshotMenu(std::shared_ptr<RefreshableSnapshot> &rs_sptr)
     {
-        rs.refresh();
-        types.resize(rs.snap().size(), HEX);
+        m_rs_wptr = rs_sptr;
+        types.resize(rs_sptr->snap().size(), HEX);
     }
 
     void draw();
 };
+
+struct MemoryRegionPropertiesPickerMenu {
+};
+
+struct AnalysisMenu {
+    bool enabled;
+    const pid_t pid;
+
+    // Actually owns and modifies this, unlike the views.
+    std::shared_ptr<ProgramAnalysisState> analysisState_sptr{};
+
+    struct Comparator {
+        bool operator()(const pid_t &pid1, const pid_t &pid2) const {
+            return pid1 < pid2;
+        }
+    };
+
+    AnalysisMenu(pid_t pid): pid(pid) {
+        enabled = true;
+        analysisState_sptr = std::make_shared<ProgramAnalysisState>(pid);
+    }
+
+    void draw();
+};
+
+struct DemoTestState{
+    // Demo and testing stuff.
+    AnalysisMenu demoAnalysisMenu;
+    std::shared_ptr<RefreshableSnapshot> rs_sptr;
+    std::shared_ptr<RefreshableSnapshot> crs_sptr;
+    RefreshableSnapshotMenu rsms;
+    RefreshableSnapshotMenu crsms;
+
+    DemoTestState(
+        pid_t pid
+    )
+    : demoAnalysisMenu(pid),
+    rs_sptr(getSampleRefreshableSnapshots(pid).first),
+    crs_sptr(getSampleRefreshableSnapshots(pid).second),
+    rsms(RefreshableSnapshotMenu(rs_sptr)),
+    crsms(RefreshableSnapshotMenu(crs_sptr))
+    {
+        Log(Debug, "Initialized the demo test state!");
+    }
+
+    void draw() {
+        demoAnalysisMenu.draw();
+        rsms.draw();
+        crsms.draw();
+    }
+};
+
+struct GuiState
+{
+    SDL_Window*                                    window;
+    SDL_WindowFlags                                windowFlags;
+    std::string                                    glslVersion;
+    SDL_GLContext                                  glContext;
+
+    float                                          mainScale;
+    ImVec4                                         bgColor;
+
+    bool validState;
+    bool showMemAnalWindow;
+    std::map<pid_t, AnalysisMenu, AnalysisMenu::Comparator> analysisMenuList;
+
+    bool                                           showDemoWindow;
+    bool                                           showAnotherWindow;
+    std::optional<DemoTestState> opt_demoTestState;
+
+    ImGuiIO io;
+
+    GuiState(std::optional<pid_t> opt_pid={});
+
+    void startFrame();
+
+    void endFrame();
+
+    // Draw the main window.
+    void draw();
+    
+};
+
 
 
 #endif // gui_hpp_INCLUDED

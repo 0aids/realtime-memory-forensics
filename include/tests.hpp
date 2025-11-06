@@ -1,6 +1,7 @@
 #ifndef tests_hpp_INCLUDED
 #define tests_hpp_INCLUDED
 #include "logs.hpp"
+#include "mem_anal.hpp"
 #include <unistd.h>
 
 // Returns the PID of the sample process.
@@ -20,5 +21,9 @@ bool checkPtraceScope();
     }
 
 pid_t runChangingMapProcess();
+
+std::pair<std::shared_ptr<RefreshableSnapshot>,
+          std::shared_ptr<RefreshableSnapshot>>
+getSampleRefreshableSnapshots(pid_t sampleProcessPID);
 
 #endif // tests_hpp_INCLUDED

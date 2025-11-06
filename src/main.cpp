@@ -190,14 +190,10 @@ void findPlayerPosition(const size_t& maxSnapshotsPerIteration,
 
                 for (size_t j = 0; j < numSnapshots; j++)
                 {
-                    snapshotsList1.push_back(
-                        tasks1[j].result.get()
-                    );
+                    snapshotsList1.push_back(tasks1[j].result.get());
                     spansList1.push_back(
                         snapshotsList1.back().asSnapshotSpan());
-                    snapshotsList2.push_back(
-                        tasks2[j].result.get()
-                    );
+                    snapshotsList2.push_back(tasks2[j].result.get());
                     spansList2.push_back(
                         snapshotsList2.back().asSnapshotSpan());
                 }
@@ -388,8 +384,8 @@ void findPlayerName(const size_t&         maxSnapshotsPerIteration,
 
         for (size_t j = 0; j < numSnapshots; j++)
         {
-            snapshotsList1.push_back(MemorySnapshot(
-                tasks1[j].result.get()));
+            snapshotsList1.push_back(
+                MemorySnapshot(tasks1[j].result.get()));
             spansList1.push_back(
                 snapshotsList1.back().asSnapshotSpan());
         }
@@ -424,75 +420,15 @@ void findPlayerName(const size_t&         maxSnapshotsPerIteration,
     cout << "Number of occurrences: " << processing.size() << endl;
 }
 
-
-
 // Main code
 int main(int, char**)
 {
-    pid_t                samplePid = runSampleProcess();
-    RegionPropertiesList map =
-        readMapsFromPid(samplePid).filterRegionsByPerms("rwp");
-
-    RegionPropertiesList result;
-    {
-        Log(Message, "Attempting TASK splitting WITH MT!");
-        size_t numThreads = 10;
-        map               = breakIntoRegionChunks(map, 0);
-        QueuedThreadPool tp(numThreads);
-
-        auto cinputs = consolidateIntoCoreInput({.mrpVec = map});
-        auto snapTasks1 =
-            createMultipleTasks(makeSnapshotCore, cinputs);
-        auto snapTasks2 =
-            createMultipleTasks(makeSnapshotCore, cinputs);
-
-        tp.submitMultipleTasks(snapTasks1);
-        tp.awaitAllTasks();
-        this_thread::sleep_for(10ms);
-        tp.submitMultipleTasks(snapTasks2);
-        tp.awaitAllTasks();
-
-        vector<MemorySnapshot>     snapshotsList1;
-        vector<MemorySnapshot>     snapshotsList2;
-        vector<MemorySnapshotSpan> spansList1;
-        vector<MemorySnapshotSpan> spansList2;
-        snapshotsList1.reserve(snapTasks1.size());
-        snapshotsList2.reserve(snapTasks2.size());
-        spansList1.reserve(snapTasks1.size());
-        spansList2.reserve(snapTasks2.size());
-
-        for (size_t j = 0; j < snapTasks1.size(); j++)
-        {
-            snapshotsList1.push_back(MemorySnapshot(
-                snapTasks1[j].result.get()));
-            spansList1.push_back(
-                snapshotsList1.back().asSnapshotSpan());
-            snapshotsList2.push_back(MemorySnapshot(
-                snapTasks2[j].result.get()));
-            spansList2.push_back(
-                snapshotsList2.back().asSnapshotSpan());
-        }
-        cinputs = consolidateIntoCoreInput({.mrpVec   = map,
-                                            .snap1Vec = spansList1,
-                                            .snap2Vec = spansList2});
-
-        auto tasks =
-            createMultipleTasks(findChangedRegionsCore, cinputs, 8);
-        tp.submitMultipleTasks(tasks);
-        tp.awaitAllTasks();
-        result = consolidateNestedTaskResults(tasks);
-    }
-
-    RefreshableSnapshot rs( breakIntoRegionChunks(map, 0).front()); 
-    RefreshableSnapshot crs(result.front());
-
-    RefreshableSnapshotMenu rsms(rs);
-
-    RefreshableSnapshotMenu crsms(crs);
+    pid_t sampleProcessPID = runSampleProcess();
 
     // Default construct the gui state.
-    GuiState gs{};
-    if (!gs.validState) {
+    GuiState gs(sampleProcessPID);
+    if (!gs.validState)
+    {
         Log(Error, "Failed to initalize the GUI!");
         return 1;
     }
@@ -530,10 +466,6 @@ int main(int, char**)
         gs.startFrame();
 
         gs.draw();
-
-        rsms.draw();
-        crsms.draw();
-
 
         gs.endFrame();
     }

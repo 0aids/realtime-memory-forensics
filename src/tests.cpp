@@ -1,7 +1,5 @@
-#include "tests.hpp"
-
-
 #include <sys/resource.h>
+#include "mem_anal.hpp"
 #include "logs.hpp"
 #include "tests.hpp"
 #include <fstream>
@@ -40,7 +38,8 @@ pid_t runChangingMapProcess()
     }
     if (pid == 0)
     {
-        if (prctl(PR_SET_PDEATHSIG, SIGKILL) == -1) {
+        if (prctl(PR_SET_PDEATHSIG, SIGKILL) == -1)
+        {
             perror("prctl failed");
             exit(EXIT_FAILURE);
         }
@@ -55,13 +54,13 @@ __attribute__((optimize("O0"))) void sampleProcess()
 {
     using namespace std;
 
-    volatile char          extrashit[] = "This is some extra shit";
-    volatile char i[]         = "ALL HAIL THE!!!";
-    volatile char j[]         = "A FASTER!!!";
-    volatile double *d = new double(5);
-    volatile string*       randomthing = new string("small string");
-    volatile double*       doubleVal   = new double(150);
-    volatile auto          list = new std::list<char>{'a', 'b', 'c', 'd'};
+    volatile char    extrashit[] = "This is some extra shit";
+    volatile char    i[]         = "ALL HAIL THE!!!";
+    volatile char    j[]         = "A FASTER!!!";
+    volatile double* d           = new double(5);
+    volatile string* randomthing = new string("small string");
+    volatile double* doubleVal   = new double(150);
+    volatile auto    list = new std::list<char>{'a', 'b', 'c', 'd'};
     cerr << "randomthing address: " << std::hex << std::showbase
          << &randomthing << endl;
     cerr << "linked list address: " << std::hex << std::showbase
@@ -114,8 +113,8 @@ __attribute__((optimize("O0"))) void sampleProcess()
         "Pellentesque "
         "auctor erat sed pellentesque tempor. Etiam at congue ante. "
         "Pellentesque ");
-    size_t iterations = 0;
-    volatile size_t *dumb = new size_t(0);
+    size_t           iterations = 0;
+    volatile size_t* dumb       = new size_t(0);
     while (true)
     {
         iterations++;
@@ -125,7 +124,7 @@ __attribute__((optimize("O0"))) void sampleProcess()
             i[0] = (i[0] - 64) % 26 + 65;
         }
         j[0] = (i[0] - 64) % 26 + 65;
-        *d+=0.5;
+        *d += 0.5;
         *dumb += 1;
     }
     delete randomthing;
@@ -163,12 +162,16 @@ pid_t runSampleProcess()
     }
     if (pid == 0)
     {
-        if (prctl(PR_SET_PDEATHSIG, SIGKILL) == -1) {
+        if (prctl(PR_SET_PDEATHSIG, SIGKILL) == -1)
+        {
             perror("prctl failed");
             exit(EXIT_FAILURE);
         }
-        int ret = setpriority(PRIO_PROCESS, 0, -20); // higher priority (lower nice value)
-        if (!ret) {
+        int ret =
+            setpriority(PRIO_PROCESS, 0,
+                        -20); // higher priority (lower nice value)
+        if (!ret)
+        {
             Log(Warning, "Failed to change forked process priority!");
         }
         sampleProcess();
@@ -178,4 +181,64 @@ pid_t runSampleProcess()
     return pid;
 }
 
+std::pair<std::shared_ptr<RefreshableSnapshot>,
+          std::shared_ptr<RefreshableSnapshot>>
+getSampleRefreshableSnapshots(pid_t sampleProcessPID)
+{
+    using namespace std;
+    RegionPropertiesList map =
+        readMapsFromPid(sampleProcessPID).filterRegionsByPerms("rwp");
 
+    RegionPropertiesList result;
+    {
+        Log(Message, "Attempting TASK splitting WITH MT!");
+        size_t numThreads = 10;
+        map               = breakIntoRegionChunks(map, 0);
+        QueuedThreadPool tp(numThreads);
+
+        auto cinputs = consolidateIntoCoreInput({.mrpVec = map});
+        auto snapTasks1 =
+            createMultipleTasks(makeSnapshotCore, cinputs);
+        auto snapTasks2 =
+            createMultipleTasks(makeSnapshotCore, cinputs);
+
+        tp.submitMultipleTasks(snapTasks1);
+        tp.awaitAllTasks();
+        this_thread::sleep_for(10ms);
+        tp.submitMultipleTasks(snapTasks2);
+        tp.awaitAllTasks();
+
+        vector<MemorySnapshot>     snapshotsList1;
+        vector<MemorySnapshot>     snapshotsList2;
+        vector<MemorySnapshotSpan> spansList1;
+        vector<MemorySnapshotSpan> spansList2;
+        snapshotsList1.reserve(snapTasks1.size());
+        snapshotsList2.reserve(snapTasks2.size());
+        spansList1.reserve(snapTasks1.size());
+        spansList2.reserve(snapTasks2.size());
+
+        for (size_t j = 0; j < snapTasks1.size(); j++)
+        {
+            snapshotsList1.push_back(
+                MemorySnapshot(snapTasks1[j].result.get()));
+            spansList1.push_back(
+                snapshotsList1.back().asSnapshotSpan());
+            snapshotsList2.push_back(
+                MemorySnapshot(snapTasks2[j].result.get()));
+            spansList2.push_back(
+                snapshotsList2.back().asSnapshotSpan());
+        }
+        cinputs = consolidateIntoCoreInput({.mrpVec   = map,
+                                            .snap1Vec = spansList1,
+                                            .snap2Vec = spansList2});
+
+        auto tasks =
+            createMultipleTasks(findChangedRegionsCore, cinputs, 8);
+        tp.submitMultipleTasks(tasks);
+        tp.awaitAllTasks();
+        result = consolidateNestedTaskResults(tasks);
+    }
+    return {make_shared<RefreshableSnapshot>(
+                breakIntoRegionChunks(map, 0).front()),
+            make_shared<RefreshableSnapshot>(result.front())};
+}

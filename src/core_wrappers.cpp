@@ -84,7 +84,6 @@ std::vector<CoreInputs> consolidateIntoCoreInput(
             coreInputsVec.push_back(cin);
         }
     }
-
     return coreInputsVec;
 }
 
