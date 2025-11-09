@@ -239,7 +239,7 @@ std::ostream &operator<<(std::ostream &s, const MemoryRegionProperties &m) {
      "Parent Region Size: " << m.parentRegionSize << "\n" <<
      "Relative Region Start: " << m.relativeRegionStart << "\n" << 
      "Relative Region Size: " << m.relativeRegionSize << "\n" <<
-     "Relative Region Size: " << m.perms << "\n";
+     "Region permissions: " << m.perms << "\n";
      return s;
 }
 

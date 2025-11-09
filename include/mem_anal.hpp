@@ -51,35 +51,53 @@ enum e_InputConfigurations {
 // to a main vector containing our history.
 // The original one will be held separately, and can be
 // overwritten by refreshing the main maps.
+// It runs on instructions, which are just a list of void() that modify the state,
 class ProgramAnalysisState {
 public:
     const pid_t m_pid;
     RegionPropertiesList m_originalProperties;
-    std::vector<RegionPropertiesList> m_rplHistory;
+    std::vector<RegionPropertiesList> m_rplTimeline;
 
     std::vector<std::shared_ptr<RefreshableSnapshot>> m_highInterestSnapshots;
+
+    size_t rplTimelineIndex = 0;
+
+    // Running an instruction from the timeline that is not the end will
+    // copy it to the end.
+    size_t instListTimelineIndex = 0;
 
     std::vector<MemorySnapshot> m_lastSnaps1;
     std::vector<MemorySnapshot> m_lastSnaps2;
 
+    // An instruction
+    // The menu will have predefined selectable/reorderable submenus which only edit specific
+    // parts of the text, which will then be compiled and run afterwards.
+    // This means less code overall.
+    struct Instruction {
+        std::function<void(ProgramAnalysisState &)> compiledText;
+        std::string text;
+
+        void parseLine();
+    };
+
+    using InstructionList = std::vector<Instruction>;
+    std::vector<InstructionList> m_instListTimeline;
+
     ProgramAnalysisState(const pid_t pid) : m_pid(pid) {
     }
-    // Need to provide a whole bunch of methods for modification our chosen snapshots?
-    // Not really. The user has access to it as its public. not the best API but who cares.
-    // I'm going to be the only user anyways.
-    // The menu will modify the state directly.
 
-    // Chunkifies the original properties, gets only readable snapshots and appends it to the history.
-    void defaultInit() {
-        m_rplHistory.emplace_back(
-            breakIntoRegionChunks(
-                m_originalProperties.filterRegionsByHasPerms("r"), 0) 
-        );
+    // Runs the most recent list.
+    void runInstructions() {
+        InstructionList &l = m_instListTimeline.back();
+        for (auto &i : l) {
+            i.parseLine();
+            i.compiledText(*this);
+        }
     }
 
-    std::span<MemorySnapshot> makeSnapshots(QueuedThreadPool tp)
+    std::span<MemorySnapshot> makeSnapshots(QueuedThreadPool &tp)
     {
-        std::vector<CoreInputs> coreInputs = consolidateIntoCoreInput({.mrpVec = m_rplHistory.back()});
+        std::vector<CoreInputs> coreInputs = consolidateIntoCoreInput({.mrpVec = m_rplTimeline.back()});
                                                                        
 
         auto tasks = createMultipleTasks(makeSnapshotCore, coreInputs);
@@ -92,11 +110,11 @@ public:
     }
 
     template <typename CoreFuncType, typename... ExtraInputs>
-    std::span<MemoryRegionProperties> findProperties(QueuedThreadPool tp, CoreFuncType coreFunc, ExtraInputs... extraInputs) {
+    std::span<MemoryRegionProperties> findProperties(QueuedThreadPool &tp, CoreFuncType coreFunc, ExtraInputs... extraInputs) {
         // Uses m_lastSnaps1;
         // Who cares about segmentation
 
-        std::vector<CoreInputs> coreInputs = consolidateIntoCoreInput({.mrpVec = m_rplHistory.back(),
+        std::vector<CoreInputs> coreInputs = consolidateIntoCoreInput({.mrpVec = m_rplTimeline.back(),
                                                                        .snap1Vec = makeSnapshotSpans(m_lastSnaps1),
                                                                        .snap2Vec = makeSnapshotSpans(m_lastSnaps2)});
 
@@ -104,27 +122,38 @@ public:
 
         tp.submitMultipleTasks(tasks);
         tp.awaitAllTasks();
-        m_rplHistory.push_back(
+        m_rplTimeline.push_back(
             consolidateNestedTaskResults(tasks)
         );
 
-        return std::span(m_rplHistory.back().data(), m_rplHistory.back().size());
+        return std::span(m_rplTimeline.back().data(), m_rplTimeline.back().size());
     }
 
     // Clear all original properties, current snapshots and high interest snapshots.
     void clearAll() {
-        m_rplHistory.clear();
+        m_rplTimeline.clear();
         m_lastSnaps1.clear();
         m_lastSnaps2.clear();
+        m_originalProperties.clear();
         // For menus created using this, automatically close the menu when the reference becomes invalid?
         // How do we know that the reference has become invalid? Make the refreshable menus hold a weak ptr to it.
         m_highInterestSnapshots.clear();
+        m_instListTimeline.clear();
     }
 
     // Updates our original properties.
     void updateOriginalProperties()
     {
         m_originalProperties = readMapsFromPid(m_pid);
+    }
+
+    void copyOriginalPropertiesToTimeline() {
+        Log(Debug, "Copying to list timeline!");
+        if (m_originalProperties.size() == 0) {
+            Log(Warning, "There are no properties to copy to timeline");
+            return;
+        }
+        m_rplTimeline.push_back(m_originalProperties);
     }
 };
 

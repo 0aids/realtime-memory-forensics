@@ -8,7 +8,6 @@
 #include <SDL3/SDL_opengl.h>
 #include <cstdint>
 #include <cstdio>
-#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -48,7 +47,6 @@ enum e_dataTypes : uint8_t
     DOUBLE,
 };
 
-// Should this be owning? I don't think so.
 struct RefreshableSnapshotMenu
 {
     bool enabled = true;
@@ -72,7 +70,7 @@ private:
     void refreshSnapshot()
     {
         auto data = m_rs_wptr.lock();
-        if (data)
+        if (!data)
         {
             enabled = false;
             return;
@@ -97,12 +95,33 @@ public:
 struct MemoryRegionPropertiesPickerMenu {
 };
 
+
+struct GuiInstruction {
+    int instIndex = 0;
+    int ID = 0;
+    // All possible inputs. Dunno of a cleaner way.
+    // Should hopefully be enough
+    char inputText[1024] = {0};
+    int registerInd1 = 0;
+    int registerInd2 = 0;
+    int min = 0;
+    int max = 0;
+    double mind = 0;
+    double maxd = 0;
+    int commandListInd = 0;
+    int rplTimelineInd = 0;
+};
+
+ProgramAnalysisState::Instruction convertGuiInstruction(const GuiInstruction &ginst);
+
 struct AnalysisMenu {
     bool enabled;
     const pid_t pid;
+    int IDCounter = 0;
 
     // Actually owns and modifies this, unlike the views.
     std::shared_ptr<ProgramAnalysisState> analysisState_sptr{};
+    std::vector<GuiInstruction> m_curInstructionList;
 
     struct Comparator {
         bool operator()(const pid_t &pid1, const pid_t &pid2) const {
@@ -116,6 +135,25 @@ struct AnalysisMenu {
     }
 
     void draw();
+
+    private:
+        void drawOGMapsTab();
+        void drawFilterRegionsTab();
+        void drawSnapshotsTab();
+        void drawCoreFuncTab();
+
+        // Returns -1 if the selected instruction wants to move upwards
+        // And +1 for downwards (index based)
+        // 0 for none.
+        int drawInstructionMenu(GuiInstruction &inst);
+
+
+        // The entire tab, calls drawInstructionfmenu for each.
+        void drawInstructionTab();
+
+        void drawArgumentPicker(GuiInstruction &inst);
+        // Sends the instructionList to the shared state.
+        void sendCommand();
 };
 
 struct DemoTestState{

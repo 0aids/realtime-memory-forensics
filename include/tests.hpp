@@ -12,6 +12,7 @@ pid_t runSampleProcess();
 // Not needed for the tests, but otherwise might need.
 bool checkPtraceScope();
 
+// TODO: Rename this to MA_assert
 #define assert(shouldBeTrue, message)                                \
     if (!(shouldBeTrue)) {                                           \
         Log(Error, message);                                         \

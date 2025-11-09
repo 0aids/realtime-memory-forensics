@@ -2,18 +2,393 @@
 #include <array>
 #include "backends/imgui_impl_opengl3.h"
 #include "backends/imgui_impl_sdl3.h"
+#include "mem_anal_instructions.hpp"
 #include "core.hpp"
 #include "imgui.h"
+#include "mem_anal.hpp"
 #include <chrono>
 #include <optional>
 
-void AnalysisMenu::draw() {
+ProgramAnalysisState::Instruction convertGuiInstruction(const GuiInstruction &ginst) 
+{
+    using namespace std::literals;
+    ProgramAnalysisState::Instruction inst;
+    inst.text += instructionNames[ginst.instIndex];
+    switch (ginst.instIndex) {
+        case 2:
+        case 3:
+        case 4:
+        case 5:
+        case 6:
+            {
+                inst.text += " ";
+                inst.text += "\""s + ginst.inputText + "\""s; 
+                inst.text += " ";
+                inst.text += std::to_string(ginst.rplTimelineInd); 
+                break;
+            }
+        default:
+            break;
+    }
+
+    Log(Debug, "Created instruction: " << inst.text);
+    return inst;
+}
+
+void AnalysisMenu::sendCommand() {
+    Log(Debug, "Sending command");
+    ProgramAnalysisState::InstructionList l;
+    for (auto &ginst : m_curInstructionList) {
+        l.push_back(convertGuiInstruction(ginst));
+    }
+
+    analysisState_sptr->m_instListTimeline.push_back(l);
+    m_curInstructionList.clear();
+    analysisState_sptr->runInstructions();
+}
+
+void AnalysisMenu::drawArgumentPicker(GuiInstruction& inst)
+{
+    char label[128] = {0};
+    ImGui::BeginGroup();
+    switch (inst.instIndex)
+    {
+        case 2: // FilterRegionName
+        case 3: // FilterRegionName
+        case 4: // FilterRegionName
+        case 5: // FilterRegionName
+        case 6: // FilterRegionName
+        {
+            ImGui::SetNextItemWidth(200);
+            sprintf(label, "##%s-%d-inputText",
+                    instructionNames[inst.instIndex], inst.ID);
+            ImGui::InputTextWithHint(label, "Enter Name/Subname/Perms", inst.inputText,
+                             IM_ARRAYSIZE(inst.inputText));
+            ImGui::SameLine();
+            sprintf(label, "##%s-%d-indexChooser",
+                    instructionNames[inst.instIndex], inst.ID);
+            ImGui::SetNextItemWidth(40);
+            if (analysisState_sptr->m_rplTimeline.size() > 0)
+                ImGui::SliderInt(
+                    label, &inst.rplTimelineInd,
+                    -(analysisState_sptr->m_rplTimeline.size() - 2),
+                    analysisState_sptr->m_rplTimeline.size() - 1, "%d", 
+                    ImGuiSliderFlags_AlwaysClamp
+                );
+            else
+                ImGui::SliderInt(
+                    label, &inst.rplTimelineInd,
+                    0,
+                    0, "%d", 
+                    ImGuiSliderFlags_AlwaysClamp
+                );
+            break;
+        }
+        default: break;
+    }
+    ImGui::EndGroup();
+}
+
+int AnalysisMenu::drawInstructionMenu(GuiInstruction& inst)
+{
+    // Do something.
+    char label[128] = {0};
+    int  next       = 0;
+    // sprintf(label, "##%s", instructionNames[inst.instIndex]);
+    ImGui::BeginGroup();
+    sprintf(label, "##%s-%d combo", instructionNames[inst.instIndex],
+            inst.ID);
+    if (ImGui::BeginCombo(label, instructionNames[inst.instIndex],
+                          ImGuiComboFlags_WidthFitPreview))
+    {
+        for (int i = 0; i < IM_ARRAYSIZE(instructionNames); i++)
+        {
+            const bool isSelected = (inst.instIndex == i);
+            if (ImGui::Selectable(instructionNames[i], isSelected))
+            {
+                inst.instIndex = i;
+            }
+
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::SameLine(150);
+    drawArgumentPicker(inst);
+
+    ImGui::SameLine(ImGui::GetWindowWidth() - 60);
+    sprintf(label, "u##%s-%d up", instructionNames[inst.instIndex],
+            inst.ID);
+    if (ImGui::Button(label))
+    {
+        next = -1; // UP, towards beginning of arr.
+    }
+    sprintf(label, "d##%s-%d down", instructionNames[inst.instIndex],
+            inst.ID);
+    ImGui::SameLine();
+    if (ImGui::Button(label))
+    {
+        next = 1; // Down, towards end of arr
+    }
+    sprintf(label, "X##%s-%d del", instructionNames[inst.instIndex],
+            inst.ID);
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Button,
+                          (ImVec4)ImColor::HSV(0.f, 0.6f, 0.6f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
+                          (ImVec4)ImColor::HSV(0.f, 0.7f, 0.7f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive,
+                          (ImVec4)ImColor::HSV(0.f, 0.8f, 0.8f));
+    if (ImGui::Button(label))
+    {
+        next = -2; // delete
+    }
+    ImGui::PopStyleColor(3);
+
+    ImGui::EndGroup();
+    // Finish the selectable.
+    return next;
+}
+
+void AnalysisMenu::drawInstructionTab()
+{
+    ImGui::BeginChild("Instruction tab");
+    if (ImGui::Button("Add new instruction"))
+    {
+        Log(Debug, "Added new instruction");
+        m_curInstructionList.push_back({0, ++IDCounter});
+    }
+    ImGui::PushItemFlag(ImGuiItemFlags_AllowDuplicateId, true);
+    int indToDel = -1;
+    for (int i = 0; i < (int)m_curInstructionList.size(); i++)
+    {
+        int res = drawInstructionMenu(m_curInstructionList[i]);
+        if (res)
+            Log(Debug, "Received reorder instruction: " << res);
+        if (res == -2)
+        {
+            indToDel = i;
+        }
+        else if (res != 0 &&
+                 (int)m_curInstructionList.size() > (i + res) &&
+                 (i + res) >= 0)
+        {
+            std::swap(m_curInstructionList[i + res],
+                      m_curInstructionList[i]);
+        }
+    }
+
+    if (indToDel >= 0)
+    {
+        m_curInstructionList.erase(m_curInstructionList.begin() +
+                                   indToDel);
+    }
+
+    ImGui::PopItemFlag();
+
+    if (ImGui::Button("Run instructions"))
+    {
+        if (m_curInstructionList.size() > 0) {
+            // Send the instructions list.
+            this->sendCommand();
+        }
+        else
+            Log(Warning, "Attempted to run an empty instruction list!");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Clear instructions")) 
+    {
+        Log(Debug, "Clearing current instruction list");
+        m_curInstructionList.clear();
+    }
+    ImGui::EndChild();
+}
+
+void AnalysisMenu::drawOGMapsTab()
+{
+    ImGui::Text("Properties about the actual mapping.");
+    if (analysisState_sptr->m_originalProperties.size() == 0)
+    {
+        ImGui::Text("No properties have been taken.");
+    }
+    else
+    {
+        ImGui::Text("Number of regions: %lu",
+                    analysisState_sptr->m_originalProperties.size());
+        ImGui::BeginChild("Properties");
+        for (const auto& prop :
+             analysisState_sptr->m_originalProperties)
+        {
+            ImGui::Text("%s", prop.toStr().c_str());
+        }
+        ImGui::EndChild();
+    }
+}
+
+void AnalysisMenu::drawFilterRegionsTab()
+{
+    ImGui::Text("Choose specific regions from RPLs in history, "
+                "or filter by properties.");
+}
+
+void AnalysisMenu::drawSnapshotsTab()
+{
+    ImGui::Text(
+        "Making snapshots, choose a range and its destination");
+}
+
+void AnalysisMenu::drawCoreFuncTab()
+{
+    ImGui::Text("Core func stuff.");
+}
+
+void AnalysisMenu::draw()
+{
     if (!this->enabled)
         return;
 
-    std::string menuLabel = "Analysis Menu: " + std::to_string(this->pid);
-    ImGui::Begin(menuLabel.c_str(), &(this->enabled));
+    char windowID[128];
+    char clearAllPopupID[128];
+    sprintf(windowID, "Analysis Menu: %d##%p", this->pid,
+            (void*)this);
+    sprintf(clearAllPopupID, "PopupID##%p", (void*)this);
+    if (!ImGui::Begin(windowID, &(this->enabled),
+                      ImGuiWindowFlags_MenuBar))
+    {
+        ImGui::End();
+        return;
+    }
+    bool openPopup = false;
 
+    if (ImGui::BeginMenuBar())
+    {
+        if (ImGui::BeginMenu("Actions"))
+        {
+            // Since the menu only exists for a short period of time, this means the openPopup thing will sort
+            // of fail unless we use a variable to store the value.
+            ImGui::MenuItem("Clear history", NULL, false);
+            openPopup = ImGui::MenuItem("Clear ALL", NULL);
+            ImGui::EndMenu();
+        }
+        ImGui::EndMenuBar();
+    }
+    if (openPopup)
+    {
+        Log(Debug, "User asked for CLEAR ALL");
+        ImGui::OpenPopup(clearAllPopupID);
+    }
+
+    if (ImGui::BeginPopupModal(clearAllPopupID, NULL,
+                               ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ImGui::Text("Are you sure you want to clear EVERYTHING?");
+        if (ImGui::Button("Yes"))
+        {
+            analysisState_sptr->clearAll();
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("No"))
+        {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+
+    ImGui::Text("Details:");
+    ImGui::BeginTable("Analysis Menu Alignment Table", 2,
+                      ImGuiTableFlags_SizingStretchSame);
+
+    ImGui::TableNextColumn();
+
+    ImGui::BeginGroup();
+    ImGui::Text("Snapshots List 1 Size: %lu",
+                analysisState_sptr->m_lastSnaps1.size());
+    ImGui::Text("Snapshots List 1 timestamp: %lu", 0lu);
+    ImGui::EndGroup();
+
+    ImGui::TableNextColumn();
+
+    ImGui::BeginGroup();
+    if (analysisState_sptr->m_rplTimeline.size() > 0)
+        ImGui::Text("Currently Selected Index: %lu",
+                    analysisState_sptr->rplTimelineIndex);
+    else
+        ImGui::Text("Currently Selected Index: N/A");
+
+    if (analysisState_sptr->m_rplTimeline.size() >
+        analysisState_sptr->rplTimelineIndex)
+        ImGui::Text(
+            "Currently Selected size: %lu",
+            analysisState_sptr
+                ->m_rplTimeline[analysisState_sptr->rplTimelineIndex]
+                .size());
+    else
+        ImGui::Text("Currently Selected size: N/A");
+    ImGui::EndGroup();
+
+    ImGui::TableNextRow();
+    ImGui::TableNextColumn();
+
+    ImGui::BeginGroup();
+    ImGui::Text("Snapshots List 2 Size: %lu",
+                analysisState_sptr->m_lastSnaps2.size());
+    ImGui::Text("Snapshots List 2 timestamp: %lu", 0lu);
+    ImGui::EndGroup();
+
+    ImGui::TableNextColumn();
+
+    ImGui::BeginGroup();
+    if (analysisState_sptr->m_rplTimeline.size() > 0)
+    {
+        ImGui::Text("Last results size: %lu", analysisState_sptr->m_rplTimeline.back().size());
+    } else 
+        ImGui::Text("Last results size: N/A");
+
+    ImGui::Text("Last Action: %s", "N/A");
+
+    ImGui::EndGroup();
+
+    ImGui::TableNextRow();
+    ImGui::TableNextColumn();
+    ImGui::Text("Current Timeline size: %lu",
+                analysisState_sptr->m_rplTimeline.size());
+    ImGui::TableNextColumn();
+    ImGui::Text("Current OG properties size: %lu",
+                analysisState_sptr->m_originalProperties.size());
+
+    ImGui::TableNextRow();
+    ImGui::TableNextColumn();
+
+    ImGui::Text("Command Timeline Size: %lu",
+                analysisState_sptr->m_instListTimeline.size());
+
+    ImGui::TableNextColumn();
+
+    ImGui::Text("Current command size: %lu",
+                m_curInstructionList.size());
+    ImGui::EndTable();
+
+    if (ImGui::BeginTabBar("Tab bar")) {
+
+        if (ImGui::BeginTabItem("Add command"))
+        {
+            ImGui::Text("Instructions tab");
+            drawInstructionTab();
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("View previous commands"))
+        {
+            ImGui::Text("Previous commands");
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("OG Maps")) {
+            drawOGMapsTab();
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
+    }
 
     ImGui::End();
 }
@@ -147,7 +522,8 @@ GuiState::GuiState(std::optional<pid_t> opt_pid)
     this->bgColor           = ImVec4(0.2f, 0.2f, 0.2f, 1.00f);
     validState              = true;
 
-    if (opt_pid.has_value()) {
+    if (opt_pid.has_value())
+    {
         pid_t pid = opt_pid.value();
         opt_demoTestState.emplace(pid);
     }
@@ -193,16 +569,21 @@ void GuiState::draw()
                             &this->showAnotherWindow);
             if (opt_demoTestState)
             {
-                DemoTestState &ds = opt_demoTestState.value();
-                ImGui::MenuItem("Show refreshable snapshot demo", NULL, &ds.rsms.enabled);
-                ImGui::MenuItem("Show changing refreshable snapshot demo", NULL, &ds.crsms.enabled);
-                ImGui::MenuItem("Show AnalysisMenu Demo", NULL, &ds.demoAnalysisMenu.enabled);
+                DemoTestState& ds = opt_demoTestState.value();
+                ImGui::MenuItem("Show refreshable snapshot demo",
+                                NULL, &ds.rsms.enabled);
+                ImGui::MenuItem(
+                    "Show changing refreshable snapshot demo", NULL,
+                    &ds.crsms.enabled);
+                ImGui::MenuItem("Show AnalysisMenu Demo", NULL,
+                                &ds.demoAnalysisMenu.enabled);
             }
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();
     }
-    if (opt_demoTestState) {
+    if (opt_demoTestState)
+    {
         opt_demoTestState.value().draw();
     }
 
@@ -214,14 +595,14 @@ void GuiState::draw()
             ImGui::OpenPopup("Enter PID");
         if (ImGui::TreeNode("Currently open PIDs"))
         {
-            ImGui::BeginChild("##PID Menu", ImVec2(-FLT_MIN, ImGui::GetFontSize() * 10));
-            for (auto &[pid, menu] : this->analysisMenuList)
+            ImGui::BeginChild(
+                "##PID Menu",
+                ImVec2(-FLT_MIN, ImGui::GetFontSize() * 10));
+            for (auto& [pid, menu] : this->analysisMenuList)
             {
-                bool *enabled = &(menu.enabled);
-                ImGui::MenuItem(std::to_string(pid).c_str(), NULL, enabled);
-
-                menu.draw();
-                
+                bool* enabled = &(menu.enabled);
+                ImGui::MenuItem(std::to_string(pid).c_str(), NULL,
+                                enabled);
             }
             ImGui::EndChild();
             ImGui::TreePop();
@@ -240,7 +621,8 @@ void GuiState::draw()
                     ImGuiInputTextFlags_EnterReturnsTrue |
                         ImGuiInputTextFlags_CharsDecimal))
             {
-                if (inputBuffer[0] != '\0'){
+                if (inputBuffer[0] != '\0')
+                {
                     pid_t pid = std::stoi(inputBuffer);
                     this->analysisMenuList.insert({pid, {pid}});
                     memset(inputBuffer, 0, 1024);
@@ -251,6 +633,10 @@ void GuiState::draw()
         }
 
         ImGui::End();
+        for (auto& [pid, menu] : this->analysisMenuList)
+        {
+            menu.draw();
+        }
     }
 
     if (this->showAnotherWindow)
@@ -273,7 +659,7 @@ void GuiState::draw()
 void RefreshableSnapshotMenu::modifyPropertiesSubMenu()
 {
     auto rs_sptr = m_rs_wptr.lock();
-    if (!this->enabled || !rs_sptr)
+    if (!rs_sptr)
     {
         this->enabled = false;
         return;
@@ -383,9 +769,7 @@ void RefreshableSnapshotMenu::draw()
     const size_t numCols =
         (rs_sptr->snap().size() > 8) ? 16 : rs_sptr->snap().size();
     const size_t selSize = dataSizeTable[this->curType];
-    ImGui::BeginChild(
-            "##SnapView",
-            ImVec2(-FLT_MIN, ImGui::GetFontSize() * 40));
+    ImGui::BeginChild("##SnapView");
 
     auto tableFlags =
         ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit;
@@ -400,101 +784,107 @@ void RefreshableSnapshotMenu::draw()
     this->changeRequest =
         ImGui::Shortcut(ImGuiKey_Space) && (this->selection.Size > 0);
 
-    ImGui::BeginTable("Snapshot Table", 2, tableFlags);
-    static const float singleByteWidth =
-        ImGui::CalcTextSize("00").x + 5;
-    static const float singleByteHeight = ImGui::CalcTextSize("00").y;
-
-    curOffset            = 0;
-    size_t textCursorPos = 1;
-    ImGui::TableNextColumn();
-    char labelBuffer[32] = {0};
-    while (curOffset < rs_sptr->snap().size())
+    if (ImGui::BeginTable("Snapshot Table", 2, tableFlags))
     {
-        const auto initialOff = curOffset;
-        auto       curType    = this->types[curOffset];
-        auto       curSize    = dataSizeTable[curType];
+        static const float singleByteWidth =
+            ImGui::CalcTextSize("00").x + 5;
+        static const float singleByteHeight =
+            ImGui::CalcTextSize("00").y;
 
-        float      selWidth  = singleByteWidth * selSize;
-        float      cellWidth = singleByteWidth * curSize;
-        if (selSize < curSize)
+        curOffset            = 0;
+        size_t textCursorPos = 1;
+        ImGui::TableNextColumn();
+        char labelBuffer[32] = {0};
+        while (curOffset < rs_sptr->snap().size())
         {
-            selWidth = cellWidth;
-        }
+            const auto initialOff = curOffset;
+            auto       curType    = this->types[curOffset];
+            auto       curSize    = dataSizeTable[curType];
 
-        ImGui::SameLine(textCursorPos);
-        sprintf(labelBuffer, "##%lu", curOffset);
-        ImGui::SetNextItemSelectionUserData(curOffset);
-        bool selected = this->selection.Contains(curOffset);
-        ImGui::Selectable(labelBuffer, selected,
-                          ImGuiSelectableFlags_None,
-                          {selWidth - 5, singleByteHeight});
+            float      selWidth  = singleByteWidth * selSize;
+            float      cellWidth = singleByteWidth * curSize;
+            if (selSize < curSize)
+            {
+                selWidth = cellWidth;
+            }
 
-        size_t selOffset = 0;
-        while (selOffset < selWidth)
-        {
-            auto  curType   = this->types[curOffset];
-            auto  curSize   = dataSizeTable[curType];
-            float cellWidth = singleByteWidth * curSize;
             ImGui::SameLine(textCursorPos);
-            uint64_t val;
-            memcpy(&val, rs_sptr->snap().data() + curOffset, curSize);
-            ImGui::Text(dataConvTable[curType], val);
-            textCursorPos += cellWidth;
-            selOffset += cellWidth;
-            curOffset += curSize;
-        }
+            sprintf(labelBuffer, "##%lu", curOffset);
+            ImGui::SetNextItemSelectionUserData(curOffset);
+            bool selected = this->selection.Contains(curOffset);
+            ImGui::Selectable(labelBuffer, selected,
+                              ImGuiSelectableFlags_None,
+                              {selWidth - 5, singleByteHeight});
 
-        if (this->changeRequest && selected)
-        {
-            Log(Debug, "Selection ID: " << initialOff);
-            Log(Debug, "CurSize: " << curSize);
-            Log(Debug, "SelSize: " << selSize);
-            // When resetting, take the larger of the 2 sizes;
-            size_t resetSize = curSize > selSize ? curSize : selSize;
-            if (this->types[initialOff] != HEX)
+            size_t selOffset = 0;
+            while (selOffset < selWidth)
             {
-                Log(Debug, "type unknown -> hex");
-                memset(this->types.data() + initialOff, HEX,
-                       resetSize);
-            }
-            else
-            {
-                Log(Debug, "type hex -> unknown");
-                memset(this->types.data() + initialOff, this->curType,
-                       selSize);
-            }
-        }
-
-        // // Print ascii conversion.
-        if (curOffset % numCols == 0 ||
-            curOffset == rs_sptr->snap().size())
-        {
-            ImGui::TableNextColumn();
-            char strVer[17] = {0};
-            // Bounds check for bottom row lacking enough data.
-            size_t boundsOffset = curOffset % numCols;
-            if (boundsOffset == 0)
-                boundsOffset = numCols;
-            memcpy(strVer,
-                   rs_sptr->snap().data() + curOffset - boundsOffset,
-                   boundsOffset);
-            for (size_t j = 0; j < numCols; j++)
-            {
-                if (strVer[j] - 31 > 0)
-                    continue;
-                strVer[j] = '.';
+                auto  curType   = this->types[curOffset];
+                auto  curSize   = dataSizeTable[curType];
+                float cellWidth = singleByteWidth * curSize;
+                ImGui::SameLine(textCursorPos);
+                uint64_t val;
+                memcpy(&val, rs_sptr->snap().data() + curOffset,
+                       curSize);
+                ImGui::Text(dataConvTable[curType], val);
+                textCursorPos += cellWidth;
+                selOffset += cellWidth;
+                curOffset += curSize;
             }
 
-            ImGui::Text("%s", strVer);
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            textCursorPos = 1;
+            if (this->changeRequest && selected)
+            {
+                Log(Debug, "Selection ID: " << initialOff);
+                Log(Debug, "CurSize: " << curSize);
+                Log(Debug, "SelSize: " << selSize);
+                // When resetting, take the larger of the 2 sizes;
+                size_t resetSize =
+                    curSize > selSize ? curSize : selSize;
+                if (this->types[initialOff] != HEX)
+                {
+                    Log(Debug, "type unknown -> hex");
+                    memset(this->types.data() + initialOff, HEX,
+                           resetSize);
+                }
+                else
+                {
+                    Log(Debug, "type hex -> unknown");
+                    memset(this->types.data() + initialOff,
+                           this->curType, selSize);
+                }
+            }
+
+            // // Print ascii conversion.
+            if (curOffset % numCols == 0 ||
+                curOffset == rs_sptr->snap().size())
+            {
+                ImGui::TableNextColumn();
+                char strVer[17] = {0};
+                // Bounds check for bottom row lacking enough data.
+                size_t boundsOffset = curOffset % numCols;
+                if (boundsOffset == 0)
+                    boundsOffset = numCols;
+                memcpy(strVer,
+                       rs_sptr->snap().data() + curOffset -
+                           boundsOffset,
+                       boundsOffset);
+                for (size_t j = 0; j < numCols; j++)
+                {
+                    if (strVer[j] - 31 > 0)
+                        continue;
+                    strVer[j] = '.';
+                }
+
+                ImGui::Text("%s", strVer);
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                textCursorPos = 1;
+            }
         }
+        ImGui::EndTable();
     }
     ms_io = ImGui::EndMultiSelect();
     this->selection.ApplyRequests(ms_io);
-    ImGui::EndTable();
     ImGui::EndChild();
     ImGui::End();
 }
