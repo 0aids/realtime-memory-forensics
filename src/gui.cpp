@@ -15,7 +15,7 @@ ProgramAnalysisState::Instruction convertGuiInstruction(const GuiInstruction &gi
     ProgramAnalysisState::Instruction inst;
     inst.text += instructionNames[ginst.instIndex];
     switch (ginst.instIndex) {
-        case 2:
+        case 2: // All the filtering versions that take in a string and index.
         case 3:
         case 4:
         case 5:
@@ -27,6 +27,21 @@ ProgramAnalysisState::Instruction convertGuiInstruction(const GuiInstruction &gi
                 inst.text += std::to_string(ginst.rplTimelineInd); 
                 break;
             }
+        case 19: // Chunkify
+            {
+                inst.text += " ";
+                inst.text += ginst.rplTimelineInd;
+                break;
+            }
+        // Anything that uses a single general purpose integer.
+        case 20: // QueuedThreadPool
+        case 21: // Sleepms
+            {
+                inst.text += " ";
+                inst.text += ginst.integer;
+                break;
+            }
+
         default:
             break;
     }
@@ -84,6 +99,52 @@ void AnalysisMenu::drawArgumentPicker(GuiInstruction& inst)
                 );
             break;
         }
+        case 19: 
+            {
+                // TODO: Make choosers for all possible inputs.
+                ImGui::SetNextItemWidth(40);
+            sprintf(label, "index##%s-%d-indexChooser",
+                    instructionNames[inst.instIndex], inst.ID);
+                if (analysisState_sptr->m_rplTimeline.size() > 0)
+                    ImGui::SliderInt(
+                        label, &inst.rplTimelineInd,
+                        -(analysisState_sptr->m_rplTimeline.size() - 2),
+                        analysisState_sptr->m_rplTimeline.size() - 1, "%d", 
+                        ImGuiSliderFlags_AlwaysClamp
+                    );
+                else
+                    ImGui::SliderInt(
+                        label, &inst.rplTimelineInd,
+                        0,
+                        0, "%d", 
+                        ImGuiSliderFlags_AlwaysClamp
+                    );
+            }
+
+        case 20: // Queued threadpool
+            {
+                ImGui::SetNextItemWidth(40);
+                sprintf(label, "index##%s-%d-QueuedThreadPool",
+                        instructionNames[inst.instIndex], inst.ID);
+                ImGui::SliderInt(
+                    label, &inst.integer,
+                    1,
+                    std::thread::hardware_concurrency(), "%d", 
+                    ImGuiSliderFlags_AlwaysClamp);
+                break;
+            }
+        case 21: // Sleepms
+            {
+                ImGui::SetNextItemWidth(40);
+                sprintf(label, "index##%s-%d-QueuedThreadPool",
+                        instructionNames[inst.instIndex], inst.ID);
+                ImGui::SliderInt(
+                    label, &inst.integer,
+                    0,
+                    10000, "%d", 
+                    ImGuiSliderFlags_AlwaysClamp);
+                break;
+            }
         default: break;
     }
     ImGui::EndGroup();

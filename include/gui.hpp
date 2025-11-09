@@ -110,6 +110,7 @@ struct GuiInstruction {
     double maxd = 0;
     int commandListInd = 0;
     int rplTimelineInd = 0;
+    int integer = 0;
 };
 
 ProgramAnalysisState::Instruction convertGuiInstruction(const GuiInstruction &ginst);

@@ -2,8 +2,11 @@
 #include "logs.hpp"
 #include "maps.hpp"
 #include "mem_anal.hpp"
+#include <chrono>
+#include <cstring>
+#include <thread>
 
-inline int
+static inline int
 IR_ConvertIndex(int                                      original,
                 const std::vector<RegionPropertiesList>& container)
 {
@@ -15,7 +18,7 @@ IR_ConvertIndex(int                                      original,
     return actualIndex;
 }
 
-inline bool
+static inline bool
 IR_ReturnIfEmpty(const std::vector<RegionPropertiesList>& container)
 {
     if (container.size() == 0)
@@ -26,8 +29,8 @@ IR_ReturnIfEmpty(const std::vector<RegionPropertiesList>& container)
     return true;
 }
 
-inline bool
-IR_checkArgCounts(const std::vector<std::string_view>& args,
+static inline bool
+IR_CheckArgCounts(const std::vector<std::string_view>& args,
                   size_t                               numArgs)
 {
     if (args.size() != numArgs)
@@ -73,7 +76,7 @@ const std::map<
          [](const std::vector<std::string_view>& args)
              -> InstructionFunc
          {
-             if (!IR_checkArgCounts(args, 3))
+             if (!IR_CheckArgCounts(args, 3))
                  return IR_Invalid;
              int64_t index = MA_stoi64(args[2]);
              return [=](ProgramAnalysisState& s)
@@ -94,7 +97,7 @@ const std::map<
          [](const std::vector<std::string_view>& args)
              -> InstructionFunc
          {
-             if (!IR_checkArgCounts(args, 3))
+             if (!IR_CheckArgCounts(args, 3))
                  return IR_Invalid;
              int64_t index = MA_stoi64(args[2]);
              return [=](ProgramAnalysisState& s)
@@ -112,7 +115,7 @@ const std::map<
          [](const std::vector<std::string_view>& args)
              -> InstructionFunc
          {
-             if (!IR_checkArgCounts(args, 3))
+             if (!IR_CheckArgCounts(args, 3))
                  return IR_Invalid;
              int64_t index = MA_stoi64(args[2]);
              return [=](ProgramAnalysisState& s)
@@ -130,7 +133,7 @@ const std::map<
          [](const std::vector<std::string_view>& args)
              -> InstructionFunc
          {
-             if (!IR_checkArgCounts(args, 3))
+             if (!IR_CheckArgCounts(args, 3))
                  return IR_Invalid;
              int64_t index = MA_stoi64(args[2]);
              return [=](ProgramAnalysisState& s)
@@ -148,7 +151,7 @@ const std::map<
          [](const std::vector<std::string_view>& args)
              -> InstructionFunc
          {
-             if (!IR_checkArgCounts(args, 3))
+             if (!IR_CheckArgCounts(args, 3))
                  return IR_Invalid;
              int64_t index = MA_stoi64(args[2]);
              return [=](ProgramAnalysisState& s)
@@ -166,7 +169,7 @@ const std::map<
          [](const std::vector<std::string_view>& args)
              -> InstructionFunc
          {
-             if (!IR_checkArgCounts(args, 3))
+             if (!IR_CheckArgCounts(args, 3))
                  return IR_Invalid;
              int64_t index = MA_stoi64(args[2]);
              return [=](ProgramAnalysisState& s)
@@ -229,7 +232,67 @@ const std::map<
          [](const std::vector<std::string_view>& args)
              -> InstructionFunc
          { return [](ProgramAnalysisState& s) {}; }},
+        {// "Pause",
+         instructionNames[18],
+         [](const std::vector<std::string_view>& args)
+             -> InstructionFunc
+         { return [](ProgramAnalysisState& s) {}; }},
+        {// "Chunkify",
+         instructionNames[19],
+         [](const std::vector<std::string_view>& args)
+             -> InstructionFunc
+         { 
+             if (!IR_CheckArgCounts(args, 2))
+                 return IR_Invalid;
+             int64_t index = MA_stoi64(args[1]);
+             return [=](ProgramAnalysisState& s)
+             {
+                 if (!IR_ReturnIfEmpty(s.m_rplTimeline))
+                 {
+                     return;
+                 }
+                 int64_t actualIndex =
+                     IR_ConvertIndex(index, s.m_rplTimeline);
+                 Log(Debug, "Chunkifying");
+                 s.m_rplTimeline.push_back(breakIntoRegionChunks(s.m_rplTimeline[actualIndex], 0));
+             };
+        },
+    },
+        {// "QueuedThreadPool",
+         instructionNames[20],
+         [](const std::vector<std::string_view>& args)
+             -> InstructionFunc
+         { 
+             if (!IR_CheckArgCounts(args, 2))
+                 return IR_Invalid;
+             int64_t numThreads = MA_stoi64(args[1]);
+             if (numThreads < 1){
+                 Log(Error, "Invalid number of threads passed: " << numThreads);
+                 return IR_Invalid;
+             }
+             return [=](ProgramAnalysisState& s) {
+                 s.TempState.o_tp.reset();
+                 s.TempState.o_tp.emplace(numThreads);
+             }; }
+        },
+        {// "Sleepms",
+         instructionNames[21],
+         [](const std::vector<std::string_view>& args)
+             -> InstructionFunc
+         { 
+             if (!IR_CheckArgCounts(args, 2))
+                 return IR_Invalid;
+             int64_t length = MA_stoi64(args[1]);
+             if (length < 0) {
+                 Log(Error, "Invalid pause length given: " << length << "ms");
+                 return IR_Invalid;
+             }
+             return [=](ProgramAnalysisState&) {
+                 std::this_thread::sleep_for(std::chrono::milliseconds(length));
+             }; }
+        },
 };
+
 uint8_t asciiToBaseInf(char c)
 {
     if ('0' <= c && c <= '9')

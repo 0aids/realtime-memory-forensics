@@ -107,6 +107,7 @@ FindUnchangingNumeric Register1 Register2 MaxDiff
 Loop instructionListIndex until stable NumUnchanged
 Loop instructionListIndex until X remain
 
+
 // Tag a specific region as high-interest, and will be stored
 // in a special high-interest buffer with refreshing capabilities.
 Tag timelineIndex regionIndex
@@ -114,6 +115,13 @@ Tag timelineIndex regionIndex
 // Maybe add helpers for numerics for pointers, linked list and maybe structs.
 
 // An instruction is started and ended using START and END keywords before each clause.
+
+// Stops execution until it's "Paused" variable becomes false.
+// In gui mode this is just a button.
+Pause
+Sleepms length
+
+Chunkify index
 ```
 Example file
 ```
@@ -131,6 +139,9 @@ START
 // Can only be started by some user input.
 // In headless mode it waits for the bool "Paused" to be
 // set to false.
+QueuedThreadPool 12 // Set up a queued threadpool with 12 threads.
+LoopChunks 400000 // Set how many chunks are done per loop
+
 PAUSE 
 
 MakeSnapshot r1 -1
@@ -144,6 +155,9 @@ MakeSnapshot r1 -1
 Sleep 500ms
 MakeSnapshot r2 -1
 FindUnchangingRegion r1 r2
+
+LoopEnd // End the loop
+// The Loop will perform until all of the regions are processed, and then repeat itself.
 
 END
 

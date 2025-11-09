@@ -83,7 +83,13 @@ public:
     using InstructionList = std::vector<Instruction>;
     std::vector<InstructionList> m_instListTimeline;
 
+    struct {
+        std::optional<QueuedThreadPool> o_tp;
+        bool inLoop = false;
+    } TempState;
+
     ProgramAnalysisState(const pid_t pid) : m_pid(pid) {
+        TempState.o_tp.emplace(1);
     }
 
     // Runs the most recent list.

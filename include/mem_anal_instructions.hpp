@@ -24,6 +24,10 @@ const char* const instructionNames[] = {
     "LoopStable",
     "LoopRemain",
     "Tag",
+    "Pause", 
+    "Chunkify",
+    "QueuedThreadPool",
+    "Sleepms",
 };
 
 uint8_t asciiToBaseInf(char c); 
