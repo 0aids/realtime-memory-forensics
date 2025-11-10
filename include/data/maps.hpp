@@ -75,22 +75,9 @@ struct MemoryRegionProperties
 };
 
 class RegionPropertiesList
-    : private std::vector<MemoryRegionProperties>
+    : public std::vector<MemoryRegionProperties>
 {
 public:
-    using std::vector<MemoryRegionProperties>::size;
-    using std::vector<MemoryRegionProperties>::push_back;
-    using std::vector<MemoryRegionProperties>::clear;
-    using std::vector<MemoryRegionProperties>::reserve;
-    using std::vector<MemoryRegionProperties>::resize;
-    using std::vector<MemoryRegionProperties>::begin;
-    using std::vector<MemoryRegionProperties>::end;
-    using std::vector<MemoryRegionProperties>::front;
-    using std::vector<MemoryRegionProperties>::back;
-    using std::vector<MemoryRegionProperties>::at;
-    using std::vector<MemoryRegionProperties>::data;
-    using std::vector<MemoryRegionProperties>::operator[];
-
     // Inclusive
     RegionPropertiesList
     filterRegionsByMaxSize(const uintptr_t& maxSize);
@@ -134,6 +121,8 @@ public:
         std::vector<MemoryRegionProperties>(other)
     {
     }
+    RegionPropertiesList(const std::vector<MemoryRegionProperties> &l):
+        std::vector<MemoryRegionProperties>(l){}
 };
 
 // Reads the map of a certain pid.

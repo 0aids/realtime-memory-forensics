@@ -21,12 +21,12 @@ int main()
     rmf_Log(rmf_Message, "Sample of map[0]: \n " << map.front());
 
     {
-        MemorySnapshot mp(makeSnapshotCore({.mrp = map[0]}));
+        MemorySnapshot mp(makeSnapshotCore(CoreInputs(map[0])));
         rmf_assert(mp[1] == 'E' && mp[2] == 'L' && mp[3] == 'F', "There should be an ELF there...");
         cerr << mp[1] << mp[2] << mp[3] << endl;
     }
     {
-        auto task = createTask(makeSnapshotCore, {.mrp = map[0]});
+        auto task = createTask(makeSnapshotCore, CoreInputs(map[0]));
         task.packagedTask();
         auto mp= task.result.get();
         rmf_assert(mp[1] == 'E' && mp[2] == 'L' && mp[3] == 'F', "There should be an ELF there...");

@@ -1,6 +1,9 @@
 #include "backends/mt_backend.hpp"
+#include "backends/core.hpp"
 #include "utils/logs.hpp"
 #include "data/snapshots.hpp"
+#include "backends/ibackend.hpp"
+#include <type_traits>
 
 namespace rmf::backends::mt {
 
@@ -111,3 +114,58 @@ std::vector<MemorySnapshot> convertTasksIntoSnapshots(std::vector<Task<MemorySna
     return result;
 }
 };
+
+
+
+namespace rmf::backends {
+    std::vector<data::MemorySnapshot> MTBackend::makeSnapshots(
+            const std::span<const data::MemoryRegionProperties>& rpl)
+    {
+        return p_doCoreFunc(core::makeSnapshotCore, std::views::zip(rpl));
+        // auto tasksList = mt::initTasksList(core::makeSnapshotCore); 
+        // for (const auto &mrp : rpl) {
+        //     tasksList.push_back(mt::createTask(core::makeSnapshotCore, {.mrp = mrp}));
+        // }
+        // m_tp.submitMultipleTasks(tasksList);
+        // m_tp.awaitAllTasks();
+        // return mt::consolidateTasks(tasksList);
+    }
+
+    data::RegionPropertiesList MTBackend::findChangingRegions(
+        const std::span<const data::MemorySnapshotSpan> span1,
+        const std::span<const data::MemorySnapshotSpan> span2,
+        const uintptr_t&                          compsize)
+    {
+        return p_doCoreFunc(core::findChangedRegionsCore, std::views::zip(span1, span2), compsize);
+    }
+    data::RegionPropertiesList MTBackend::findUnchangingRegions(
+        const std::span<const data::MemorySnapshotSpan> span1,
+        const std::span<const data::MemorySnapshotSpan> span2,
+        const uintptr_t&                          compsize)
+    {
+        return p_doCoreFunc(core::findUnchangedRegionsCore, std::views::zip(span1, span2), compsize);
+    };
+
+    data::RegionPropertiesList MTBackend::findChangedNumeric(
+        const std::span<const data::MemorySnapshotSpan> span1,
+        const std::span<const data::MemorySnapshotSpan> span2,
+        const data::NumQuery&                     query)
+    {
+        // return p_doCoreFunc(core::findUnchangedRegionsCore, std::views::zip(span1, span2), compsize);
+    };
+
+    data::RegionPropertiesList MTBackend::findUnchangedNumeric(
+        const std::span<const data::MemorySnapshotSpan> span1,
+        const std::span<const data::MemorySnapshotSpan> span2,
+        const data::NumQuery&                     query)
+    {
+    };
+
+    data::RegionPropertiesList
+    MTBackend::findString(const std::span<const data::MemorySnapshotSpan> span1,
+               const std::span<const data::MemorySnapshotSpan> span2,
+               const std::string_view&                   strView) 
+    {
+        return p_doCoreFunc(core::findStringCore, std::views::zip(span1, span2), strView);
+    };
+}

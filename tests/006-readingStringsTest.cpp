@@ -28,9 +28,9 @@ int main()
         for (const auto& r : map)
         {
             auto snap =
-                MemorySnapshot(makeSnapshotCore({.mrp = r}));
+                MemorySnapshot(makeSnapshotCore(CoreInputs(r)));
             auto res = findStringCore(
-                {.snap1 = snap.asSnapshotSpan()},
+                CoreInputs(snap.asSnapshotSpan()),
                 " Lorem ipsum dolor sit amet, consectetur adipiscing "
                 "elit. ");
             if (res.size() > 0)
@@ -45,14 +45,14 @@ int main()
                 }
                 cerr << endl;
                 auto snap = MemorySnapshot(
-                    makeSnapshotCore({.mrp = res[0]}));
+                    makeSnapshotCore(CoreInputs(res[0])));
                 for (size_t i = 0; i < snap.size(); i++)
                 {
                     cerr << snap[i];
                 }
                 cerr << endl;
                 auto newRes =
-                    findStringCore({.snap1 = snap}, "Lorem ipsum");
+                    findStringCore(CoreInputs(snap), "Lorem ipsum");
                 rmf_assert(newRes.size() > 0,
                        "There should be a lorem ipsum here!");
                 break;
@@ -92,14 +92,14 @@ int main()
         if (res.size() > 0)
         {
             auto snap = MemorySnapshot(
-                makeSnapshotCore({.mrp = res[0]}));
+                makeSnapshotCore(CoreInputs(res[0])));
             for (size_t i = 0; i < snap.size(); i++)
             {
                 cerr << snap[i];
             }
             cerr << endl;
             auto newRes =
-                findStringCore({.snap1 = snap.asSnapshotSpan()}, "Lorem ipsum");
+                findStringCore(CoreInputs(snap.asSnapshotSpan()), "Lorem ipsum");
             rmf_assert(newRes.size() > 0,
                    "There should be a lorem ipsum here!");
         }

@@ -333,7 +333,7 @@ void findPlayerPosition(const size_t& maxSnapshotsPerIteration,
         cout << std::dec;
         for (size_t i = 0; i < 10; i++)
         {
-            CoreInputs input = {.mrp = rl[index]};
+            CoreInputs input = CoreInputs(rl[index]);
             auto       task  = createTask(makeSnapshotCore, input);
             tp.submitTask(task);
             tp.awaitAllTasks();
@@ -415,7 +415,7 @@ void findPlayerName(const size_t&         maxSnapshotsPerIteration,
     for (size_t i = 0; i < processing.size(); i++)
     {
         cout << "Sample: " << processing[i] << endl;
-        auto snap = makeSnapshotCore({.mrp = processing[i]});
+        auto snap = makeSnapshotCore(CoreInputs(processing[i]));
         for (const char& c : snap)
         {
             cout << c;

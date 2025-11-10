@@ -16,8 +16,12 @@ namespace rmf::backends::core
     {
         // This is all required informatino that could be necessary.
         std::optional<const MemoryRegionProperties> mrp   = {};
-        std::optional<MemorySnapshotSpan>           snap1 = {};
-        std::optional<MemorySnapshotSpan>           snap2 = {};
+        std::optional<const MemorySnapshotSpan>           snap1 = {};
+        std::optional<const MemorySnapshotSpan>           snap2 = {};
+        CoreInputs() = default;
+        CoreInputs(const MemorySnapshotSpan &span1): snap1(span1) {}
+        CoreInputs(const MemorySnapshotSpan &span1, const MemorySnapshotSpan &span2): snap1(span1), snap2(span2) {}
+        CoreInputs(MemoryRegionProperties mrp): mrp(mrp) {}
     };
 
     MemorySnapshot makeSnapshotCore(const CoreInputs& core);
@@ -89,14 +93,14 @@ namespace rmf::backends::core
     findChangedNumericCore(const CoreInputs& core,
                            const NumType&    minDiff)
     {
-        if (!core.snap1 || !core.snap2 || !core.mrp)
+        if (!core.snap1 || !core.snap2)
         {
             rmf_Log(rmf_Error, "Missing a snapshot!");
             return {};
         }
         const auto&                   snap1 = core.snap1.value();
         const auto&                   snap2 = core.snap2.value();
-        const MemoryRegionProperties& mrp   = core.mrp.value();
+        const MemoryRegionProperties& mrp   = snap1.regionProperties;
         size_t numIters = snap1.size() / sizeof(NumType);
         // uintptr_t                     current  = 0;
         uintptr_t current = mrp.getActualRegionStart() -
@@ -141,14 +145,14 @@ namespace rmf::backends::core
     findUnchangedNumericCore(const CoreInputs& core,
                              const NumType&    maxDiff)
     {
-        if (!core.snap1 || !core.snap2 || !core.mrp)
+        if (!core.snap1 || !core.snap2)
         {
             rmf_Log(rmf_Error, "Missing a snapshot!");
             return {};
         }
         const auto&                   snap1 = core.snap1.value();
         const auto&                   snap2 = core.snap2.value();
-        const MemoryRegionProperties& mrp   = core.mrp.value();
+        const MemoryRegionProperties& mrp   = snap1.regionProperties;
         size_t numIters = snap1.size() / sizeof(NumType);
         // uintptr_t                     current  = 0;
         uintptr_t current = mrp.getActualRegionStart() -

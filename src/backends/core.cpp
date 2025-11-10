@@ -98,14 +98,14 @@ findChangedRegionsCore(const CoreInputs& core,
 {
     // TODO: requirement of core.mrp is redundant, as the snapshots
     // now supply that metadata.
-    if (!core.snap1 || !core.snap2 || !core.mrp)
+    if (!core.snap1 || !core.snap2)
     {
         rmf_Log(rmf_Error, "Missing a snapshot!");
         return {};
     }
     const auto&                   snap1    = core.snap1.value();
     const auto&                   snap2    = core.snap2.value();
-    const MemoryRegionProperties& mrp      = core.mrp.value();
+    const MemoryRegionProperties& mrp      = snap1.regionProperties;
     size_t                        numIters = snap1.size() / cmpSize + 1;
     uintptr_t                     current  = 0;
     rmf_Log(rmf_Debug, "Number of iterations required: " << numIters);
@@ -180,14 +180,14 @@ findUnchangedRegionsCore(const CoreInputs& core, const uintptr_t& cmpSize)
 {
     // TODO: requirement of core.mrp is redundant, as the snapshots
     // now supply that metadata.
-    if (!core.snap1 || !core.snap2 || !core.mrp)
+    if (!core.snap1 || !core.snap2)
     {
         rmf_Log(rmf_Error, "Missing a snapshot!");
         return {};
     }
     const auto&                   snap1    = core.snap1.value();
     const auto&                   snap2    = core.snap2.value();
-    const MemoryRegionProperties& mrp      = core.mrp.value();
+    const MemoryRegionProperties& mrp      = snap1.regionProperties;
     size_t                        numIters = snap1.size() / cmpSize + 1;
     uintptr_t                     current  = 0;
     rmf_Log(rmf_Debug, "Number of iterations required: " << numIters);
