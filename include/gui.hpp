@@ -2,8 +2,6 @@
 #define gui_hpp_INCLUDED
 
 #include <chrono>
-#include "core.hpp"
-#include "imgui.h"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_opengl.h>
 #include <cstdint>
@@ -12,10 +10,16 @@
 #include <optional>
 #include <string>
 #include <map>
-#include "maps.hpp"
-#include "snapshots.hpp"
-#include "mem_anal.hpp"
+#include "imgui.h"
+#include "backends/core.hpp"
+#include "data/maps.hpp"
+#include "data/snapshots.hpp"
+#include "data/refreshable_snapshots.hpp"
 #include "tests.hpp"
+
+namespace rmf::gui {
+    using namespace rmf::data;
+    using namespace rmf::tests;
 // TODO: Convert this table into something neater?
 // The table is needed for the combo on the refreshable snasphot menu.
 static const char* dataTypeTable[] = {
@@ -92,74 +96,9 @@ public:
     void draw();
 };
 
-struct MemoryRegionPropertiesPickerMenu {
-};
-
-
-struct GuiInstruction {
-    int instIndex = 0;
-    int ID = 0;
-    // All possible inputs. Dunno of a cleaner way.
-    // Should hopefully be enough
-    char inputText[1024] = {0};
-    int registerInd1 = 0;
-    int registerInd2 = 0;
-    int min = 0;
-    int max = 0;
-    double mind = 0;
-    double maxd = 0;
-    int commandListInd = 0;
-    int rplTimelineInd = 0;
-    int integer = 0;
-};
-
-ProgramAnalysisState::Instruction convertGuiInstruction(const GuiInstruction &ginst);
-
-struct AnalysisMenu {
-    bool enabled;
-    const pid_t pid;
-    int IDCounter = 0;
-
-    // Actually owns and modifies this, unlike the views.
-    std::shared_ptr<ProgramAnalysisState> analysisState_sptr{};
-    std::vector<GuiInstruction> m_curInstructionList;
-
-    struct Comparator {
-        bool operator()(const pid_t &pid1, const pid_t &pid2) const {
-            return pid1 < pid2;
-        }
-    };
-
-    AnalysisMenu(pid_t pid): pid(pid) {
-        enabled = true;
-        analysisState_sptr = std::make_shared<ProgramAnalysisState>(pid);
-    }
-
-    void draw();
-
-    private:
-        void drawOGMapsTab();
-        void drawFilterRegionsTab();
-        void drawSnapshotsTab();
-        void drawCoreFuncTab();
-
-        // Returns -1 if the selected instruction wants to move upwards
-        // And +1 for downwards (index based)
-        // 0 for none.
-        int drawInstructionMenu(GuiInstruction &inst);
-
-
-        // The entire tab, calls drawInstructionfmenu for each.
-        void drawInstructionTab();
-
-        void drawArgumentPicker(GuiInstruction &inst);
-        // Sends the instructionList to the shared state.
-        void sendCommand();
-};
-
 struct DemoTestState{
     // Demo and testing stuff.
-    AnalysisMenu demoAnalysisMenu;
+    // AnalysisMenu demoAnalysisMenu;
     std::shared_ptr<RefreshableSnapshot> rs_sptr;
     std::shared_ptr<RefreshableSnapshot> crs_sptr;
     RefreshableSnapshotMenu rsms;
@@ -168,17 +107,17 @@ struct DemoTestState{
     DemoTestState(
         pid_t pid
     )
-    : demoAnalysisMenu(pid),
+    : // demoAnalysisMenu(pid),
     rs_sptr(getSampleRefreshableSnapshots(pid).first),
     crs_sptr(getSampleRefreshableSnapshots(pid).second),
     rsms(RefreshableSnapshotMenu(rs_sptr)),
     crsms(RefreshableSnapshotMenu(crs_sptr))
     {
-        Log(Debug, "Initialized the demo test state!");
+        rmf_Log(rmf_Debug, "Initialized the demo test state!");
     }
 
     void draw() {
-        demoAnalysisMenu.draw();
+        // demoAnalysisMenu.draw();
         rsms.draw();
         crsms.draw();
     }
@@ -196,7 +135,7 @@ struct GuiState
 
     bool validState;
     bool showMemAnalWindow;
-    std::map<pid_t, AnalysisMenu, AnalysisMenu::Comparator> analysisMenuList;
+    // std::map<pid_t, AnalysisMenu, AnalysisMenu::Comparator> analysisMenuList;
 
     bool                                           showDemoWindow;
     bool                                           showAnotherWindow;
@@ -215,6 +154,8 @@ struct GuiState
     
 };
 
+}
 
 
 #endif // gui_hpp_INCLUDED
+

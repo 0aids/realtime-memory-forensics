@@ -1,31 +1,35 @@
-#include "logs.hpp"
-#include "maps.hpp"
+#include "utils/logs.hpp"
+#include "data/maps.hpp"
 #include "tests.hpp"
-#include "core.hpp"
-#include "core_wrappers.hpp"
-#include "snapshots.hpp"
+#include "backends/core.hpp"
+#include "backends/mt_backend.hpp"
+#include "data/snapshots.hpp"
 
 int main()
 {
     using namespace std;
     using namespace std::chrono;
+    using namespace rmf::data;
+    using namespace rmf::backends::core;
+    using namespace rmf::backends::mt;
+    using namespace rmf::tests;
 
     auto pid = runSampleProcess();
     auto map = readMapsFromPid(pid);
-    assert(map.size() > 0, "There should be regions inside the map");
+    rmf_assert(map.size() > 0, "There should be regions inside the map");
 
-    Log(Message, "Sample of map[0]: \n " << map.front());
+    rmf_Log(rmf_Message, "Sample of map[0]: \n " << map.front());
 
     {
         MemorySnapshot mp(makeSnapshotCore({.mrp = map[0]}));
-        assert(mp[1] == 'E' && mp[2] == 'L' && mp[3] == 'F', "There should be an ELF there...");
+        rmf_assert(mp[1] == 'E' && mp[2] == 'L' && mp[3] == 'F', "There should be an ELF there...");
         cerr << mp[1] << mp[2] << mp[3] << endl;
     }
     {
         auto task = createTask(makeSnapshotCore, {.mrp = map[0]});
         task.packagedTask();
         auto mp= task.result.get();
-        assert(mp[1] == 'E' && mp[2] == 'L' && mp[3] == 'F', "There should be an ELF there...");
+        rmf_assert(mp[1] == 'E' && mp[2] == 'L' && mp[3] == 'F', "There should be an ELF there...");
         cerr << mp[1] << mp[2] << mp[3] << endl;
     }
     // {
@@ -49,7 +53,7 @@ int main()
 
     //     auto mp = consolidateNestedVector(result);
 
-    //     assert(mp[1] == 'E' && mp[2] == 'L' && mp[3] == 'F', "There should be an ELF there...");
+    //     rmf_assert(mp[1] == 'E' && mp[2] == 'L' && mp[3] == 'F', "There should be an ELF there...");
     //     cerr << mp[1] << mp[2] << mp[3] << endl;
     // }
     // {
@@ -64,7 +68,7 @@ int main()
     //     }
     //     std::vector<MemorySnapshot> mps =makeLotsOfSnapshotsST(rl);
     //     MemorySnapshot& mp = mps[0];
-    //     assert(mp[1] == 'E' && mp[2] == 'L' && mp[3] == 'F', "There should be an ELF there...");
+    //     rmf_assert(mp[1] == 'E' && mp[2] == 'L' && mp[3] == 'F', "There should be an ELF there...");
     //     cerr << mp[1] << mp[2] << mp[3] << endl;
     // }
     return 0;

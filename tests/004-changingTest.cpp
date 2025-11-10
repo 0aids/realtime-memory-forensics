@@ -1,27 +1,32 @@
-#include "core_wrappers.hpp"
-#include "logs.hpp"
-#include "maps.hpp"
-#include "core.hpp"
+#include "backends/mt_backend.hpp"
+#include "utils/logs.hpp"
+#include "data/maps.hpp"
+#include "backends/core.hpp"
 #include "tests.hpp"
-#include "snapshots.hpp"
+#include "data/snapshots.hpp"
 #include <chrono>
 
 int main()
 {
     using namespace std;
     using namespace std::chrono;
+    using namespace rmf::data;
+    using namespace rmf::backends::core;
+    using namespace rmf::backends::mt;
+    using namespace rmf::tests;
+
 
     auto pid = runSampleProcess();
     this_thread::sleep_for(500ms);
     auto map = readMapsFromPid(pid);
-    assert(map.size() > 0, "There should be regions inside the map");
+    rmf_assert(map.size() > 0, "There should be regions inside the map");
 
-    Log(Message, "Sample of map[0]: \n " << map.front());
+    rmf_Log(rmf_Message, "Sample of map[0]: \n " << map.front());
     size_t iter = 0;
 
     // Quickly perform the raw check for the changing region
     {
-        Log(Message,
+        rmf_Log(rmf_Message,
             "Checking if there is a changing region of memory!");
         bool   foundChanging = false;
         size_t maxIter       = map.size();
@@ -40,7 +45,7 @@ int main()
                                    .snap2 = snap2.asSnapshotSpan()};
             auto changedRegions = findChangedRegionsCore(cInputs, 8);
 
-            Log(Message,
+            rmf_Log(rmf_Message,
                 "Number of changed regions in region ["
                     << props.regionName
                     << "] : " << changedRegions.size());
@@ -48,7 +53,7 @@ int main()
             if (changedRegions.size() > 0)
             {
                 foundChanging = true;
-                Log(Message,
+                rmf_Log(rmf_Message,
                     "Changed region: " << changedRegions.front());
                 break;
             }
@@ -58,7 +63,7 @@ int main()
             }
             iter++;
         }
-        assert(
+        rmf_assert(
             foundChanging,
             "There should be a changing region somewhere there...");
     }
@@ -74,17 +79,17 @@ int main()
                                   .snap2 = snap2.asSnapshotSpan()};
         auto changedRegions    = findChangedRegionsCore(cInputs, 8);
 
-        Log(Message,
+        rmf_Log(rmf_Message,
             "Number of changed regions in region ["
                 << props.regionName
                 << "] : " << changedRegions.size());
 
-        assert(
+        rmf_assert(
             changedRegions.size() > 0,
             "There should be a changing region in the double check!");
     }
     {
-        Log(Message, "Testing with pseudo data first");
+        rmf_Log(rmf_Message, "Testing with pseudo data first");
         // Dividing region with pseudo memory region.
         vector<char> fakeData1 = {
             'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'a', 'b', 'c',
@@ -127,11 +132,11 @@ int main()
             task.packagedTask();
         }
         auto result = consolidateNestedTaskResults(tasks);
-        assert(result.size() > 0,
+        rmf_assert(result.size() > 0,
                "There is definitely a changing region here");
     }
     {
-        Log(Message, "Attempting TASK splitting WITHOUT MT!");
+        rmf_Log(rmf_Message, "Attempting TASK splitting WITHOUT MT!");
         size_t         numThreads = 3;
 
         MemorySnapshot snap1(makeSnapshotCore({.mrp = map[iter]}));
@@ -150,11 +155,11 @@ int main()
             task.packagedTask();
         }
         auto result = consolidateNestedTaskResults(tasks);
-        assert(result.size() > 0,
+        rmf_assert(result.size() > 0,
                "There is definitely a changing region here");
     }
     {
-        Log(Message, "Attempting TASK splitting WITH MT!");
+        rmf_Log(rmf_Message, "Attempting TASK splitting WITH MT!");
         size_t         numThreads = 3;
         MemorySnapshot snap1(makeSnapshotCore({.mrp = map[iter]}));
         this_thread::sleep_for(10ms);
@@ -166,11 +171,11 @@ int main()
 
         auto tasks = createMultipleTasks(findChangedRegionsCore,
                                          coreInputsVec, 8);
-        TaskThreadPool tp(numThreads);
+        QueuedThreadPool tp(numThreads);
         tp.submitMultipleTasks(tasks);
         tp.awaitAllTasks();
         auto result = consolidateNestedTaskResults(tasks);
-        assert(result.size() > 0,
+        rmf_assert(result.size() > 0,
                "There is definitely a changing region here");
     }
     return 0;

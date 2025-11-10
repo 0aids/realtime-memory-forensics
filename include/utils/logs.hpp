@@ -8,7 +8,17 @@
 #include <optional>
 #include <sstream>
 #include <mutex>
+enum rmf_LogLevel
+{
+    rmf_Error   = 0, // Critical errors
+    rmf_Warning = 1, // Potential issues
+    rmf_Message = 2, // Key application events
+    rmf_Verbose = 3, // Detailed state information
+    rmf_Debug   = 4, // Granular debugging information
+};
 
+namespace rmf::utils
+{
 inline std::mutex logMutex;
 inline std::thread::id mainThreadID = std::this_thread::get_id();
 
@@ -19,14 +29,6 @@ constexpr std::string YELLOW_COLOR = "\033[33m";
 constexpr std::string BLUE_COLOR   = "\033[34m";
 constexpr std::string GREY_COLOR   = "\033[90m";
 
-enum LogLevel
-{
-    Error   = 0, // Critical errors
-    Warning = 1, // Potential issues
-    Message = 2, // Key application events
-    Verbose = 3, // Detailed state information
-    Debug   = 4, // Granular debugging information
-};
 
 class LoggerWrapper
 {
@@ -70,22 +72,22 @@ class Logger
     static
         // Helper to convert LogLevel enum to a colored string representation.
         std::string
-        levelToString(LogLevel level)
+        levelToString(rmf_LogLevel level)
     {
         switch (level)
         {
-            case LogLevel::Error: return RED_COLOR + "[ERROR]  ";
-            case LogLevel::Warning: return YELLOW_COLOR + "[WARNING]";
-            case LogLevel::Message: return BLUE_COLOR + "[MESSAGE]";
-            case LogLevel::Verbose: return "[VERBOSE]";
-            case LogLevel::Debug: return GREY_COLOR + "[DEBUG]  ";
+            case rmf_LogLevel::rmf_Error: return RED_COLOR + "[ERROR]  ";
+            case rmf_LogLevel::rmf_Warning: return YELLOW_COLOR + "[WARNING]";
+            case rmf_LogLevel::rmf_Message: return BLUE_COLOR + "[MESSAGE]";
+            case rmf_LogLevel::rmf_Verbose: return "[VERBOSE]";
+            case rmf_LogLevel::rmf_Debug: return GREY_COLOR + "[DEBUG]  ";
             default: return "[UNKNOWN]";
         }
     }
 
   public:
-    static inline LogLevel currentLevel = Debug;
-    constexpr static LoggerWrapper   log(const LogLevel         level,
+    static inline rmf_LogLevel currentLevel = rmf_Debug;
+    constexpr static LoggerWrapper   log(const rmf_LogLevel         level,
                                const std::string_view filename,
                                const std::string_view functionName,
                                size_t                 lineNumber)
@@ -114,14 +116,15 @@ class Logger
         ;
     }
 };
+}
 
 // Logs a message, checking for repetition to update a counter.
-#define Log(level, msg)                                              \
+#define rmf_Log(level, msg)                                              \
     {                                                                \
-        (Logger::log)(level, __FILE__, __func__, __LINE__) << msg;   \
+        (rmf::utils::Logger::log)(level, __FILE__, __func__, __LINE__) << msg;   \
     }
 
 // Logs a variable's name and its value.
-#define Log_var(level, var) Log(level, #var " = " << var)
+#define rmf_Log_var(level, var) Log(level, #var " = " << var)
 
 #endif // logs_hpp_INCLUDED

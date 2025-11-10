@@ -1,10 +1,9 @@
-
-#include "core_wrappers.hpp"
-#include "logs.hpp"
-#include "maps.hpp"
-#include "core.hpp"
+#include "backends/mt_backend.hpp"
+#include "utils/logs.hpp"
+#include "data/maps.hpp"
+#include "backends/core.hpp"
 #include "tests.hpp"
-#include "snapshots.hpp"
+#include "data/snapshots.hpp"
 #include <chrono>
 #include <thread>
 
@@ -12,11 +11,16 @@ int main()
 {
     using namespace std;
     using namespace std::chrono;
+    using namespace rmf::data;
+    using namespace rmf::backends::core;
+    using namespace rmf::backends::mt;
+    using namespace rmf::tests;
+
 
     auto pid = runSampleProcess();
     this_thread::sleep_for(500ms);
     auto maps = readMapsFromPid(pid).filterRegionsByPerms("rwp");
-    assert(maps.size() > 0, "There should be regions inside the map");
+    rmf_assert(maps.size() > 0, "There should be regions inside the map");
     QueuedThreadPool tp(5);
     {
         auto inputs = consolidateIntoCoreInput({.mrpVec = maps});
@@ -61,7 +65,7 @@ int main()
             task.packagedTask();
         }
         auto changedRegions = consolidateNestedTaskResults(tasks);
-        assert(changedRegions.size() > 0,
+        rmf_assert(changedRegions.size() > 0,
                "There is a changing double somewhere");
     }
     {
@@ -106,11 +110,11 @@ int main()
         tp.submitMultipleTasks(tasks);
         tp.awaitAllTasks();
         auto changedRegions = consolidateNestedTaskResults(tasks);
-        assert(changedRegions.size() > 0,
+        rmf_assert(changedRegions.size() > 0,
                "There is a changing double somewhere");
     }
     {
-        Log(Message, "Testing with broken chunks!");
+        rmf_Log(rmf_Message, "Testing with broken chunks!");
         auto newMaps =  breakIntoRegionChunks(maps, 0);
         auto inputs = consolidateIntoCoreInput({.mrpVec = newMaps});
         auto tasks1 = createMultipleTasks(makeSnapshotCore, inputs);
@@ -159,7 +163,7 @@ int main()
         tp.submitMultipleTasks(tasks);
         tp.awaitAllTasks();
         auto changedRegions = consolidateNestedTaskResults(tasks);
-        assert(changedRegions.size() > 0,
+        rmf_assert(changedRegions.size() > 0,
                "There is a changing double somewhere");
     }
 }

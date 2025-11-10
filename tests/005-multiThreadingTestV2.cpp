@@ -1,9 +1,9 @@
-#include "core_wrappers.hpp"
-#include "logs.hpp"
-#include "maps.hpp"
-#include "core.hpp"
+#include "backends/mt_backend.hpp"
+#include "utils/logs.hpp"
+#include "data/maps.hpp"
+#include "backends/core.hpp"
 #include "tests.hpp"
-#include "snapshots.hpp"
+#include "data/snapshots.hpp"
 #include <chrono>
 #include <thread>
 
@@ -11,18 +11,23 @@ int main()
 {
     using namespace std;
     using namespace std::chrono;
+    using namespace rmf::data;
+    using namespace rmf::backends::core;
+    using namespace rmf::backends::mt;
+    using namespace rmf::tests;
+
 
     auto pid = runSampleProcess();
     this_thread::sleep_for(500ms);
     auto map = readMapsFromPid(pid);
-    assert(map.size() > 0, "There should be regions inside the map");
+    rmf_assert(map.size() > 0, "There should be regions inside the map");
 
-    Log(Message, "Sample of map[0]: \n " << map.front());
+    rmf_Log(rmf_Message, "Sample of map[0]: \n " << map.front());
     size_t iter = 0;
 
     // Quickly perform the raw check for the changing region
     {
-        Log(Message,
+        rmf_Log(rmf_Message,
             "Checking if there is a changing region of memory!");
         bool   foundChanging = false;
         size_t maxIter       = map.size();
@@ -41,7 +46,7 @@ int main()
                                    .snap2 = snap2.asSnapshotSpan()};
             auto changedRegions = findChangedRegionsCore(cInputs, 8);
 
-            Log(Message,
+            rmf_Log(rmf_Message,
                 "Number of changed regions in region ["
                     << props.regionName
                     << "] : " << changedRegions.size());
@@ -49,7 +54,7 @@ int main()
             if (changedRegions.size() > 0)
             {
                 foundChanging = true;
-                Log(Message,
+                rmf_Log(rmf_Message,
                     "Changed region: " << changedRegions.front());
                 break;
             }
@@ -59,7 +64,7 @@ int main()
             }
             iter++;
         }
-        assert(
+        rmf_assert(
             foundChanging,
             "There should be a changing region somewhere there...");
     }
@@ -102,7 +107,7 @@ int main()
             snapshotsVec2.reserve(regionsPerIter);
 
             for (size_t it = 0; it < tasks1.size(); it++) {
-                Log(Debug, "Mrp: " << coreInputsVec[it].mrp.value());
+                rmf_Log(rmf_Debug, "Mrp: " << coreInputsVec[it].mrp.value());
                 snapshotsVec1.push_back({tasks1[it].result.get()});
                 snapshotsVec2.push_back({tasks2[it].result.get()});
             }
@@ -123,12 +128,13 @@ int main()
             tp.awaitAllTasks();
             auto result = consolidateNestedTaskResults(tasks);
             if (result.size() > 0) {
-                Log(Message, "Found changing region!");
+                rmf_Log(rmf_Message, "Found changing region!");
                 foundChanging = true;
                 break;
             }
         }
-        assert(foundChanging, "There should be a changing region in here");
+        rmf_assert(foundChanging, "There should be a changing region in here");
     }
     return 0;
 }
+

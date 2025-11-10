@@ -1,18 +1,18 @@
-#include "logs.hpp"
+#include "utils/logs.hpp"
 #include "tests.hpp"
 
 int main() {
 
-    Log(Debug, "Debug test!");
-    Log(Verbose, "Verbose Test!");
-    Log(Message, "Message test!");
-    Log(Warning, "Warning test!");
-    Log(Error, "Error test!");
+    rmf_Log(rmf_Debug, "Debug test!");
+    rmf_Log(rmf_Verbose, "Verbose Test!");
+    rmf_Log(rmf_Message, "Message test!");
+    rmf_Log(rmf_Warning, "Warning test!");
+    rmf_Log(rmf_Error, "Error test!");
 
-    Logger::currentLevel = Error;
+    rmf::utils::Logger::currentLevel = rmf_Error;
 
-    Log(Warning, "You shouldn't be able to see this!!!");
-    Log(Error, "You should be able to see this!!!");
+    rmf_Log(rmf_Warning, "You shouldn't be able to see this!!!");
+    rmf_Log(rmf_Error, "You should be able to see this!!!");
 
     return 0;
 }

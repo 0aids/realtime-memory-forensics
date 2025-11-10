@@ -8,6 +8,7 @@
 #include "logs.hpp"
 
 // std::queue is not thread safe, so we need a basic queue.
+namespace rmf::utils {
 template <typename T>
 class SPMCQueue
 {
@@ -48,7 +49,7 @@ class SPMCQueue
 
         if (curHead - curTail >= DEFSIZE)
         {
-            Log(Error, "Failed to enqueue, queue is full!");
+            rmf_Log(rmf_Error, "Failed to enqueue, queue is full!");
             return false;
         }
 
@@ -97,5 +98,6 @@ class SPMCQueue
                 );
     }
 };
+}
 
 #endif // MTQueue_hpp_INCLUDED

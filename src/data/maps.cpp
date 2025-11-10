@@ -1,12 +1,13 @@
-#include "maps.hpp"
+#include "data/maps.hpp"
 #include <fcntl.h>
 #include <fstream>
 #include <string>
-#include "logs.hpp"
+#include "utils/logs.hpp"
 #include <algorithm>
 #include <cstring>
 #include <unistd.h>
 
+namespace rmf::data {
 Perms parsePerms(char r, char w, char x, char p) {
     Perms perms{};
     if (r == 'r') {
@@ -59,7 +60,7 @@ static constexpr std::string pidToPagemap(pid_t pid)
 RegionPropertiesList readMapsFromPid(pid_t pid)
 {
 
-    Log(Debug, "Reading map from location: " << pidToMapLocation(pid)); 
+    rmf_Log(rmf_Debug, "Reading map from location: " << pidToMapLocation(pid)); 
     std::ifstream        memoryMapFile(pidToMapLocation(pid));
     std::string          line;
     int                  unnamedRegionNumber = 1;
@@ -83,7 +84,7 @@ RegionPropertiesList readMapsFromPid(pid_t pid)
         }
 
         MemoryRegionProperties m = {
-            parsePerms(permR, permW, permX, permP),
+            rmf::data::parsePerms(permR, permW, permX, permP),
             name,
             startAddr,
             endAddr - startAddr,
@@ -91,7 +92,7 @@ RegionPropertiesList readMapsFromPid(pid_t pid)
             endAddr - startAddr,
             pid,
         };
-        Log(Debug, "Found region: \n" << m);
+        rmf_Log(rmf_Debug, "Found region: \n" << m);
         regionProperties.push_back(std::move(m));
     }
     return regionProperties;
@@ -268,14 +269,14 @@ RegionPropertiesList getActiveRegions(const MemoryRegionProperties &mrp) {
         // Multiply by 8 because each 8 byte chunk represents a page.
         uintptr_t offset = (addr / pageSize) * 8;
         if (lseek(fd, offset, SEEK_SET) == (off_t) -1) {
-            Log(Error, "Failed to seek the pagemap!");
+            rmf_Log(rmf_Error, "Failed to seek the pagemap!");
             perror("failed to seek pagemap");
             continue;
         }
 
         uint64_t entry;
         if (read(fd, &entry, 8) != 8) {
-            Log(Error, "Failed to READ the pagemap!")
+            rmf_Log(rmf_Error, "Failed to READ the pagemap!")
             perror("failed to read pagemap");
             continue;
         }
@@ -295,7 +296,7 @@ RegionPropertiesList getActiveRegionsFromRegionPropertiesList(
 )
 {
     if (rpl.size() == 0){
-        Log(Warning, "Given an empty RegionPropertiesList!!!");
+        rmf_Log(rmf_Warning, "Given an empty RegionPropertiesList!!!");
         return {};
     }
     RegionPropertiesList regions;
@@ -303,7 +304,7 @@ RegionPropertiesList getActiveRegionsFromRegionPropertiesList(
     const std::string pagemapPath = pidToPagemap(rpl[0].pid);
     int fd = open(pagemapPath.c_str(), O_RDONLY);
     if (fd < 0) {
-        Log(Error, "Failed to open the pageMap!!!!");
+        rmf_Log(rmf_Error, "Failed to open the pageMap!!!!");
         return {};
     }
     const uint64_t ACTIVE_BIT = (1ULL << 63);
@@ -315,14 +316,14 @@ RegionPropertiesList getActiveRegionsFromRegionPropertiesList(
             // Multiply by 8 because each 8 byte chunk represents a page.
             uintptr_t offset = (addr / pageSize) * 8;
             if (lseek(fd, offset, SEEK_SET) == (off_t) -1) {
-                Log(Error, "Failed to seek the pagemap!");
+                rmf_Log(rmf_Error, "Failed to seek the pagemap!");
                 perror("failed to seek pagemap");
                 continue;
             }
 
             uint64_t entry;
             if (read(fd, &entry, 8) != 8) {
-                Log(Error, "Failed to READ the pagemap!")
+                rmf_Log(rmf_Error, "Failed to READ the pagemap!")
                 perror("failed to read pagemap");
                 continue;
             }
@@ -357,4 +358,5 @@ RegionPropertiesList breakIntoRegionChunks(
         }
     }
     return regions;
+}
 }

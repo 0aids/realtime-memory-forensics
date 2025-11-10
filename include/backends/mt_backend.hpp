@@ -1,7 +1,6 @@
 #ifndef core_wrappers_hpp_INCLUDED
 #define core_wrappers_hpp_INCLUDED
 #include <atomic>
-#include <concepts>
 #include <chrono>
 #include <future>
 #include <functional>
@@ -10,11 +9,10 @@
 #include <string>
 #include <thread>
 
-#include "MTQueue.hpp"
+#include "utils/MTQueue.hpp"
 #include "core.hpp"
-#include "logs.hpp"
-#include "snapshots.hpp"
-#include "maps.hpp"
+#include "data/snapshots.hpp"
+#include "data/maps.hpp"
 
 /* 4 main separations of concerns:
  * Core function
@@ -41,6 +39,10 @@
      * Reduces a list of tasks into its results. Since the order is preserved within the tasks,
      there is no need for having metadata for order.
  * */
+
+namespace rmf::backends::mt {
+using namespace rmf::backends::core;
+using namespace rmf;
 
 template <typename Callable>
 using ReturnTypeOfT = typename decltype(std::function{
@@ -90,25 +92,6 @@ auto createMultipleTasks(CoreFuncType coreFunc, const std::vector<CoreInputs> cI
 
     return tasksVec;
 }
-
-template <typename T, typename FuncType>
-concept ThreadPoolType = requires(T pool, Task<FuncType> task, 
-                                    std::vector<Task<FuncType>> tasksVec)
-{
-    
-    // Check for the templated 'submitTask' function
-    {
-        pool.submitTask(task)
-    };
-
-    // Check for the templated 'submitMultipleTasks' function
-    {
-        pool.submitMultipleTasks(tasksVec)
-    };
-
-    // Check for the non-templated 'awaitAllTasks' function
-    { pool.awaitAllTasks() } -> std::same_as<void>; // Checks for existence and void return type
-};
 
 class QueuedThreadPool {
     using QTask = std::function<void()>;
@@ -171,9 +154,9 @@ class QueuedThreadPool {
     private:
         std::vector<std::pair<std::thread, std::string>> m_threadsList;
         std::atomic<bool> m_alive;
-        SPMCQueue<QTask> m_tasksQueue;
+        utils::SPMCQueue<QTask> m_tasksQueue;
 
-        static void threadFunctions(std::atomic<bool> &alive, SPMCQueue<QTask> &q) {
+        static void threadFunctions(std::atomic<bool> &alive, utils::SPMCQueue<QTask> &q) {
             // Just check if we should still be alive, and then close if need be.
             while (alive.load(std::memory_order_acquire)) {
                 auto func = q.tryDequeueFor(TRYDURATION);
@@ -183,52 +166,6 @@ class QueuedThreadPool {
         }
 };
 
-class TaskThreadPool
-{
-  public:
-    const size_t pu_numThreads = 1;
-
-    template <typename CoreFuncType>
-    void submitTask(Task<CoreFuncType>& task)
-    {
-        using namespace std::chrono;
-        pr_threads.emplace_back(std::thread(
-                                  [&packagedTask = task.packagedTask]() mutable
-                                  {
-                                      // For better print statements ig.
-                                      std::this_thread::sleep_for(
-                                          500us);
-                                      packagedTask();
-                                  }),
-                              std::to_string(pr_threads.size() + 1));
-
-        pthread_setname_np(pr_threads.back().first.native_handle(),
-                           pr_threads.back().second.c_str());
-    }
-    template <typename CoreFuncType>
-    void submitMultipleTasks(std::vector<Task<CoreFuncType>> &tasksVec)
-    {
-        for (auto &task : tasksVec) {
-            submitTask(task);
-        }
-    }
-
-    void awaitAllTasks() {
-        if (pr_threads.size() == 0) {
-            Log(Warning, "Attempted to join an empty thread pool");
-            return;
-        }
-        for (auto &p : pr_threads) {
-            p.first.join();
-        }
-        pr_threads.clear();
-    }
-
-    TaskThreadPool(size_t numThreads) : pu_numThreads(numThreads){}
-
-  private:
-    std::vector<std::pair<std::thread, std::string>> pr_threads;
-};
 // How do we consolidate them? For tasks that return a vector,
 // we can join the vectors together. I think all tasks return a vector,
 // so we can use a generic vector consolidator.
@@ -302,5 +239,5 @@ std::vector<CoreInputs> consolidateIntoCoreInput(
 std::vector<MemorySnapshotSpan> makeSnapshotSpans(const std::vector<MemorySnapshot> &snapVec);
 
 std::vector<MemorySnapshot> convertTasksIntoSnapshots(std::vector<Task<MemorySnapshot (*)(const CoreInputs &)>> &tasks);
-
+};
 #endif // core_wrappers_hpp_INCLUDED

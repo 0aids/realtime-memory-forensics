@@ -7,6 +7,10 @@
 #include <chrono>
 #include <cstring>
 #include <chrono>
+
+namespace rmf::data {
+
+
 class MemorySnapshotSpan;
 struct MemorySnapshot
 {
@@ -142,5 +146,6 @@ class MemorySnapshotSpan
     const std::chrono::nanoseconds timeCaptured;
 };
 
+}
 
 #endif // snapshots_hpp_INCLUDED

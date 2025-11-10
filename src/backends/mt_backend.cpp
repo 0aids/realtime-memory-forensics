@@ -1,5 +1,8 @@
-#include "core_wrappers.hpp"
-#include "snapshots.hpp"
+#include "backends/mt_backend.hpp"
+#include "utils/logs.hpp"
+#include "data/snapshots.hpp"
+
+namespace rmf::backends::mt {
 
 inline std::span<const char>
 spanFromRegionProperties(const MemoryRegionProperties& mrp,
@@ -45,7 +48,7 @@ std::vector<MemorySnapshotSpan> divideSingleSnapshot(const MemorySnapshot &snap,
             offset,
             numBytes
         ));
-        Log(Debug, std::hex << std::showbase <<
+        rmf_Log(rmf_Debug, std::hex << std::showbase <<
         "Push back offset: " << offset << "\tcount: " << numBytes);
     }
     return spanVec;
@@ -107,3 +110,4 @@ std::vector<MemorySnapshot> convertTasksIntoSnapshots(std::vector<Task<MemorySna
     }
     return result;
 }
+};

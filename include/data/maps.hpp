@@ -7,6 +7,8 @@
 #include <vector>
 #include <unistd.h>
 
+namespace rmf::data {
+
 enum class Perms : uint8_t
 {
     EMPTY   = 0,
@@ -45,6 +47,7 @@ inline bool has_perms(Perms haystack, Perms needle)
 {
     return (haystack & needle) == needle;
 }
+
 Perms parsePerms(char r, char w, char x, char p);
 Perms parsePerms(const std::string_view& p);
 
@@ -151,5 +154,6 @@ RegionPropertiesList getActiveRegionsFromRegionPropertiesList(
 RegionPropertiesList breakIntoRegionChunks(
     const RegionPropertiesList &rpl, size_t overlap
 );
+};
 
 #endif // maps_hpp_INCLUDED

@@ -1,10 +1,9 @@
 // Core functions go here.
 // Core functions must follow the signature:
-// XCore(makeSnapshot)
-#include "maps.hpp"
-#include "snapshots.hpp"
-#include "core.hpp"
-#include "logs.hpp"
+#include "data/maps.hpp"
+#include "data/snapshots.hpp"
+#include "backends/core.hpp"
+#include "utils/logs.hpp"
 #include <chrono>
 #include <unistd.h>
 #include <cstdint>
@@ -14,6 +13,9 @@ extern "C"
 #include <sys/uio.h>
 }
 
+namespace rmf::backends::core
+{
+
 // A vector of chars, not snapshot because it'll be easier
 // to combine them when needed?
 // Consider the possibility of changing it.
@@ -21,23 +23,23 @@ MemorySnapshot makeSnapshotCore(const CoreInputs& core)
 {
     if (!core.mrp)
     {
-        Log(Error, "A MemeoryRegionProperties was not supplied!");
+        rmf_Log(rmf_Error, "A MemeoryRegionProperties was not supplied!");
         return MemorySnapshot({}, {}, {});
     }
     const MemoryRegionProperties& mrp = core.mrp.value();
-    Log(Debug, "Taking snapshot");
+    rmf_Log(rmf_Debug, "Taking snapshot");
     using namespace std::chrono;
 
     struct iovec localIovec[1];
     struct iovec sourceIovec[1];
 
-    Log(Debug,
+    rmf_Log(rmf_Debug,
         "Num bytes for this task: " << std::showbase << std::hex
                                     << mrp.relativeRegionSize);
-    Log(Debug,
+    rmf_Log(rmf_Debug,
         "Actual Start address: " << std::showbase << std::hex
                                  << mrp.getActualRegionStart());
-    Log(Debug,
+    rmf_Log(rmf_Debug,
         "Size: " << std::showbase << std::hex
                  << mrp.relativeRegionSize);
 
@@ -71,13 +73,13 @@ MemorySnapshot makeSnapshotCore(const CoreInputs& core)
         {
             if (nread == -1)
             {
-                Log(Error,
+                rmf_Log(rmf_Error,
                     "Completely failed to read the region. Error "
                     "is below.");
                 perror("process_vm_readv");
                 return MemorySnapshot({}, {}, {});
             }
-            Log(Error,
+            rmf_Log(rmf_Error,
                 "Read " << nread << "/" << mrp.relativeRegionSize
                         << "bytes. Failed to read all the bytes "
                            "from that region.");
@@ -98,7 +100,7 @@ findChangedRegionsCore(const CoreInputs& core,
     // now supply that metadata.
     if (!core.snap1 || !core.snap2 || !core.mrp)
     {
-        Log(Error, "Missing a snapshot!");
+        rmf_Log(rmf_Error, "Missing a snapshot!");
         return {};
     }
     const auto&                   snap1    = core.snap1.value();
@@ -106,7 +108,7 @@ findChangedRegionsCore(const CoreInputs& core,
     const MemoryRegionProperties& mrp      = core.mrp.value();
     size_t                        numIters = snap1.size() / cmpSize + 1;
     uintptr_t                     current  = 0;
-    Log(Debug, "Number of iterations required: " << numIters);
+    rmf_Log(rmf_Debug, "Number of iterations required: " << numIters);
 
     std::vector<MemoryRegionProperties> data;
     for (size_t i = 0; i < numIters; ++i)
@@ -115,7 +117,7 @@ findChangedRegionsCore(const CoreInputs& core,
         if (memcmp(snap1.data() + current, snap2.data() + current,
                    actualCmpSize))
         {
-            Log(Message, "Found a change!");
+            rmf_Log(rmf_Message, "Found a change!");
             if (data.size() > 0 &&
                 data.back().relativeRegionStart +
                         data.back().relativeRegionSize ==
@@ -133,7 +135,7 @@ findChangedRegionsCore(const CoreInputs& core,
         }
         current += actualCmpSize;
     }
-    Log(Debug, "Found changes: " << data.size());
+    rmf_Log(rmf_Debug, "Found changes: " << data.size());
     return data;
 }
 
@@ -142,7 +144,7 @@ findStringCore(const CoreInputs& core, const std::string_view& str)
 {
     if (!core.snap1)
     {
-        Log(Warning, "Snap1 was NOT provided!");
+        rmf_Log(rmf_Warning, "Snap1 was NOT provided!");
         return {};
     }
     std::vector<MemoryRegionProperties> result;
@@ -180,7 +182,7 @@ findUnchangedRegionsCore(const CoreInputs& core, const uintptr_t& cmpSize)
     // now supply that metadata.
     if (!core.snap1 || !core.snap2 || !core.mrp)
     {
-        Log(Error, "Missing a snapshot!");
+        rmf_Log(rmf_Error, "Missing a snapshot!");
         return {};
     }
     const auto&                   snap1    = core.snap1.value();
@@ -188,7 +190,7 @@ findUnchangedRegionsCore(const CoreInputs& core, const uintptr_t& cmpSize)
     const MemoryRegionProperties& mrp      = core.mrp.value();
     size_t                        numIters = snap1.size() / cmpSize + 1;
     uintptr_t                     current  = 0;
-    Log(Debug, "Number of iterations required: " << numIters);
+    rmf_Log(rmf_Debug, "Number of iterations required: " << numIters);
 
     std::vector<MemoryRegionProperties> data;
     for (size_t i = 0; i < numIters; ++i)
@@ -197,7 +199,7 @@ findUnchangedRegionsCore(const CoreInputs& core, const uintptr_t& cmpSize)
         if (!memcmp(snap1.data() + current, snap2.data() + current,
                    actualCmpSize))
         {
-            Log(Message, "Found no change!");
+            rmf_Log(rmf_Message, "Found no change!");
             if (data.size() > 0 &&
                 data.back().relativeRegionStart +
                         data.back().relativeRegionSize ==
@@ -215,6 +217,7 @@ findUnchangedRegionsCore(const CoreInputs& core, const uintptr_t& cmpSize)
         }
         current += actualCmpSize;
     }
-    Log(Debug, "Found changes: " << data.size());
+    rmf_Log(rmf_Debug, "Found changes: " << data.size());
     return data;
 }
+};

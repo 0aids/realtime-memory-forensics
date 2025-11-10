@@ -1,6 +1,6 @@
 #include <sys/resource.h>
-#include "mem_anal.hpp"
-#include "logs.hpp"
+#include "data/refreshable_snapshots.hpp"
+#include "utils/logs.hpp"
 #include "tests.hpp"
 #include <fstream>
 #include <iostream>
@@ -13,6 +13,9 @@
 #include <sys/prctl.h>
 #include <csignal>
 
+namespace rmf::tests {
+using namespace rmf::data;
+using namespace rmf::backends::mt;
 __attribute__((optimize("O0"))) void changingMapMemorySampleProcess()
 {
     using namespace std;
@@ -33,7 +36,7 @@ pid_t runChangingMapProcess()
     pid_t pid = fork();
     if (pid < 0)
     {
-        Log(Error, "Forking failed");
+        rmf_Log(rmf_Error, "Forking failed");
         exit(EXIT_FAILURE);
     }
     if (pid == 0)
@@ -46,7 +49,7 @@ pid_t runChangingMapProcess()
         changingMapMemorySampleProcess();
         _exit(127);
     }
-    Log(Debug, "Child pid: " << pid);
+    rmf_Log(rmf_Debug, "Child pid: " << pid);
     return pid;
 }
 
@@ -139,12 +142,12 @@ bool checkPtraceScope()
     std::string   line;
     if (!std::getline(inputFile, line))
     {
-        Log(Error, "Failed to open '" << ptrace_scope << "'");
+        rmf_Log(rmf_Error, "Failed to open '" << ptrace_scope << "'");
         return false;
     }
     if (line != "0")
     {
-        Log(Error,
+        rmf_Log(rmf_Error,
             "File: '" << ptrace_scope
                       << "' is not 0, unable to continue");
         return false;
@@ -157,7 +160,7 @@ pid_t runSampleProcess()
     pid_t pid = fork();
     if (pid < 0)
     {
-        Log(Error, "Forking failed");
+        rmf_Log(rmf_Error, "Forking failed");
         exit(EXIT_FAILURE);
     }
     if (pid == 0)
@@ -172,12 +175,12 @@ pid_t runSampleProcess()
                         -20); // higher priority (lower nice value)
         if (!ret)
         {
-            Log(Warning, "Failed to change forked process priority!");
+            rmf_Log(rmf_Warning, "Failed to change forked process priority!");
         }
         sampleProcess();
         _exit(127);
     }
-    Log(Debug, "Child pid: " << pid);
+    rmf_Log(rmf_Debug, "Child pid: " << pid);
     return pid;
 }
 
@@ -191,7 +194,7 @@ getSampleRefreshableSnapshots(pid_t sampleProcessPID)
 
     RegionPropertiesList result;
     {
-        Log(Message, "Attempting TASK splitting WITH MT!");
+        rmf_Log(rmf_Message, "Attempting TASK splitting WITH MT!");
         size_t numThreads = 10;
         map               = breakIntoRegionChunks(map, 0);
         QueuedThreadPool tp(numThreads);
@@ -242,3 +245,4 @@ getSampleRefreshableSnapshots(pid_t sampleProcessPID)
                 breakIntoRegionChunks(map, 0).front()),
             make_shared<RefreshableSnapshot>(result.front())};
 }
+};

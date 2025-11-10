@@ -1,9 +1,9 @@
-#include "core_wrappers.hpp"
-#include "logs.hpp"
-#include "maps.hpp"
-#include "core.hpp"
+#include "backends/mt_backend.hpp""
+#include "utils/logs.hpp"
+#include "data/maps.hpp"
+#include "backends/core.hpp"
 #include "tests.hpp"
-#include "snapshots.hpp"
+#include "data/snapshots.hpp"
 #include <chrono>
 #include <thread>
 
@@ -11,13 +11,18 @@ int main()
 {
     using namespace std;
     using namespace std::chrono;
+    using namespace rmf::data;
+    using namespace rmf::backends::core;
+    using namespace rmf::backends::mt;
+    using namespace rmf::tests;
+
 
     auto pid = runSampleProcess();
     this_thread::sleep_for(500ms);
     auto map = readMapsFromPid(pid);
-    assert(map.size() > 0, "There should be regions inside the map");
+    rmf_assert(map.size() > 0, "There should be regions inside the map");
 
-    Log(Message, "Sample of map[0]: \n " << map.front());
+    rmf_Log(rmf_Message, "Sample of map[0]: \n " << map.front());
     {
         bool found = false;
         for (const auto& r : map)
@@ -48,15 +53,15 @@ int main()
                 cerr << endl;
                 auto newRes =
                     findStringCore({.snap1 = snap}, "Lorem ipsum");
-                assert(newRes.size() > 0,
+                rmf_assert(newRes.size() > 0,
                        "There should be a lorem ipsum here!");
                 break;
             }
         }
-        assert(found, "There is definitely a lorem ipsum in there!");
+        rmf_assert(found, "There is definitely a lorem ipsum in there!");
     }
     {
-        Log(Message, "attempting pooled search!");
+        rmf_Log(rmf_Message, "attempting pooled search!");
         size_t numThreads = 5;
         auto newMap = breakIntoRegionChunks(map, 0);
         newMap.resize(newMap.size() - 3);
@@ -83,7 +88,7 @@ int main()
         tp.awaitAllTasks();
 
         auto res = consolidateNestedTaskResults(newTasks);
-        assert(res.size() > 0, "There is definitely a lorem ipsum in there!");
+        rmf_assert(res.size() > 0, "There is definitely a lorem ipsum in there!");
         if (res.size() > 0)
         {
             auto snap = MemorySnapshot(
@@ -95,7 +100,7 @@ int main()
             cerr << endl;
             auto newRes =
                 findStringCore({.snap1 = snap.asSnapshotSpan()}, "Lorem ipsum");
-            assert(newRes.size() > 0,
+            rmf_assert(newRes.size() > 0,
                    "There should be a lorem ipsum here!");
         }
     }

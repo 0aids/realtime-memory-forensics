@@ -1,9 +1,9 @@
-#include "snapshots.hpp"
-#include "maps.hpp"
-#include "core_wrappers.hpp"
-#include "core.hpp"
+#include "data/snapshots.hpp"
+#include "data/maps.hpp"
+#include "backends/mt_backend.hpp"
+#include "backends/core.hpp"
 #include "tests.hpp"
-#include "logs.hpp"
+#include "utils/logs.hpp"
 #include "imgui.h"
 #include "backends/imgui_impl_opengl3.h"
 #include "backends/imgui_impl_sdl3.h"
@@ -24,6 +24,11 @@
 #include <fcntl.h>
 using namespace std::chrono;
 using namespace std;
+using namespace rmf::data;
+using namespace rmf::backends::core;
+using namespace rmf::backends::mt;
+using namespace rmf::tests;
+using namespace rmf::gui;
 
 template <Numeric NumType>
 NumType bitShift(NumType val, ssize_t bs)
@@ -429,7 +434,7 @@ int main(int, char**)
     GuiState gs(sampleProcessPID);
     if (!gs.validState)
     {
-        Log(Error, "Failed to initalize the GUI!");
+        rmf_Log(rmf_Error, "Failed to initalize the GUI!");
         return 1;
     }
 
@@ -485,11 +490,11 @@ int main(int, char**)
 
 // int main(int argc, char* argv[])
 // {
-//     Logger::currentLevel = Warning;
+//     rmf_Logger::currentLevel = Warning;
 //     std::string bruh;
-//     Log(Warning, "Test warning");
-//     Log(Error, "Test error");
-//     Log(Message, "Test message");
+//     rmf_Log(Warning, "Test warning");
+//     rmf_Log(Error, "Test error");
+//     rmf_Log(Message, "Test message");
 //     if (argc < 2)
 //     {
 //         cout << "Not enough arguments! The pid must be an argument"
@@ -497,7 +502,7 @@ int main(int, char**)
 //         return 1;
 //     }
 //     pid_t pid = atoi(argv[1]);
-//     Log(Message, "PID Received: " << pid);
+//     rmf_Log(Message, "PID Received: " << pid);
 //     const size_t     numThreads               = 11;
 //     QueuedThreadPool tp(numThreads);
 //     RegionPropertiesList toBeProcessed;
