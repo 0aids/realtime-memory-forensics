@@ -5,7 +5,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_CXX_COMPILER g++)
+# set(CMAKE_CXX_COMPILER g++)
 # doesn't work ;_;
 # set(CMAKE_USE_RELATIVE_PATHS True)
 
@@ -39,6 +39,15 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(imgui)
 
+FetchContent_Declare(
+    magic_enum
+    GIT_REPOSITORY https://github.com/Neargye/magic_enum.git
+    GIT_SHALLOW TRUE
+    # GIT_TAG        v0.9.5   # pick a version
+)
+
+FetchContent_MakeAvailable(magic_enum)
+
 file(GLOB imguiFiles ${imgui_SOURCE_DIR}/*.cpp)
 
 add_library(ImGuiSource STATIC
@@ -57,6 +66,7 @@ target_include_directories(memLib PUBLIC
     "include"
     ${imgui_SOURCE_DIR}
     ${imgui_SOURCE_DIR}/backends
+    ${magic_enum_SOURCE_DIR}/include
 )
 
 target_link_libraries(ImGuiSource PUBLIC SDL3::SDL3)
@@ -67,6 +77,7 @@ target_link_libraries(mem-anal PRIVATE memLib
     PRIVATE ImGuiSource
     PRIVATE SDL3::SDL3
     PRIVATE OpenGL::GL
+    PRIVATE magic_enum::magic_enum
 )
 
 

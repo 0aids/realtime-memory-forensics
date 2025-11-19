@@ -1,6 +1,7 @@
 // Core functions go here.
 // Core functions must follow the signature:
 #include "data/maps.hpp"
+#include "data/numerics.hpp"
 #include "data/snapshots.hpp"
 #include "backends/core.hpp"
 #include "utils/logs.hpp"
@@ -219,5 +220,94 @@ findUnchangedRegionsCore(const CoreInputs& core, const uintptr_t& cmpSize)
     }
     rmf_Log(rmf_Debug, "Found changes: " << data.size());
     return data;
+}
+
+
+std::vector<MemoryRegionProperties>
+findNumericWithinRange(const CoreInputs& core, 
+                       const NumQuery& query)
+{
+    switch (query.type) {
+            case NumType::I8:
+                return _findNumericWithinRange<int8_t>(core, query.min.i8, query.max.i8);
+            case NumType::U8:
+                return _findNumericWithinRange<uint8_t>(core, query.min.u8, query.max.u8);
+            case NumType::I16:
+                return _findNumericWithinRange<int16_t>(core, query.min.i16, query.max.i16);
+            case NumType::U16:
+                return _findNumericWithinRange<uint16_t>(core, query.min.u16, query.max.u16);
+            case NumType::I32:
+                return _findNumericWithinRange<int32_t>(core, query.min.i32, query.max.i32);
+            case NumType::U32:
+                return _findNumericWithinRange<uint32_t>(core, query.min.u32, query.max.u32);
+            case NumType::I64:
+                return _findNumericWithinRange<int64_t>(core, query.min.i64, query.max.i64);
+            case NumType::U64:
+                return _findNumericWithinRange<uint64_t>(core, query.min.u64, query.max.u64);
+            case NumType::FLT:
+                return _findNumericWithinRange<float>(core, query.min.flt, query.max.flt);
+            case NumType::DLE:
+                return _findNumericWithinRange<double>(core, query.min.dle, query.max.dle);
+            default:
+                throw std::invalid_argument("Unknown NumType specified.");
+    };
+}
+
+std::vector<MemoryRegionProperties>
+findUnchangedNumeric(const CoreInputs& core, const NumQuery &query)
+{
+    switch (query.type) {
+            case NumType::I8:
+                return _findUnchangedNumericCore<int8_t>(core, query.max.i8);
+            case NumType::U8:
+                return _findUnchangedNumericCore<uint8_t>(core, query.max.u8);
+            case NumType::I16:
+                return _findUnchangedNumericCore<int16_t>(core, query.max.i16);
+            case NumType::U16:
+                return _findUnchangedNumericCore<uint16_t>(core, query.max.u16);
+            case NumType::I32:
+                return _findUnchangedNumericCore<int32_t>(core, query.max.i32);
+            case NumType::U32:
+                return _findUnchangedNumericCore<uint32_t>(core, query.max.u32);
+            case NumType::I64:
+                return _findUnchangedNumericCore<int64_t>(core, query.max.i64);
+            case NumType::U64:
+                return _findUnchangedNumericCore<uint64_t>(core, query.max.u64);
+            case NumType::FLT:
+                return _findUnchangedNumericCore<float>(core, query.max.flt);
+            case NumType::DLE:
+                return _findUnchangedNumericCore<double>(core, query.max.dle);
+            default:
+                throw std::invalid_argument("Unknown NumType specified.");
+    };
+}
+
+std::vector<MemoryRegionProperties>
+findChangedNumeric(const CoreInputs& core, const NumQuery &query)
+{
+    switch (query.type) {
+            case NumType::I8:
+                return _findChangedNumericCore<int8_t>(core, query.max.i8);
+            case NumType::U8:
+                return _findChangedNumericCore<uint8_t>(core, query.max.u8);
+            case NumType::I16:
+                return _findChangedNumericCore<int16_t>(core, query.max.i16);
+            case NumType::U16:
+                return _findChangedNumericCore<uint16_t>(core, query.max.u16);
+            case NumType::I32:
+                return _findChangedNumericCore<int32_t>(core, query.max.i32);
+            case NumType::U32:
+                return _findChangedNumericCore<uint32_t>(core, query.max.u32);
+            case NumType::I64:
+                return _findChangedNumericCore<int64_t>(core, query.max.i64);
+            case NumType::U64:
+                return _findChangedNumericCore<uint64_t>(core, query.max.u64);
+            case NumType::FLT:
+                return _findChangedNumericCore<float>(core, query.max.flt);
+            case NumType::DLE:
+                return _findChangedNumericCore<double>(core, query.max.dle);
+            default:
+                throw std::invalid_argument("Unknown NumType specified.");
+    };
 }
 };

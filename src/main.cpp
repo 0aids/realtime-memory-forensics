@@ -278,7 +278,7 @@ void findPlayerPosition(const size_t& maxSnapshotsPerIteration,
                     .snap1Vec = spansList1,
                 });
                 auto tasks =
-                    createMultipleTasks(findNumericWithinRange<float>,
+                    createMultipleTasks(_findNumericWithinRange<float>,
                                         inputs, 59.5f, 62.f);
                 tp.submitMultipleTasks(tasks);
                 tp.awaitAllTasks();

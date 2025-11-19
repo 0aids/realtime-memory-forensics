@@ -26,34 +26,11 @@ retrieve valuable targets in memory.
 
   And reset it afterwards by echoing `1` instead.
 
-# Methodology
-
-- Read the memory map of the process, and then perform a search. For a
-  manually changeable target (like a player's movement):
-
-1. Constantly change the target's value, and search through each writable
-   region, taking 2 snapshots at a designated interval and look for changes.
-
-2. Store said changes, and then use them to generate sub regions.
-
-3. Poll the sub regions again for **NO** changes specifically, and remove
-   regions that had changed
-
-4. Rinse and repeat until we have found the desired region.
-
-Using the found desired sub region, an api is available which would let us poll
-said variable. Checks will be done every poll in order to ensure that the
-memorymap has not changed.
-
 # TODO:
 - Complete the GUI, alongside saving and loading sets of instructions representing
     actions taken.
 
-- Write a parser for the instructions. (Super simple, no need for syntax checking etc.);
-
-- Simplify certain aspects of the API.
-    Make it so I don't have to write 60 lines of code to setup a multi-threaded change detection.
-    On a whole region.
+- Write a parser for the instructions.
 
 - Add extra core functions and pointer finding.
     maybe even linked list detection with a range of pointers given.
@@ -63,111 +40,47 @@ memorymap has not changed.
     which completely prevents any logs from showing if there are a large amount of tasks.
     I'm pretty sure snapshotting works correctly, however.
 
-# language guide:
-## Basic Features
-Index : Supports negative indices, with -1 being the most recent.
-Basic mathematics support (float serialisation, basic arithmetic)
-Variable access in the rpl timeline (actualRegionStart, size)
-Valid Instructions:
-```
-ReadMaps (no arguments)
+# Scripting language guide:
+```python
+# Everything is typed, automatically.
 
-CopyOriginalMaps (no arguments)
+# A pid of -1 is a debug pid - When reading the maps it will
+# automatically change to the value of the sample process.
+pid = -1;
+chunkSize = 0x100000;
+numThreads = GetConcurrency() - 1;
 
-FilterRegionName "Name" index
+backend = MTBackend(numThreads);
 
-FilterRegionSubName "SubName" index
+allMaps = ReadMaps(pid)
 
-FilterPerms "Perms" index
+print("Sample of maps:\n{}", allMaps[0]);
 
-FilterHasPerms "Perms" index
+filteredMaps = filterByPerms(allMaps, "rwp");
 
-FilterNotPerms "Perms" index
+delete allMaps;
 
-FilterActiveRegion index
+# initiate types via colon operator.
+results : RegionPropertiesList;
 
-MakeSnapshot register index
+for region in 0:chunkSize:filteredMaps.size()  # Not Inclusive of 1000, intervals of 50, etc.
+    # The section:
+    # "filteredMaps[region::chunkSize]" will create a temporary
+    # view of range region::chunkSize, which is a region that starts
+    # from index "region" and up to "region + chunkSize".
+    # If the indices exceed the filteredMaps' size, then the
+    # bounds will automatically be conformed.
+    snap1 = backend.makeSnapshot(filteredMaps[region::chunkSize]);
+    sleep 50ms;
+    snap2 = backend.makeSnapshot(filteredMaps[region::chunkSize]);
+    results.append(backend.findChangedRegions(snap1, snap2));
+end
+# After a script finishes, all values in scope can be accessed and viewed.
+# Via the GUI Menu, or retrieved via an API.
+# The API Will allow access to scoped variables returning a unordered map of pairs of
+# {"symbol name":string_view, const &type value}.
+# From which can be copied into actual owning values if needed.
 
-FindChangingRegions Register1 Register2
-
-FindUnchangingRegions Register1 Register2
-
-FindString Register1 "string"
-
-// Use FindNumeric for pointers as well.
-// How can I allow for more customized variables?
-// The Min Max values are guaranteed to not be known at compile time,
-// So we must be able to access values of maps.
-FindNumeric Register1 Min Max
-
-FindChangingNumeric Register1 Register2 MinDiff
-
-FindUnchangingNumeric Register1 Register2 MaxDiff
-
-Loop instructionListIndex until stable NumUnchanged
-Loop instructionListIndex until X remain
-
-
-// Tag a specific region as high-interest, and will be stored
-// in a special high-interest buffer with refreshing capabilities.
-Tag timelineIndex regionIndex
-
-// Maybe add helpers for numerics for pointers, linked list and maybe structs.
-
-// An instruction is started and ended using START and END keywords before each clause.
-
-// Stops execution until it's "Paused" variable becomes false.
-// In gui mode this is just a button.
-Pause
-Sleepms length
-
-Chunkify index
-```
-Example file
-```
-START
-
-ReadMaps // Read the maps
-FilterPerms "rwp" -1 // Only accept regions with these properties ONLY.
-FilterActiveRegion -1 // Remove all regions of memory not actively in memory
-
-END
-
-
-START
-
-// Can only be started by some user input.
-// In headless mode it waits for the bool "Paused" to be
-// set to false.
-QueuedThreadPool 12 // Set up a queued threadpool with 12 threads.
-LoopChunks 400000 // Set how many chunks are done per loop
-
-PAUSE 
-
-MakeSnapshot r1 -1
-Sleep 500ms
-MakeSnapshot r2 -1
-FindChangingRegion r1 r2
-
-PAUSE 
-
-MakeSnapshot r1 -1
-Sleep 500ms
-MakeSnapshot r2 -1
-FindUnchangingRegion r1 r2
-
-LoopEnd // End the loop
-// The Loop will perform until all of the regions are processed, and then repeat itself.
-
-END
-
-START
-
-// Relative index, so -1 is the one before.
-Loop -1 until stable 4
-Tag -1 0
-
-END
 ```
 
 # Styling guide for myself to be consistent

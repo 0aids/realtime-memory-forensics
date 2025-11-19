@@ -151,7 +151,7 @@ namespace rmf::backends {
         const std::span<const data::MemorySnapshotSpan> span2,
         const data::NumQuery&                     query)
     {
-        // return p_doCoreFunc(core::findUnchangedRegionsCore, std::views::zip(span1, span2), compsize);
+        return p_doCoreFunc(core::findChangedNumeric, std::views::zip(span1, span2), query);
     };
 
     data::RegionPropertiesList MTBackend::findUnchangedNumeric(
@@ -159,6 +159,7 @@ namespace rmf::backends {
         const std::span<const data::MemorySnapshotSpan> span2,
         const data::NumQuery&                     query)
     {
+        return p_doCoreFunc(core::findUnchangedNumeric, std::views::zip(span1, span2), query);
     };
 
     data::RegionPropertiesList

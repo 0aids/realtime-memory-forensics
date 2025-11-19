@@ -60,7 +60,7 @@ int main()
             .snap2Vec = spansList2,
         });
         auto tasks =
-            createMultipleTasks(findChangedNumericCore<double>, inputs, 0.5);
+            createMultipleTasks(_findChangedNumericCore<double>, inputs, 0.5);
         for (auto &task : tasks) {
             task.packagedTask();
         }
@@ -106,7 +106,7 @@ int main()
             .snap2Vec = spansList2,
         });
         auto tasks =
-            createMultipleTasks(findChangedNumericCore<double>, inputs, 0.5);
+            createMultipleTasks(_findChangedNumericCore<double>, inputs, 0.5);
         tp.submitMultipleTasks(tasks);
         tp.awaitAllTasks();
         auto changedRegions = consolidateNestedTaskResults(tasks);
@@ -159,7 +159,7 @@ int main()
             .snap2Vec = spansList2,
         });
         auto tasks =
-            createMultipleTasks(findChangedNumericCore<double>, inputs, 0.5);
+            createMultipleTasks(_findChangedNumericCore<double>, inputs, 0.5);
         tp.submitMultipleTasks(tasks);
         tp.awaitAllTasks();
         auto changedRegions = consolidateNestedTaskResults(tasks);

@@ -1,10 +1,12 @@
 #ifndef core_hpp_defined
 #define core_hpp_defined
 #include <concepts>
+#include <ranges>
 #include <vector>
 #include <unistd.h>
 #include <cstdint>
 #include <optional>
+#include "data/numerics.hpp"
 #include "utils/logs.hpp"
 #include "data/maps.hpp"
 #include "data/snapshots.hpp"
@@ -43,9 +45,30 @@ namespace rmf::backends::core
     template <typename T>
     concept Numeric = std::integral<T> || std::floating_point<T>;
 
+    // Use these for numerics, esp for runtime.
+    std::vector<MemoryRegionProperties>
+    findNumericWithinRange(const CoreInputs& core, 
+                           const NumQuery& query);
+
+
+    std::vector<MemoryRegionProperties>
+    findChangedNumeric(const CoreInputs& core,
+                           const NumQuery& query);
+
+    std::vector<MemoryRegionProperties>
+    findUnchangedNumeric(const CoreInputs& core,
+                           const NumQuery& query);
+
+    template <std::ranges::contiguous_range Range, Numeric NumType>
+    inline NumType numCast(const Range &range) {
+        NumType result;
+        memcpy(&result, range.data(), sizeof(result));
+        return result;
+    }
+
     template <Numeric NumType>
     std::vector<MemoryRegionProperties>
-    findNumericWithinRange(const CoreInputs& core, const NumType& min,
+    _findNumericWithinRange(const CoreInputs& core, const NumType& min,
                            const NumType& max)
     {
         if (!core.snap1)
@@ -87,10 +110,9 @@ namespace rmf::backends::core
         return data;
     }
 
-    // IMPORTANT: DO NOT USE!!! currently broken
     template <Numeric NumType>
     std::vector<MemoryRegionProperties>
-    findChangedNumericCore(const CoreInputs& core,
+    _findChangedNumericCore(const CoreInputs& core,
                            const NumType&    minDiff)
     {
         if (!core.snap1 || !core.snap2)
@@ -138,11 +160,9 @@ namespace rmf::backends::core
         return data;
     }
 
-    // TODO: Fix this and the one above for proper alignment assurance
-    // IMPORTANT: DO NOT USE!!! currently broken.
     template <Numeric NumType>
     std::vector<MemoryRegionProperties>
-    findUnchangedNumericCore(const CoreInputs& core,
+    _findUnchangedNumericCore(const CoreInputs& core,
                              const NumType&    maxDiff)
     {
         if (!core.snap1 || !core.snap2)
