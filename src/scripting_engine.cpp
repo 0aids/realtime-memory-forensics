@@ -320,6 +320,7 @@ ParseBegin:
         case '{': return {e_TokenType::OpenBrace, {}};
         case '}': return {e_TokenType::CloseBrace, {}};
         case '.': return {e_TokenType::Dot, {}};
+        case ',': return {e_TokenType::Comma, {}};
         case ';': return {e_TokenType::SemiColon, {}};
         case ':': return {e_TokenType::Colon, {}};
         case '"': return parseStringLiteral(curChar);

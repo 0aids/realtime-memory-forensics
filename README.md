@@ -1,3 +1,8 @@
+# No longer working on.
+This was designed such that I would be able to automate games for me.
+This will be combined later with a application-automation scripting language,
+as a c++ based module.
+
 # Memory analysis
 
 A tool for recognising patterns within a memory for fast identification of
@@ -41,6 +46,7 @@ retrieve valuable targets in memory.
     I'm pretty sure snapshotting works correctly, however.
 
 # Scripting language guide:
+No long relevant - see the top.
 ```python
 # Everything is typed, automatically.
 

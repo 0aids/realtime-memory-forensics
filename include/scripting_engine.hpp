@@ -31,6 +31,7 @@ enum class e_TokenType: uint8_t {
     DurationLit,
 
     Dot,
+    Comma,
 
     Plus,
     Times,

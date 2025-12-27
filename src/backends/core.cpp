@@ -97,8 +97,6 @@ std::vector<MemoryRegionProperties>
 findChangedRegionsCore(const CoreInputs& core,
                        const uintptr_t&  cmpSize)
 {
-    // TODO: requirement of core.mrp is redundant, as the snapshots
-    // now supply that metadata.
     if (!core.snap1 || !core.snap2)
     {
         rmf_Log(rmf_Error, "Missing a snapshot!");
@@ -179,8 +177,6 @@ findStringCore(const CoreInputs& core, const std::string_view& str)
 std::vector<MemoryRegionProperties>
 findUnchangedRegionsCore(const CoreInputs& core, const uintptr_t& cmpSize)
 {
-    // TODO: requirement of core.mrp is redundant, as the snapshots
-    // now supply that metadata.
     if (!core.snap1 || !core.snap2)
     {
         rmf_Log(rmf_Error, "Missing a snapshot!");
