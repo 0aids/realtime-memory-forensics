@@ -1,13 +1,15 @@
 cmake_minimum_required(VERSION 3.23)
 
-project(MemAnal)
+project(realtime_memory_forensics)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS OFF)
-# set(CMAKE_CXX_COMPILER g++)
-# doesn't work ;_;
-# set(CMAKE_USE_RELATIVE_PATHS True)
+set(CMAKE_CXX_FLAGS "-fmacro-prefix-map=${CMAKE_SOURCE_DIR}=.")
+
+##################################################################
+##################### External library stuff #####################
+##################################################################
 
 include(FetchContent)
 
@@ -20,14 +22,9 @@ else()
     add_compile_options(-O3 -DIMGUI_DISABLE_DEMO_WINDOWS)
 endif()
 
-
 find_package(SDL3 REQUIRED)
 find_package(OpenGL REQUIRED)
 
-file(GLOB_RECURSE LIB_SRC_FILES "src/*.cpp")
-list(FILTER LIB_SRC_FILES EXCLUDE REGEX ".*/main\\.cpp$")
-
-file(GLOB MAIN_SRC_FILE "src/main.cpp")
 
 FetchContent_Declare(
     imgui
@@ -60,6 +57,17 @@ add_library(ImGuiSource STATIC
 
 target_include_directories(ImGuiSource PUBLIC ${imgui_SOURCE_DIR})
 
+target_link_libraries(ImGuiSource PUBLIC SDL3::SDL3)
+
+############################################################
+##################### rmf source files #####################
+############################################################
+
+file(GLOB_RECURSE LIB_SRC_FILES "src/*.cpp")
+list(FILTER LIB_SRC_FILES EXCLUDE REGEX ".*/main\\.cpp$")
+
+file(GLOB MAIN_SRC_FILE "src/main.cpp")
+
 add_library(memLib STATIC ${LIB_SRC_FILES})
 
 target_include_directories(memLib PUBLIC
@@ -69,17 +77,15 @@ target_include_directories(memLib PUBLIC
     ${magic_enum_SOURCE_DIR}/include
 )
 
-target_link_libraries(ImGuiSource PUBLIC SDL3::SDL3)
-
 add_executable(mem-anal ${MAIN_SRC_FILE})
 
-target_link_libraries(mem-anal PRIVATE memLib
+target_link_libraries(mem-anal 
+    PRIVATE memLib
     PRIVATE ImGuiSource
     PRIVATE SDL3::SDL3
     PRIVATE OpenGL::GL
     PRIVATE magic_enum::magic_enum
 )
-
 
 option(BuildTests "Build the tests" OFF)
 if (BuildTests)
