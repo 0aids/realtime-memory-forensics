@@ -20,11 +20,7 @@ namespace rmf
     class Task_t
     {
       public:
-        using FuncDetails =
-            decltype(std::function{std::declval<Func_t>()});
-        using Return_t = FuncDetails::result_type;
-        using Input_tu =
-            typename utils::getArgumentTypes<Func_t>::argsTuple;
+        using Return_t = Func_t::result_type;
 
         std::future<Return_t>      future;
         std::packaged_task<Return_t()> packagedTask;
@@ -47,8 +43,8 @@ namespace rmf
     class TaskThreadPool_t
     {
       private:
-        utils::SPMCQueueNonOwning<std::function<void()>,
-                                  d_defaultQueueSize>
+        utils::SPMCQueueNonOwning<std::function<void()>
+                                >
                                  m_queue;
         std::vector<std::thread> m_threads;
         std::vector<std::string> m_threadNames;
@@ -56,8 +52,7 @@ namespace rmf
 
         static void                     threadFunction(
                                 const std::atomic<bool>&                       alive,
-                                utils::SPMCQueueNonOwning<std::function<void()>,
-                                                          d_defaultQueueSize>& queue
+                                utils::SPMCQueueNonOwning<std::function<void()>>& queue
                                 );
 
       public:
@@ -91,7 +86,7 @@ namespace rmf
             }
         }
 
-        TaskThreadPool_t(size_t numThreads) : m_queue(), m_alive(true)
+        TaskThreadPool_t(size_t numThreads) : m_queue(d_defaultQueueSize), m_alive(true)
         {
             for (size_t i = 0; i < numThreads; i++) {
                 m_threads.emplace_back(threadFunction, std::ref(m_alive), std::ref(m_queue));
@@ -103,11 +98,17 @@ namespace rmf
         }
 
         ~TaskThreadPool_t(){
+            // The only problem with lock-free is sometimes someone doesn't want to join.
+            // This is why there is a notifier spam here.
             m_alive.store(false, std::memory_order_release);
+            m_queue.notifier++;
             m_queue.notifier.notify_all();
             for (auto &thread:m_threads) {
+                m_queue.notifier++;
                 m_queue.notifier.notify_all();
                 thread.join();
+                m_queue.notifier++;
+                m_queue.notifier.notify_all();
             }
         }
     };

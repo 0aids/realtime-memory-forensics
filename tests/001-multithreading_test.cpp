@@ -8,7 +8,7 @@
 
 using namespace std;
 using namespace rmf;
-static constexpr size_t numTasks = 1 << 15;
+static constexpr size_t numTasks = 1 << 12;
 
 #pragma GCC push_options
 #pragma GCC optimize("O0")
@@ -17,7 +17,7 @@ static std::atomic<size_t> testFunc0Count = 1;
 int         testFunc0()
 {
     int                        sum   = 0;
-    for (size_t i = 0; i < 1 << 18; i++)
+    for (size_t i = 0; i < 1 << 14; i++)
     {
         sum += i;
     }
@@ -35,9 +35,9 @@ int main()
 {
     uint8_t          numThreads = thread::hardware_concurrency();
     {
-        TaskThreadPool_t threadpool(numThreads / 2);
-        vector<Task_t<decltype(testFunc0)>> taskVec;
+        vector<Task_t<std::function<decltype(testFunc0)>>> taskVec;
         taskVec.reserve(numTasks);
+        TaskThreadPool_t threadpool(numThreads / 2);
         for (size_t i = 0; i < numTasks; i++)
         {
             taskVec.emplace_back(testFunc0);
@@ -57,7 +57,7 @@ int main()
     // Single thread to ensure speedup actaully occurs.
     {
         testFunc0Count = 0;
-        vector<Task_t<decltype(testFunc0)>> taskVec;
+        vector<Task_t<std::function<decltype(testFunc0)>>> taskVec;
         taskVec.reserve(numTasks);
         for (size_t i = 0; i < numTasks; i++)
         {

@@ -55,7 +55,7 @@ namespace rmf {
         const std::string_view file,
         const std::string_view func,
         const size_t line);
-    inline rmf_LogLevel g_logLevel = rmf_Debug;
+    inline rmf_LogLevel g_logLevel = rmf_Verbose;
 }
 #define rmf_Log(level, msg) \
 { \

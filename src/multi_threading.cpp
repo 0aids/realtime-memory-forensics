@@ -1,4 +1,5 @@
 #include "multi_threading.hpp"
+#include "logger.hpp"
 #include "utils.hpp"
 #include <atomic>
 #include <type_traits>
@@ -6,7 +7,7 @@ namespace rmf
 {
     void TaskThreadPool_t::threadFunction(
         const std::atomic<bool>& alive,
-        utils::SPMCQueueNonOwning<std::function<void()>, d_defaultQueueSize>&
+        utils::SPMCQueueNonOwning<std::function<void()>>&
             queue
     )
     {
@@ -18,7 +19,10 @@ namespace rmf
                 value.value()();
                 continue;
             }
-            queue.notifier.wait(queue.notifierWakeValue);
+            rmf_Log(rmf_Debug, "Thread is waiting...");
+            queue.notifier.wait(queue.notifier.load(std::memory_order_acquire));
+            rmf_Log(rmf_Debug, "Thread has woken!!!");
         }
+        rmf_Log(rmf_Debug, "Thread is shutting down!");
     }
 }
