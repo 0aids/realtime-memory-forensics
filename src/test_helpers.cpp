@@ -1,17 +1,27 @@
 #include "test_helpers.hpp"
+#include <functional>
 #include "logger.hpp"
 #include <cstdlib>
 #include <csignal>
+#include <chrono>
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <list>
+#include <thread>
 
 namespace rmf::test {
 
 #pragma GCC push_options
 #pragma GCC optimize("O0")
 
-static void testFunction()
+void unchangingProcess1() {
+    using namespace std::chrono_literals;
+    while (1) {
+        std::this_thread::sleep_for(1s);
+    }
+}
+
+void changingProcess1()
 {
     using namespace std;
 
@@ -91,10 +101,9 @@ static void testFunction()
     delete randomthing;
     delete otherrandomshit;
 }
-
 #pragma GCC pop_options
 
-pid_t startTestFunction() {
+pid_t forkTestFunction(std::function<void()>function) {
     pid_t pid = fork();
     if (pid < 0)
     {
@@ -115,7 +124,7 @@ pid_t startTestFunction() {
         {
             rmf_Log(rmf_Warning, "Failed to change forked process priority!");
         }
-        testFunction();
+        function();
         _exit(127);
     }
     rmf_Log(rmf_Debug, "Child pid: " << pid);

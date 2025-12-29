@@ -1,6 +1,7 @@
 #ifndef types_hpp_INCLUDED
 #define types_hpp_INCLUDED
 
+#include <concepts>
 #include <optional>
 #include <vector>
 #include <cstdint>
@@ -33,6 +34,8 @@ struct magic_enum::customize::enum_range<rmf::types::Perms> {
 
 
 namespace rmf::types {
+    template <typename T>
+    concept Numeral = std::integral<T> || std::floating_point<T>;
 
 inline bool hasPerms(Perms haystack, Perms needle)
 {
@@ -47,6 +50,21 @@ struct MemoryRegionProperties {
     uintptr_t relativeRegionSize;
     std::string regionName;
     Perms perms;
+    pid_t pid;
+
+    inline uintptr_t TrueAddress() const
+    {
+        return parentRegionAddress + relativeRegionAddress;
+    }
+    inline uintptr_t TrueEnd() const
+    {
+        return parentRegionAddress + relativeRegionAddress + relativeRegionSize;
+    }
+
+    inline uintptr_t relativeEnd() const {
+        return relativeRegionAddress + relativeRegionSize;
+    }
+
     // Method below is written by ai.
     std::string toString() const {
         std::string displayName = regionName;
@@ -68,6 +86,7 @@ struct MemoryRegionProperties {
             magic_enum::enum_flags_name(perms) // Handles bitmask names automatically
         );
     }
+
 };
 
 using SnapshotDataBuffer = std::vector<uint8_t>;
@@ -77,7 +96,7 @@ using SnapshotDataBuffer = std::vector<uint8_t>;
 class MemorySnapshot {
 private:
     SnapshotDataBuffer mc_data;
-    MemorySnapshot();
+    MemorySnapshot(const MemoryRegionProperties &_mrp);
 
 public:
     const MemoryRegionProperties mrp;
@@ -85,6 +104,12 @@ public:
         return mc_data; // implicit into std::span
     }
     static MemorySnapshot Make(const MemoryRegionProperties &mrp);
+
+    inline bool isValid() const {
+        return mc_data.size() == mrp.relativeRegionSize;
+    }
+
+    void printHex(size_t charsPerLine=32, size_t numLines=SIZE_MAX) const;
 };
 
 class RefreshableSnapshot {

@@ -104,14 +104,12 @@ namespace rmf
             // The only problem with lock-free is sometimes someone doesn't want to join.
             // This is why there is a notifier spam here.
             m_alive.store(false, std::memory_order_release);
-            m_queue.notifier++;
+            m_queue.notifier.fetch_add(1, std::memory_order_release);
             m_queue.notifier.notify_all();
             for (auto &thread:m_threads) {
-                m_queue.notifier++;
+                m_queue.notifier.fetch_add(1, std::memory_order_release);
                 m_queue.notifier.notify_all();
                 thread.join();
-                m_queue.notifier++;
-                m_queue.notifier.notify_all();
             }
         }
     };

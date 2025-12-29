@@ -104,7 +104,7 @@ namespace rmf::utils
     };
 
     std::string PidToMapsString(const pid_t pid);
-    rmf::types::MemoryRegionPropertiesVec ParseMaps(const std::string&& fullPath);
+    rmf::types::MemoryRegionPropertiesVec ParseMaps(const std::string&& fullPath, pid_t pid);
 
     rmf::types::MemoryRegionPropertiesVec FilterMinSize(const rmf::types::MemoryRegionPropertiesVec& other, const uintptr_t minSize);
     rmf::types::MemoryRegionPropertiesVec FilterMaxSize(const rmf::types::MemoryRegionPropertiesVec& other, const uintptr_t maxSize);

@@ -1,1 +1,104 @@
+#include "types.hpp"
+#include "logger.hpp"
+#include "utils.hpp"
+#include <chrono>
+#include <cstdio>
+#include <sstream>
+#include <unistd.h>
+#include <cstdint>
+extern "C"
+{
+#include <bits/types/struct_iovec.h>
+#include <sys/uio.h>
+}
 
+namespace rmf::types
+{
+    MemorySnapshot::MemorySnapshot(
+        const MemoryRegionProperties& _mrp) : mrp(_mrp)
+    {
+    }
+
+    MemorySnapshot
+    MemorySnapshot::Make(const MemoryRegionProperties& mrp)
+    {
+        constexpr uintptr_t chunkSize = 1 << 24;
+        MemorySnapshot      snap(mrp);
+
+        rmf_Log(rmf_Debug, "Taking snapshot!");
+        auto before =
+            std::chrono::steady_clock::now().time_since_epoch();
+
+        struct iovec localIovec[1];
+        struct iovec sourceIovec[1];
+
+        snap.mc_data.resize(mrp.relativeRegionSize);
+        intptr_t totalBytesRead = 0;
+        while (totalBytesRead <
+               static_cast<intptr_t>(mrp.relativeRegionSize))
+        {
+            uintptr_t bytesToRead = 
+                (
+                    mrp.relativeRegionSize - totalBytesRead > chunkSize
+                ) ? chunkSize : mrp.relativeRegionSize - totalBytesRead;
+
+            sourceIovec[0].iov_base =
+                (void*)(mrp.TrueAddress() + totalBytesRead);
+            sourceIovec[0].iov_len = bytesToRead;
+
+            localIovec[0].iov_base = snap.mc_data.data() + totalBytesRead;
+            localIovec[0].iov_len  = bytesToRead;
+
+            ssize_t nread = process_vm_readv(mrp.pid, localIovec, 1,
+                                         sourceIovec, 1, 0);
+
+            if (nread <= 0)
+            {
+                if (nread == -1 && totalBytesRead > 0) {
+                    rmf_Log(rmf_Error,
+                            "Completely failed to read the region. Error is below");
+                    perror("process_vm_readv");
+                    snap.mc_data.clear();
+                    return snap;
+                }
+                rmf_Log(rmf_Error,
+                    "Read " << nread << "/" << mrp.relativeRegionSize
+                            << "bytes. Failed to read all the bytes "
+                               "from that region.");
+                snap.mc_data.resize(totalBytesRead);
+                return snap;
+            }
+            totalBytesRead += nread;
+        }
+
+        auto after =
+            std::chrono::steady_clock::now().time_since_epoch();
+
+        rmf_Log(
+            rmf_Debug,
+            "Time taken for snapshot: " << std::chrono::duration_cast<
+                std::chrono::milliseconds>(after - before));
+
+        return snap;
+    }
+
+    void MemorySnapshot::printHex(size_t charsPerLine, size_t numLines) const {
+        std::stringstream ss;
+        if (charsPerLine == 0) charsPerLine = 32;
+        if (numLines == 0) numLines = SIZE_MAX;
+        ss << std::format("{:#0x}: ", mrp.TrueAddress());
+        for (size_t i = 0; i < mc_data.size(); i++) {
+            ss << std::format("{:02x} ", mc_data[i]);
+            i++;
+            if (i % 8 == 0 && i % charsPerLine > 0 && i > 0) ss << "  ";
+            if (i % charsPerLine == 0 && i > 0) {
+                numLines--;
+                if (numLines == 0 || i >= mc_data.size()) break;
+                ss << "\n";
+                ss << std::format("{:#0x}: ", mrp.TrueAddress() + i);
+            }
+            i--;
+        }
+        std::cout << ss.str() << std::endl;
+    }
+}

@@ -137,7 +137,7 @@ FilterNotPerms(const rmf::types::MemoryRegionPropertiesVec& other,
     }
     return rl;
 }
-rmf::types::MemoryRegionPropertiesVec ParseMaps(const std::string&& fullPath) {
+rmf::types::MemoryRegionPropertiesVec ParseMaps(const std::string&& fullPath, pid_t pid) {
     std::ifstream        memoryMapFile(fullPath);
     std::string          line;
     int                  unnamedRegionNumber = 1;
@@ -169,6 +169,7 @@ rmf::types::MemoryRegionPropertiesVec ParseMaps(const std::string&& fullPath) {
             endAddr - startAddr,
             name,
             rmf::utils::ParsePerms(perms),
+            pid,
         };
         rmf_Log(rmf_Debug, "Found region: " << m.toString());
         regionProperties.push_back(std::move(m));
