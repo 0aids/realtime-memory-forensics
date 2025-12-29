@@ -17,6 +17,7 @@ enum rmf_LogLevel : uint8_t {
 
 namespace rmf {
     inline std::thread::id mainThreadId = std::this_thread::get_id();
+    inline rmf_LogLevel g_logLevel = rmf_Debug;
 
     constexpr std::array<std::string, 6> StringColors = {
         "\033[31m", // Corresponds the the above loglevels
@@ -46,6 +47,9 @@ namespace rmf {
         template <typename T>
         constexpr _LogWrapper& operator<<(const T& val)
         {
+            char a;
+            // Check if empty
+            if (!(m_ss >> a)) return *this;
             m_ss << val;
             return *this;
         }
@@ -55,7 +59,6 @@ namespace rmf {
         const std::string_view file,
         const std::string_view func,
         const size_t line);
-    inline rmf_LogLevel g_logLevel = rmf_Verbose;
 }
 #define rmf_Log(level, msg) \
 { \

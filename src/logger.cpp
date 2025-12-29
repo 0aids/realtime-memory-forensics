@@ -10,6 +10,8 @@ rmf::_LogWrapper::_LogWrapper(const std::string_view &s) {
 }
 
 rmf::_LogWrapper::~_LogWrapper() {
+    char a;
+    if (!(m_ss >> a)) return;
     std::lock_guard<std::mutex> lock(logMutex);
     std::cerr << m_ss.str() << rmf::StringColors.at(rmf_Reset) << "\n";
 }

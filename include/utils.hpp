@@ -4,10 +4,12 @@
 #include <chrono>
 #include <optional>
 #include <atomic>
+#include <string_view>
 #include <tuple>
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include "types.hpp"
 
 namespace rmf::utils
 {
@@ -100,6 +102,29 @@ namespace rmf::utils
             return m_data[consumeIndex % size];
         }
     };
+
+    std::string PidToMapsString(const pid_t pid);
+    rmf::types::MemoryRegionPropertiesVec ParseMaps(const std::string&& fullPath);
+
+    rmf::types::MemoryRegionPropertiesVec FilterMinSize(const rmf::types::MemoryRegionPropertiesVec& other, const uintptr_t minSize);
+    rmf::types::MemoryRegionPropertiesVec FilterMaxSize(const rmf::types::MemoryRegionPropertiesVec& other, const uintptr_t maxSize);
+
+    // By exact name
+    rmf::types::MemoryRegionPropertiesVec FilterName(const rmf::types::MemoryRegionPropertiesVec& other, const std::string_view& string);
+
+    // By containing the string inside the name
+    rmf::types::MemoryRegionPropertiesVec FilterContainsName(const rmf::types::MemoryRegionPropertiesVec& other, const std::string_view& string);
+
+    // Exact match of perms
+    rmf::types::MemoryRegionPropertiesVec FilterPerms(const rmf::types::MemoryRegionPropertiesVec& other, const std::string_view& perms);
+
+    // Has perm/s, but may also have other ones.
+    rmf::types::MemoryRegionPropertiesVec FilterHasPerms(const rmf::types::MemoryRegionPropertiesVec& other, const std::string_view& perms);
+
+    // Does not have perm/s, essentially the inverse of hasPerms.
+    rmf::types::MemoryRegionPropertiesVec FilterNotPerms(const rmf::types::MemoryRegionPropertiesVec& other, const std::string_view& perms);
+
+    rmf::types::Perms ParsePerms(const std::string_view& perms);
 }
 
 #endif // utils_hpp_INCLUDED

@@ -40,6 +40,9 @@ namespace rmf
         }
     };
 
+    // TODO: Implement a turn-key system using std::move to ensure lapping doesn't occur.
+    // Means modifying SPMCQueueNonOwning to have std::pair<atomic<uint32_t>, T>
+    // Add a custom dequeue that checks the turn-key.
     class TaskThreadPool_t
     {
       private:
