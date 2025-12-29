@@ -62,7 +62,7 @@ FilterName(const rmf::types::MemoryRegionPropertiesVec& other,
     rmf::types::MemoryRegionPropertiesVec rl;
     for (size_t i = 0; i < other.size(); i++)
     {
-        if (other.at(i).regionName == string)
+        if (*(other.at(i).regionName_sp) == string)
         {
             rl.push_back(other.at(i));
         }
@@ -78,7 +78,7 @@ FilterSubName(const rmf::types::MemoryRegionPropertiesVec& other,
     rmf::types::MemoryRegionPropertiesVec rl;
     for (size_t i = 0; i < other.size(); i++)
     {
-        if (other.at(i).regionName.contains(string))
+        if (other.at(i).regionName_sp->contains(string))
         {
             rl.push_back(other.at(i));
         }
@@ -167,7 +167,7 @@ rmf::types::MemoryRegionPropertiesVec ParseMaps(const std::string&& fullPath, pi
             endAddr - startAddr,
             0,
             endAddr - startAddr,
-            name,
+            std::make_shared<const std::string>(name),
             rmf::utils::ParsePerms(perms),
             pid,
         };

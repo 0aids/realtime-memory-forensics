@@ -26,7 +26,7 @@ namespace rmf::op
     {
         auto                             span1 = snap1.getData();
         auto                             span2 = snap2.getData();
-        auto&                            mrp   = snap1.mrp;
+        auto&                            mrp   = snap1.getMrp();
         types::MemoryRegionPropertiesVec results;
         const size_t alignment = alignof(N);
         const size_t size = sizeof(N);
@@ -72,7 +72,7 @@ namespace rmf::op
     {
         auto                             span1 = snap1.getData();
         auto                             span2 = snap2.getData();
-        auto&                            mrp   = snap1.mrp;
+        auto&                            mrp   = snap1.getMrp();
         types::MemoryRegionPropertiesVec results;
         const size_t alignment = alignof(N);
         const size_t size = sizeof(N);
@@ -122,7 +122,7 @@ namespace rmf::op
                      const N&                     number)
     {
         auto span = snap1.getData();
-        auto &mrp = snap1.mrp;
+        auto &mrp = snap1.getMrp();
         types::MemoryRegionPropertiesVec results;
         const size_t alignment = alignof(N);
         const size_t size = sizeof(N);
@@ -153,7 +153,7 @@ namespace rmf::op
                            const N& min, const N& max)
     {
         auto span = snap1.getData();
-        auto &mrp = snap1.mrp;
+        auto &mrp = snap1.getMrp();
         types::MemoryRegionPropertiesVec results;
         const size_t alignment = alignof(N);
         const size_t size = sizeof(N);

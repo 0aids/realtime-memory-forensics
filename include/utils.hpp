@@ -29,9 +29,10 @@ namespace rmf::utils
     // TODO: Fix using shared pointers or something that notifies this guy that the references are
     // invalid!!!
     // BUG: In the very off-chance that we get a shit tonne of tasks such that it wraps around the ring
-    // buffer and catches the tail, there might be a chance that the data which is read by 
+    // buffer and catches the tail, there might be a chance that the data read by a task becomes
+    // rewritten. Currently not possible because the queue size is massive, but who knows in the future.
     template <typename T>
-    class SPMCQueueNonOwning
+    class SPMCQueue
     {
       private:
         alignas(64) std::vector<T>   m_data;
@@ -42,7 +43,7 @@ namespace rmf::utils
         // The consume index is greater than the produce index by 1 when full.
 
       public:
-          SPMCQueueNonOwning(size_t _size): size(_size) {
+          SPMCQueue(size_t _size): size(_size) {
               m_data.resize(size);
           }
           // The waiting threads always wait for a different value to what

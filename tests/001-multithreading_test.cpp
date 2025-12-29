@@ -25,7 +25,7 @@ int         testFunc0()
     //     rmf_Log(rmf_Debug,
     //             "Task: " << testFunc0Count << " out of " << numTasks
     //                      << " complete!");
-    testFunc0Count++;
+    // testFunc0Count++;
     return sum;
 }
 
@@ -35,7 +35,7 @@ int main()
 {
     uint8_t          numThreads = thread::hardware_concurrency();
     {
-        vector<Task_t<std::function<decltype(testFunc0)>>> taskVec;
+        vector<Task_t<int>> taskVec;
         taskVec.reserve(numTasks);
         TaskThreadPool_t threadpool(numThreads / 2);
         for (size_t i = 0; i < numTasks; i++)
@@ -46,7 +46,7 @@ int main()
         auto curTime = std::chrono::steady_clock::now();
         threadpool.SubmitMultipleTasks(taskVec);
         threadpool.AwaitTasks();
-        rmf_Log(rmf_Debug, "Value of thing: " << taskVec[0].future.get());
+        rmf_Log(rmf_Debug, "Value of thing: " << taskVec[0].getFuture().get());
         auto endTime = std::chrono::steady_clock::now();
         rmf_Log(rmf_Info,
                 "Time taken for multi-threaded: "
@@ -57,7 +57,7 @@ int main()
     // Single thread to ensure speedup actaully occurs.
     {
         testFunc0Count = 0;
-        vector<Task_t<std::function<decltype(testFunc0)>>> taskVec;
+        vector<Task_t<int>> taskVec;
         taskVec.reserve(numTasks);
         for (size_t i = 0; i < numTasks; i++)
         {
@@ -65,9 +65,9 @@ int main()
         }
         auto curTime = std::chrono::steady_clock::now();
         for (auto& task: taskVec) {
-            task.packagedTask();
+            task.getPackagedTask()();
         }
-        rmf_Log(rmf_Debug, "Value of thing: " << taskVec[0].future.get());
+        rmf_Log(rmf_Debug, "Value of thing: " << taskVec[0].getFuture().get());
         auto endTime = std::chrono::steady_clock::now();
         rmf_Log(rmf_Info,
                 "Time taken for single-threaded: "

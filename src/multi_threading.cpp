@@ -8,7 +8,7 @@ namespace rmf
 {
     void TaskThreadPool_t::threadFunction(
         const std::atomic<bool>& alive,
-        utils::SPMCQueueNonOwning<std::function<void()>>&
+        utils::SPMCQueue<std::function<void()>>&
             queue
     )
     {

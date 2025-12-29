@@ -89,7 +89,7 @@ target_link_libraries(mem-anal
     PRIVATE magic_enum::magic_enum
 )
 
-option(BuildTests "Build the tests" OFF)
+option(BuildTests "Build the tests" ON)
 if (BuildTests)
     enable_testing()
 

@@ -17,7 +17,7 @@ int main() {
     uint8_t          numThreads = thread::hardware_concurrency();
     // IMPORTANT: The task vectors MUST be declared BEFORE the threadpool, to prevent
     // data races on destruction.
-    vector<Task_t<std::function<void()>>> taskVec;
+    vector<Task_t<void>> taskVec;
     taskVec.reserve(numTasks);
     TaskThreadPool_t threadpool(numThreads / 2);
 

@@ -1,7 +1,9 @@
 #ifndef multi_threading_hpp_INCLUDED
 #define multi_threading_hpp_INCLUDED
 #include <atomic>
+#include <chrono>
 #include <functional>
+#include <memory>
 #include <pthread.h>
 #include <thread>
 #include <ranges>
@@ -16,27 +18,32 @@ namespace rmf
     constexpr size_t d_defaultQueueSize = 1 << 18;
     class TaskThreadPool_t;
 
-    template <typename Func_t>
+    template <typename Return_t>
     class Task_t
     {
+        private:
+            struct Data {
+                std::packaged_task<Return_t()> packagedTask;
+                std::future<Return_t>      future;
+            };
+            std::shared_ptr<Data> d;
       public:
-        using Return_t = Func_t::result_type;
-
-        std::future<Return_t>      future;
-        std::packaged_task<Return_t()> packagedTask;
-
+          inline std::future<Return_t>& getFuture() { return d->future; }
+          inline std::packaged_task<Return_t()>& getPackagedTask() { return d->packagedTask; }
         explicit                   operator bool() const
         {
-            return future.valid();
+            return d->future.valid();
         }
 
-        template <typename... Args>
+        template <typename Func_t, typename... Args>
         Task_t(const Func_t func, Args&&... inputs)
         {
-            auto argsTuple = std::forward_as_tuple(std::forward<Args>(inputs)...);
-            packagedTask = std::packaged_task<Return_t()>(
-                [=]() { return std::apply(func, argsTuple); });
-            future = packagedTask.get_future();
+            // Copies, so if you want to be fast always use trivially copyable.
+            // for example handle-body idiom: hidden shared pointers.
+            // No more lifetime problems hopefully.
+            d = std::make_shared<Data>(std::packaged_task<Return_t()>(
+                [argsTuple = std::make_tuple(inputs...), func]() { return std::apply(func, argsTuple); }), std::future<Return_t>{});
+            d->future = d->packagedTask.get_future();
         }
     };
 
@@ -46,7 +53,7 @@ namespace rmf
     class TaskThreadPool_t
     {
       private:
-        utils::SPMCQueueNonOwning<std::function<void()>
+        utils::SPMCQueue<std::function<void()>
                                 >
                                  m_queue;
         std::vector<std::thread> m_threads;
@@ -55,19 +62,21 @@ namespace rmf
 
         static void                     threadFunction(
                                 const std::atomic<bool>&                       alive,
-                                utils::SPMCQueueNonOwning<std::function<void()>>& queue
+                                utils::SPMCQueue<std::function<void()>>& queue
                                 );
 
       public:
-        // The threadpool does not own tasks, as they provide a reference
-        // to which we can complete data to.
-        // The task MUST NOT DIE until it has been completed.
+          // Tasks' data are held by a shared ptr, so they will not die, and are trivially copyable.
         template <typename T>
         void SubmitTask(Task_t<T>& task)
         {
-            while (!m_queue.enqueue([&task]() { task.packagedTask(); }))
+            // Why the fuck aren't you mutable by default!!!!!!!!!!!!
+            // Literally going to kill who designed this language.
+            while (!m_queue.enqueue([task]() mutable { task.getPackagedTask()(); }))
             {
+                using namespace std::chrono_literals;
                 rmf_Log(rmf_Warning, "Failed to enqueue task! Task Queue is Full!!!");
+                std::this_thread::sleep_for(1ms);
             }
         }
 

@@ -1,6 +1,7 @@
 #ifndef types_hpp_INCLUDED
 #define types_hpp_INCLUDED
 
+#include <memory>
 #include <concepts>
 #include <optional>
 #include <vector>
@@ -48,7 +49,7 @@ struct MemoryRegionProperties {
     uintptr_t parentRegionSize;
     uintptr_t relativeRegionAddress;
     uintptr_t relativeRegionSize;
-    std::string regionName;
+    std::shared_ptr<const std::string> regionName_sp;
     Perms perms;
     pid_t pid;
 
@@ -67,12 +68,12 @@ struct MemoryRegionProperties {
 
     // Method below is written by ai.
     std::string toString() const {
-        std::string displayName = regionName;
+        std::string_view displayName = *regionName_sp;
         constexpr size_t visibleLength = 35;
 
         #define d_extension "[.]"
-        if (regionName.length() > visibleLength) {
-            displayName = d_extension + regionName.substr(regionName.length() - visibleLength - (sizeof(d_extension) - 1));
+        if (regionName_sp->length() > visibleLength) {
+            displayName = d_extension + regionName_sp->substr(regionName_sp->length() - visibleLength - (sizeof(d_extension) - 1));
         }
         #undef d_extension
 
@@ -95,18 +96,28 @@ using SnapshotDataBuffer = std::vector<uint8_t>;
 // This is for compatibility with threadpools, without having to create lambdas.
 class MemorySnapshot {
 private:
-    SnapshotDataBuffer mc_data;
+    struct Data {
+        const MemoryRegionProperties mrp;
+        SnapshotDataBuffer mc_data;
+        Data(const MemoryRegionProperties _mrp): mrp(_mrp) {
+        }
+    };
     MemorySnapshot(const MemoryRegionProperties &_mrp);
+    std::shared_ptr<Data> d;
 
 public:
-    const MemoryRegionProperties mrp;
     std::span<const uint8_t> getData() const {
-        return mc_data; // implicit into std::span
+        return d->mc_data; // implicit into std::span
     }
+
+    const MemoryRegionProperties& getMrp() const {
+        return d->mrp;
+    }
+
     static MemorySnapshot Make(const MemoryRegionProperties &mrp);
 
     inline bool isValid() const {
-        return mc_data.size() == mrp.relativeRegionSize;
+        return d->mc_data.size() == d->mrp.relativeRegionSize;
     }
 
     void printHex(size_t charsPerLine=32, size_t numLines=SIZE_MAX) const;

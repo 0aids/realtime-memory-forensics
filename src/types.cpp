@@ -3,6 +3,7 @@
 #include "utils.hpp"
 #include <chrono>
 #include <cstdio>
+#include <memory>
 #include <sstream>
 #include <unistd.h>
 #include <cstdint>
@@ -15,8 +16,9 @@ extern "C"
 namespace rmf::types
 {
     MemorySnapshot::MemorySnapshot(
-        const MemoryRegionProperties& _mrp) : mrp(_mrp)
+        const MemoryRegionProperties& _mrp)
     {
+        d = std::make_shared<Data>(_mrp);
     }
 
     MemorySnapshot
@@ -32,7 +34,7 @@ namespace rmf::types
         struct iovec localIovec[1];
         struct iovec sourceIovec[1];
 
-        snap.mc_data.resize(mrp.relativeRegionSize);
+        snap.d->mc_data.resize(mrp.relativeRegionSize);
         intptr_t totalBytesRead = 0;
         while (totalBytesRead <
                static_cast<intptr_t>(mrp.relativeRegionSize))
@@ -46,7 +48,7 @@ namespace rmf::types
                 (void*)(mrp.TrueAddress() + totalBytesRead);
             sourceIovec[0].iov_len = bytesToRead;
 
-            localIovec[0].iov_base = snap.mc_data.data() + totalBytesRead;
+            localIovec[0].iov_base = snap.d->mc_data.data() + totalBytesRead;
             localIovec[0].iov_len  = bytesToRead;
 
             ssize_t nread = process_vm_readv(mrp.pid, localIovec, 1,
@@ -58,14 +60,14 @@ namespace rmf::types
                     rmf_Log(rmf_Error,
                             "Completely failed to read the region. Error is below");
                     perror("process_vm_readv");
-                    snap.mc_data.clear();
+                    snap.d->mc_data.clear();
                     return snap;
                 }
                 rmf_Log(rmf_Error,
                     "Read " << nread << "/" << mrp.relativeRegionSize
                             << "bytes. Failed to read all the bytes "
                                "from that region.");
-                snap.mc_data.resize(totalBytesRead);
+                snap.d->mc_data.resize(totalBytesRead);
                 return snap;
             }
             totalBytesRead += nread;
@@ -86,16 +88,16 @@ namespace rmf::types
         std::stringstream ss;
         if (charsPerLine == 0) charsPerLine = 32;
         if (numLines == 0) numLines = SIZE_MAX;
-        ss << std::format("{:#0x}: ", mrp.TrueAddress());
-        for (size_t i = 0; i < mc_data.size(); i++) {
-            ss << std::format("{:02x} ", mc_data[i]);
+        ss << std::format("{:#0x}: ", d->mrp.TrueAddress());
+        for (size_t i = 0; i < d->mc_data.size(); i++) {
+            ss << std::format("{:02x} ", d->mc_data[i]);
             i++;
             if (i % 8 == 0 && i % charsPerLine > 0 && i > 0) ss << "  ";
             if (i % charsPerLine == 0 && i > 0) {
                 numLines--;
-                if (numLines == 0 || i >= mc_data.size()) break;
+                if (numLines == 0 || i >= d->mc_data.size()) break;
                 ss << "\n";
-                ss << std::format("{:#0x}: ", mrp.TrueAddress() + i);
+                ss << std::format("{:#0x}: ", d->mrp.TrueAddress() + i);
             }
             i--;
         }

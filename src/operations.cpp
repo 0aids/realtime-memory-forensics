@@ -18,7 +18,7 @@ namespace rmf::op
     {
         auto                             span1 = snap1.getData();
         auto                             span2 = snap2.getData();
-        auto&                            mrp   = snap1.mrp;
+        auto&                            mrp   = snap1.getMrp();
 
         types::MemoryRegionPropertiesVec results;
         uintptr_t                        bytesCompared = 0;
@@ -62,7 +62,7 @@ namespace rmf::op
     {
         auto                             span1 = snap1.getData();
         auto                             span2 = snap2.getData();
-        auto&                            mrp   = snap1.mrp;
+        auto&                            mrp   = snap1.getMrp();
 
         types::MemoryRegionPropertiesVec results;
         uintptr_t                        bytesCompared = 0;
@@ -119,7 +119,7 @@ namespace rmf::op
             }
             if (count == str.length())
             {
-                auto mrp = snap1.mrp;
+                auto mrp = snap1.getMrp();
                 mrp.relativeRegionAddress += i;
                 mrp.relativeRegionSize = str.length();
                 results.push_back(mrp);
