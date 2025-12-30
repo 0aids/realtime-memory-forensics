@@ -15,8 +15,7 @@ extern "C"
 
 namespace rmf::types
 {
-    MemorySnapshot::MemorySnapshot(
-        const MemoryRegionProperties& _mrp)
+    MemorySnapshot::MemorySnapshot(const MemoryRegionProperties& _mrp)
     {
         d = std::make_shared<Data>(_mrp);
     }
@@ -39,32 +38,37 @@ namespace rmf::types
         while (totalBytesRead <
                static_cast<intptr_t>(mrp.relativeRegionSize))
         {
-            uintptr_t bytesToRead = 
-                (
-                    mrp.relativeRegionSize - totalBytesRead > chunkSize
-                ) ? chunkSize : mrp.relativeRegionSize - totalBytesRead;
+            uintptr_t bytesToRead =
+                (mrp.relativeRegionSize - totalBytesRead >
+                 chunkSize) ?
+                chunkSize :
+                mrp.relativeRegionSize - totalBytesRead;
 
             sourceIovec[0].iov_base =
                 (void*)(mrp.TrueAddress() + totalBytesRead);
             sourceIovec[0].iov_len = bytesToRead;
 
-            localIovec[0].iov_base = snap.d->mc_data.data() + totalBytesRead;
-            localIovec[0].iov_len  = bytesToRead;
+            localIovec[0].iov_base =
+                snap.d->mc_data.data() + totalBytesRead;
+            localIovec[0].iov_len = bytesToRead;
 
             ssize_t nread = process_vm_readv(mrp.pid, localIovec, 1,
-                                         sourceIovec, 1, 0);
+                                             sourceIovec, 1, 0);
 
             if (nread <= 0)
             {
-                if (nread == -1 && totalBytesRead > 0) {
+                if (nread == -1 && totalBytesRead > 0)
+                {
                     rmf_Log(rmf_Error,
-                            "Completely failed to read the region. Error is below");
+                            "Completely failed to read the region. "
+                            "Error is below");
                     perror("process_vm_readv");
                     snap.d->mc_data.clear();
                     return snap;
                 }
                 rmf_Log(rmf_Error,
-                    "Read " << nread << "/" << mrp.relativeRegionSize
+                        "Read "
+                            << nread << "/" << mrp.relativeRegionSize
                             << "bytes. Failed to read all the bytes "
                                "from that region.");
                 snap.d->mc_data.resize(totalBytesRead);
@@ -84,23 +88,73 @@ namespace rmf::types
         return snap;
     }
 
-    void MemorySnapshot::printHex(size_t charsPerLine, size_t numLines) const {
+    void MemorySnapshot::printHex(size_t charsPerLine,
+                                  size_t numLines) const
+    {
         std::stringstream ss;
-        if (charsPerLine == 0) charsPerLine = 32;
-        if (numLines == 0) numLines = SIZE_MAX;
+        if (charsPerLine == 0)
+            charsPerLine = 32;
+        if (numLines == 0)
+            numLines = SIZE_MAX;
         ss << std::format("{:#0x}: ", d->mrp.TrueAddress());
-        for (size_t i = 0; i < d->mc_data.size(); i++) {
+        for (size_t i = 0; i < d->mc_data.size(); i++)
+        {
             ss << std::format("{:02x} ", d->mc_data[i]);
             i++;
-            if (i % 8 == 0 && i % charsPerLine > 0 && i > 0) ss << "  ";
-            if (i % charsPerLine == 0 && i > 0) {
+            if (i % 8 == 0 && i % charsPerLine > 0 && i > 0)
+                ss << "  ";
+            if (i % charsPerLine == 0 && i > 0)
+            {
                 numLines--;
-                if (numLines == 0 || i >= d->mc_data.size()) break;
+                if (numLines == 0 || i >= d->mc_data.size())
+                    break;
                 ss << "\n";
-                ss << std::format("{:#0x}: ", d->mrp.TrueAddress() + i);
+                ss << std::format("{:#0x}: ",
+                                  d->mrp.TrueAddress() + i);
             }
             i--;
         }
         std::cout << ss.str() << std::endl;
+    }
+    // Just pass on the filters to the already implemented versions.
+    rmf::types::MemoryRegionPropertiesVec
+    MemoryRegionPropertiesVec::FilterMaxSize(const uintptr_t maxSize)
+    {
+        return utils::FilterMaxSize(*this, maxSize);
+    }
+    rmf::types::MemoryRegionPropertiesVec
+    MemoryRegionPropertiesVec::FilterMinSize(const uintptr_t minSize)
+    {
+        return utils::FilterMinSize(*this, minSize);
+    }
+    rmf::types::MemoryRegionPropertiesVec
+    MemoryRegionPropertiesVec::FilterName(
+        const std::string_view& string)
+    {
+        return utils::FilterName(*this, string);
+    }
+    rmf::types::MemoryRegionPropertiesVec
+    MemoryRegionPropertiesVec::FilterContainsName(
+        const std::string_view& string)
+    {
+        return utils::FilterContainsName(*this, string);
+    }
+    rmf::types::MemoryRegionPropertiesVec
+    MemoryRegionPropertiesVec::FilterPerms(
+        const std::string_view& perms)
+    {
+        return utils::FilterPerms(*this, perms);
+    }
+    rmf::types::MemoryRegionPropertiesVec
+    MemoryRegionPropertiesVec::FilterHasPerms(
+        const std::string_view& perms)
+    {
+        return utils::FilterHasPerms(*this, perms);
+    }
+    rmf::types::MemoryRegionPropertiesVec
+    MemoryRegionPropertiesVec::FilterNotPerms(
+        const std::string_view& perms)
+    {
+        return utils::FilterNotPerms(*this, perms);
     }
 }

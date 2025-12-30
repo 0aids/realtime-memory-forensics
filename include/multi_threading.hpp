@@ -11,6 +11,7 @@
 #include "utils.hpp"
 #include <future>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 
 namespace rmf
@@ -41,6 +42,14 @@ namespace rmf
             // Copies, so if you want to be fast always use trivially copyable.
             // for example handle-body idiom: hidden shared pointers.
             // No more lifetime problems hopefully.
+            using stdFuncType = decltype(std::function{func});
+            using FuncReturn_t = stdFuncType::result_type;
+            static_assert(
+                std::is_invocable_v<Func_t, Args...>,
+                "Arguments do not match function signature"
+            );
+            static_assert(std::is_same_v<FuncReturn_t, Return_t>, 
+            "Inputted function and templated return type are different!");
             d = std::make_shared<Data>(std::packaged_task<Return_t()>(
                 [argsTuple = std::make_tuple(inputs...), func]() { return std::apply(func, argsTuple); }), std::future<Return_t>{});
             d->future = d->packagedTask.get_future();

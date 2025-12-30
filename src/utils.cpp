@@ -72,7 +72,7 @@ FilterName(const rmf::types::MemoryRegionPropertiesVec& other,
 }
 
 rmf::types::MemoryRegionPropertiesVec
-FilterSubName(const rmf::types::MemoryRegionPropertiesVec& other,
+FilterContainsName(const rmf::types::MemoryRegionPropertiesVec& other,
               const std::string_view&                      string)
 {
     rmf::types::MemoryRegionPropertiesVec rl;

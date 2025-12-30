@@ -1,6 +1,9 @@
+#ifndef operations_hpp_INCLUDED
+#define operations_hpp_INCLUDED
 #include "types.hpp"
 #include "logger.hpp"
 #include <cstring>
+
 
 namespace rmf::op
 {
@@ -191,3 +194,5 @@ namespace rmf::op
      * Dunno how to implement this at the moment, but it's something to consider.
      * */
 }
+
+#endif

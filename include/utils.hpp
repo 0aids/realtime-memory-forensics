@@ -13,6 +13,25 @@
 
 namespace rmf::utils
 {
+    // Define a concept for STL containers
+    template <typename T>
+    concept IsContainer = requires(T t) {
+      
+       // Type must have an iterator type
+        typename T::iterator;  
+      
+      // Must have a begin() method returning an iterator
+        { t.begin() } -> std::same_as<typename T::iterator>;  
+      
+      // Must have an end() method returning an iterator
+        { t.end() } -> std::same_as<typename T::iterator>; 
+    };
+
+    template <typename T>
+    struct typePrinter;
+
+    template <typename...>
+    struct alwaysFalse: std::false_type {};
 
     // Specialization for function types R(Args...)
     template <typename T>
