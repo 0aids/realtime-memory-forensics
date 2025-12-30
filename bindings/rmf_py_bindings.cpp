@@ -20,6 +20,7 @@ PYBIND11_MODULE(rmf_py, m, py::mod_gil_not_used()) {
 
     py::class_<rmf::types::MemoryRegionProperties>(m, "MemoryRegionProperties")
         .def(py::init<>())
+        .def("TrueAddress", &rmf::types::MemoryRegionProperties::TrueAddress)
         .def("TrueEnd", &rmf::types::MemoryRegionProperties::TrueEnd)
         .def("RelativeEnd", &rmf::types::MemoryRegionProperties::relativeEnd)
         .def("ToString", &rmf::types::MemoryRegionProperties::toString)

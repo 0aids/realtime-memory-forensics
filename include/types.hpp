@@ -76,18 +76,16 @@ namespace rmf::types
         // Method below is written by ai.
         std::string toString() const
         {
-            std::string_view displayName   = *regionName_sp;
+            using namespace std::string_literals;
+            std::string displayName = *regionName_sp;
             constexpr size_t visibleLength = 35;
 
-#define d_extension "[.]"
             if (regionName_sp->length() > visibleLength)
             {
-                displayName = d_extension +
+                displayName = "[.]"s +
                     regionName_sp->substr(regionName_sp->length() -
-                                          visibleLength -
-                                          (sizeof(d_extension) - 1));
+                                          visibleLength - 3);
             }
-#undef d_extension
 
             return std::format(
                 "[{}] Addr: 0x{:x} (Size: 0x{:x}) | Rel: 0x{:x} "
