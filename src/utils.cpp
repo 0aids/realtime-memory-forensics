@@ -1,4 +1,5 @@
 #include "utils.hpp"
+#include "logger.hpp"
 #include "types.hpp"
 #include <fstream>
 #include <cstring>
@@ -7,7 +8,7 @@ using namespace magic_enum::bitwise_operators; // out-of-the-box bitwise operato
 
 namespace rmf::utils {
 rmf::types::Perms ParsePerms(const std::string_view& perms) {
-    rmf::types::Perms ps{};
+    rmf::types::Perms ps = rmf::types::Perms::None;
     if (perms.contains('r')) {
         ps |= rmf::types::Perms::Read;
     }
@@ -137,7 +138,7 @@ FilterNotPerms(const rmf::types::MemoryRegionPropertiesVec& other,
     }
     return rl;
 }
-rmf::types::MemoryRegionPropertiesVec ParseMaps(const std::string&& fullPath, pid_t pid) {
+rmf::types::MemoryRegionPropertiesVec ParseMaps(const std::string fullPath, pid_t pid) {
     std::ifstream        memoryMapFile(fullPath);
     std::string          line;
     int                  unnamedRegionNumber = 1;
@@ -182,4 +183,54 @@ std::string PidToMapsString(const pid_t pid)
 {
     return "/proc/" + std::to_string(pid) + "/maps";
 }
+
+rmf::types::MemoryRegionPropertiesVec
+BreakIntoChunks(const rmf::types::MemoryRegionProperties& other,
+                const uintptr_t chunkSize, uintptr_t ovelapSize)
+{
+    rmf::types::MemoryRegionPropertiesVec res;
+    res.reserve(other.relativeRegionSize / chunkSize + 1);
+    uintptr_t ptrHead = other.relativeRegionAddress;
+    const uintptr_t end = other.relativeEnd();
+
+    while (ptrHead < end) {
+        const uintptr_t actualChunkSize = (end - ptrHead > chunkSize) ? chunkSize : end - ptrHead;
+        res.push_back(other);
+        res.back().relativeRegionSize = actualChunkSize;
+        res.back().relativeRegionAddress = ptrHead;
+        ptrHead += actualChunkSize - ovelapSize;
+    }
+    rmf_Log(rmf_Debug, "Broken into: " << res.size() << " chunks");
+    return res;
+}
+
+rmf::types::MemoryRegionPropertiesVec BreakIntoChunks(
+    const rmf::types::MemoryRegionPropertiesVec& other,
+    uintptr_t chunkSize, uintptr_t ovelapSize)
+{
+    rmf::types::MemoryRegionPropertiesVec res;
+    uintptr_t overallSize = 0;
+    for (const auto& mrp:other) {
+        overallSize += mrp.relativeRegionSize;
+    }
+
+    res.reserve(overallSize / chunkSize + 1);
+
+    for (const auto& mrp:other) {
+        uintptr_t ptrHead = mrp.relativeRegionAddress;
+        const uintptr_t end = mrp.relativeEnd();
+
+        while (ptrHead < end) {
+            const uintptr_t actualChunkSize = (end - ptrHead > chunkSize) ? chunkSize : end - ptrHead;
+            res.push_back(mrp);
+            res.back().relativeRegionSize = actualChunkSize;
+            res.back().relativeRegionAddress = ptrHead;
+            ptrHead += actualChunkSize - ovelapSize;
+        }
+    }
+    rmf_Log(rmf_Debug, "Total size: " << std::hex << std::showbase << overallSize);
+    rmf_Log(rmf_Debug, "Broken into: " << res.size() << " chunks");
+    return res;
+}
+
 }

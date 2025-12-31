@@ -1,6 +1,7 @@
 #ifndef types_hpp_INCLUDED
 #define types_hpp_INCLUDED
 
+#include "logger.hpp"
 #include <memory>
 #include <concepts>
 #include <optional>
@@ -40,6 +41,7 @@ namespace rmf::types
 {
     template <typename T>
     concept Numeral = std::integral<T> || std::floating_point<T>;
+    class MemoryRegionPropertiesVec;
 
     inline bool hasPerms(Perms haystack, Perms needle)
     {
@@ -50,6 +52,7 @@ namespace rmf::types
 
     struct MemoryRegionProperties
     {
+        // Default values for safety
         uintptr_t                          parentRegionAddress = 0;
         uintptr_t                          parentRegionSize = 0;
         uintptr_t                          relativeRegionAddress = 0;
@@ -80,12 +83,22 @@ namespace rmf::types
             std::string displayName = *regionName_sp;
             constexpr size_t visibleLength = 35;
 
-            if (regionName_sp->length() > visibleLength)
+            try
             {
-                displayName = "[.]"s +
-                    regionName_sp->substr(regionName_sp->length() -
-                                          visibleLength - 3);
+                if (regionName_sp->length() > visibleLength)
+                {
+                    displayName = "[.]"s +
+                        regionName_sp->substr(regionName_sp->length() -
+                                              visibleLength - 3);
+                }
             }
+            catch (...)
+            {
+                rmf_Log(rmf_Error, "Error when shortening display name...");
+                rmf_Log(rmf_Error, "Fault display name: " << *regionName_sp);
+                displayName = "Error Occurred";
+            }
+
 
             return std::format(
                 "[{}] Addr: 0x{:x} (Size: 0x{:x}) | Rel: 0x{:x} "
@@ -96,6 +109,8 @@ namespace rmf::types
                     perms) // Handles bitmask names automatically
             );
         }
+        MemoryRegionPropertiesVec BreakIntoChunks(
+                    uintptr_t chunkSize, uintptr_t overlapSize = 0);
     };
 
     using SnapshotDataBuffer = std::vector<uint8_t>;
@@ -134,6 +149,13 @@ namespace rmf::types
 
         void printHex(size_t charsPerLine = 32,
                       size_t numLines     = SIZE_MAX) const;
+
+        std::shared_ptr<const Data> getImpl() const
+        {
+            return d;
+        }
+
+        
     };
 
     class RefreshableSnapshot
@@ -167,6 +189,9 @@ namespace rmf::types
         FilterHasPerms(const std::string_view& perms);
         rmf::types::MemoryRegionPropertiesVec
         FilterNotPerms(const std::string_view& perms);
+        rmf::types::MemoryRegionPropertiesVec
+        BreakIntoChunks(
+                        uintptr_t chunkSize, uintptr_t overlapSize = 0);
     };
 };
 

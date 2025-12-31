@@ -16,7 +16,7 @@
 
 namespace rmf
 {
-    constexpr size_t d_defaultQueueSize = 1 << 18;
+    constexpr size_t d_defaultQueueSize = 1 << 12;
     class TaskThreadPool_t;
 
     template <typename Return_t>
@@ -85,7 +85,20 @@ namespace rmf
             {
                 using namespace std::chrono_literals;
                 rmf_Log(rmf_Warning, "Failed to enqueue task! Task Queue is Full!!!");
-                std::this_thread::sleep_for(1ms);
+                std::this_thread::sleep_for(1s);
+            }
+        }
+
+        template <typename T, typename func_t>
+        void SubmitTask(Task_t<T>& task, func_t yieldingCallback)
+        {
+            // Why the fuck aren't you mutable by default!!!!!!!!!!!!
+            // Literally going to kill who designed this language.
+            while (!m_queue.enqueue([task]() mutable { task.getPackagedTask()(); }))
+            {
+                using namespace std::chrono_literals;
+                rmf_Log(rmf_Warning, "Failed to enqueue task! Task Queue is Full!!!");
+                yieldingCallback();
             }
         }
 

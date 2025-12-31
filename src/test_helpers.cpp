@@ -31,6 +31,8 @@ void changingProcess1()
     volatile double* d           = new double(5);
     volatile string* randomthing = new string("small string");
     volatile double* doubleVal   = new double(150);
+    // Very large 3gb buffer.
+    volatile void* memory = new uint8_t[1000000000];
     volatile auto    list = new std::list<char>{'a', 'b', 'c', 'd'};
     cerr << "randomthing address: " << std::hex << std::showbase
          << &randomthing << endl;

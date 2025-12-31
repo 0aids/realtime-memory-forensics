@@ -59,18 +59,21 @@ namespace rmf::types
             {
                 if (nread == -1 && totalBytesRead > 0)
                 {
-                    rmf_Log(rmf_Error,
-                            "Completely failed to read the region. "
-                            "Error is below");
-                    perror("process_vm_readv");
                     snap.d->mc_data.clear();
-                    return snap;
-                }
-                rmf_Log(rmf_Error,
+                    rmf_Log(
+                        rmf_Error,
                         "Read "
                             << nread << "/" << mrp.relativeRegionSize
                             << "bytes. Failed to read all the bytes "
                                "from that region.");
+                    rmf_Log(rmf_Error, "Error is below: ");
+                    perror("process_vm_readv");
+                    return snap;
+                }
+                rmf_Log(rmf_Error,
+                        "Completely failed to read the region. "
+                        "Error is below");
+                perror("process_vm_readv");
                 snap.d->mc_data.resize(totalBytesRead);
                 return snap;
             }
@@ -116,6 +119,19 @@ namespace rmf::types
         }
         std::cout << ss.str() << std::endl;
     }
+    rmf::types::MemoryRegionPropertiesVec MemoryRegionProperties::BreakIntoChunks(
+                    uintptr_t chunkSize, uintptr_t overlapSize)
+    {
+        return utils::BreakIntoChunks(*this, chunkSize, overlapSize);
+    }
+
+    rmf::types::MemoryRegionPropertiesVec MemoryRegionPropertiesVec::BreakIntoChunks(
+                    uintptr_t chunkSize, uintptr_t overlapSize)
+    {
+        return utils::BreakIntoChunks(*this, chunkSize, overlapSize);
+
+    }
+
     // Just pass on the filters to the already implemented versions.
     rmf::types::MemoryRegionPropertiesVec
     MemoryRegionPropertiesVec::FilterMaxSize(const uintptr_t maxSize)
