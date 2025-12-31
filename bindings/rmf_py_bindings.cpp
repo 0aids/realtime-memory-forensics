@@ -252,6 +252,20 @@ PYBIND11_MODULE(rmf_py, m, py::mod_gil_not_used())
              &rmf::types::MemoryRegionPropertiesVec::FilterNotPerms);
 
     m.def("ParseMaps", &rmf::utils::ParseMaps);
+    m.def("CompressNestedMrpVec", 
+        [](const py::list& listOfVecs) {
+            std::vector<rmf::types::MemoryRegionPropertiesVec> cpp_vec;
+            cpp_vec.reserve(listOfVecs.size());
+
+            for (auto handle : listOfVecs) {
+                cpp_vec.push_back(handle.cast<rmf::types::MemoryRegionPropertiesVec>());
+            }
+
+            return rmf::utils::CompressNestedMrpVec(cpp_vec);
+        },
+        py::arg("mrp_vecs"),
+        "Compresses a list of MemoryRegionPropertiesVec objects."
+    );
 
     py::class_<rmf::types::MemorySnapshot>(m, "MemorySnapshot")
         .def(py::init(&rmf::types::MemorySnapshot::Make),

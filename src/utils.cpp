@@ -233,4 +233,22 @@ rmf::types::MemoryRegionPropertiesVec BreakIntoChunks(
     return res;
 }
 
+rmf::types::MemoryRegionPropertiesVec
+CompressNestedMrpVec(const std::vector<types::MemoryRegionPropertiesVec> &mrpvecVec)
+{
+    rmf::types::MemoryRegionPropertiesVec res;
+    size_t total = 0;
+    for (auto& mrpVec:mrpvecVec) {
+        total += mrpVec.size();
+    }
+    res.reserve(total);
+    for (auto& mrpVec:mrpvecVec) {
+        for (auto& mrp: mrpVec)
+        {
+            res.push_back(mrp);
+        }
+    }
+    return res;
+}
+
 }

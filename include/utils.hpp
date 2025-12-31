@@ -1,9 +1,11 @@
 #ifndef utils_hpp_INCLUDED
 #define utils_hpp_INCLUDED
+#include <chrono>
 #include "logger.hpp"
 #include <chrono>
 #include <optional>
 #include <atomic>
+#include <semaphore>
 #include <string_view>
 #include <tuple>
 #include <array>
@@ -13,6 +15,7 @@
 
 namespace rmf::utils
 {
+    constexpr size_t d_defaultQueueSize = 1 << 18;
     // Define a concept for STL containers
     template <typename T>
     concept IsContainer = requires(T t) {
@@ -61,26 +64,23 @@ namespace rmf::utils
         alignas(64) std::atomic<uint64_t> m_consumeIndex =
             0; // represents the next fillable index.
         // The consume index is greater than the produce index by 1 when full.
+        std::counting_semaphore<rmf::utils::d_defaultQueueSize> m_semaphore{0};
 
       public:
+        const size_t size;
         SPMCQueue(size_t _size) : size(_size)
         {
             m_data.resize(size);
         }
-        // The waiting threads always wait for a different value to what
-        // it actually is, so only notify_one needs to be called.
-        std::atomic<uint8_t> notifier = 0;
-        // keep it at zero and just use notify_one or notify_all to wake threads.
-        const size_t size;
 
-        // Increments the notifiers for sleeping threads using atomic::wait
         bool enqueue(const T& value)
         {
             uint64_t produceIndex =
                 m_produceIndex.load(std::memory_order_relaxed);
             uint64_t consumeIndex =
                 m_consumeIndex.load(std::memory_order_acquire);
-            if (produceIndex - consumeIndex > size - 2)
+            // We are getting wrapped...
+            if (produceIndex - consumeIndex > size - 12)
             {
                 // Queue is full
                 rmf_Log(rmf_Warning,
@@ -90,16 +90,15 @@ namespace rmf::utils
             m_data[produceIndex % size] = value;
             m_produceIndex.store(produceIndex + 1,
                                  std::memory_order_release);
-            notifier++;
-            notifier.notify_one();
             rmf_Log(rmf_Verbose, "Enqueued, notifying one...");
             rmf_Log(rmf_Verbose,
                     "Last indices were: Consumer - "
                         << consumeIndex << ", Producer - "
                         << produceIndex + 1);
+            m_semaphore.release();
 
             return true;
-        }
+       }
 
         bool empty()
         {
@@ -112,34 +111,41 @@ namespace rmf::utils
 
         std::optional<T> tryDequeue()
         {
-            uint64_t produceIndex =
-                m_produceIndex.load(std::memory_order_acquire);
+            if (!m_semaphore.try_acquire())
+            {
+                // rmf_Log(rmf_Verbose,
+                //         "Semaphore has no releases"
+                //         );
+                return std::nullopt;
+            }
+
             uint64_t consumeIndex =
-                m_consumeIndex.load(std::memory_order_acquire);
+                m_consumeIndex.fetch_add(1, std::memory_order_acquire);
 
-            // queue is empty.
-            if (produceIndex == consumeIndex)
-            {
-                rmf_Log(rmf_Debug,
-                        "Failed dequeue: Queue is empty...");
-                return std::nullopt;
-            }
-
-            // Weak because spurious failures are not the end of the world, and because
-            // I don't understand memory ordering for strong.
-            if (!m_consumeIndex.compare_exchange_weak(
-                    consumeIndex, consumeIndex + 1,
-                    std::memory_order_release))
-            {
-                rmf_Log(rmf_Debug,
-                        "Failed dequeue: Task was stolen by another "
-                        "thread.");
-                return std::nullopt;
-            }
             rmf_Log(rmf_Verbose, "Successful dequeue.");
             rmf_Log(rmf_Verbose,
-                    "Last indices were: Consumer - " << consumeIndex +
-                            1 << ", Producer - " << produceIndex);
+                    "Last indices were: Consumer - " << consumeIndex);
+
+            return m_data[consumeIndex % size];
+        }
+
+        template< class Rep, class Period >
+        std::optional<T> tryDequeueFor(std::chrono::duration<Rep, Period> duration)
+        {
+            if (!m_semaphore.try_acquire_for(duration))
+            {
+                // rmf_Log(rmf_Verbose,
+                //         "Semaphore has no releases"
+                //         );
+                return std::nullopt;
+            }
+
+            uint64_t consumeIndex =
+                m_consumeIndex.fetch_add(1, std::memory_order_acquire);
+
+            rmf_Log(rmf_Verbose, "Successful dequeue.");
+            rmf_Log(rmf_Verbose,
+                    "Last indices were: Consumer - " << consumeIndex);
 
             return m_data[consumeIndex % size];
         }
@@ -190,6 +196,9 @@ namespace rmf::utils
     rmf::types::MemoryRegionPropertiesVec
     BreakIntoChunks(const rmf::types::MemoryRegionProperties& other,
                     uintptr_t chunkSize, uintptr_t ovelapSize = 0);
+
+    rmf::types::MemoryRegionPropertiesVec
+    CompressNestedMrpVec(const std::vector<types::MemoryRegionPropertiesVec> &mrpvecVec);
 }
 
 #endif // utils_hpp_INCLUDED

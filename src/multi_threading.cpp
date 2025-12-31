@@ -15,20 +15,12 @@ namespace rmf
         using namespace std::chrono_literals;
         while (alive.load(std::memory_order_acquire))
         {
-            auto value = queue.tryDequeue();
-            auto notification = queue.notifier.load(std::memory_order_acquire);
+            auto value = queue.tryDequeueFor(10ms);
             if (value.has_value()) {
+                rmf_Log(rmf_Debug, "Thread has found a task!");
                 value.value()();
                 continue;
             }
-            // Be very aggressive which checking for sleeping, otherwise
-            // we might hang when destroying.
-            if (!alive.load(std::memory_order_acquire)) {
-                break;
-            }
-            rmf_Log(rmf_Debug, "Thread is waiting...");
-            queue.notifier.wait(notification);
-            rmf_Log(rmf_Debug, "Thread has woken!!!");
         }
         rmf_Log(rmf_Debug, "Thread is shutting down!");
     }

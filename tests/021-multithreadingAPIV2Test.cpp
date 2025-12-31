@@ -16,6 +16,7 @@ using namespace rmf::test;
 
 int main()
 {
+    rmf::g_logLevel = rmf_Info;
     size_t numThreads = thread::hardware_concurrency() / 2;
     pid_t  samplePid =
         rmf::test::forkTestFunction(rmf::test::changingProcess1);

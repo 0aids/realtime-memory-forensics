@@ -16,7 +16,6 @@
 
 namespace rmf
 {
-    constexpr size_t d_defaultQueueSize = 1 << 12;
     class TaskThreadPool_t;
 
     template <typename Return_t>
@@ -120,7 +119,7 @@ namespace rmf
             }
         }
 
-        TaskThreadPool_t(size_t numThreads) : m_queue(d_defaultQueueSize), m_alive(true)
+        TaskThreadPool_t(size_t numThreads) : m_queue(rmf::utils::d_defaultQueueSize), m_alive(true)
         {
             for (size_t i = 0; i < numThreads; i++) {
                 m_threads.emplace_back(threadFunction, std::ref(m_alive), std::ref(m_queue));
@@ -135,11 +134,7 @@ namespace rmf
             // The only problem with lock-free is sometimes someone doesn't want to join.
             // This is why there is a notifier spam here.
             m_alive.store(false, std::memory_order_release);
-            m_queue.notifier.fetch_add(1, std::memory_order_release);
-            m_queue.notifier.notify_all();
             for (auto &thread:m_threads) {
-                m_queue.notifier.fetch_add(1, std::memory_order_release);
-                m_queue.notifier.notify_all();
                 thread.join();
             }
         }

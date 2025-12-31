@@ -26,35 +26,33 @@ regions = ParseMaps(location, pid).FilterPerms("rwp").BreakIntoChunks(chunkSize,
 anal = Analyzer(numThreads)
 
 a = ""
-a = input("Input something to quit (enter to cont.): ");
 while not a:
+    a = ""
+    a = input("Go to noob shop window. Input something to quit (enter to cont.): ");
+    if a: break;
+    snap1 = anal.execute(MemorySnapshot, regions)
+    regions = CompressNestedMrpVec(anal.execute(findNumeralWithinRange_f32, snap1, 61.1, 61.2))
+    print(f"There are {len(regions)} regions left")
     print("Peforming changing region loop")
+    a = input("Input something to quit (enter to cont.): ");
+    if a: break;
     snap1 = anal.execute(MemorySnapshot, regions)
     a = input("Input something to quit (enter to cont.): ");
     if a: break;
     snap2 = anal.execute(MemorySnapshot, regions)
     print("Finding changed regions")
-    rrr = anal.execute(findChangedRegions, snap1, snap2, 4)
-    regions = []
-    for rr in rrr:
-        for r in rr:
-            regions.append(r)
+    regions = CompressNestedMrpVec(anal.execute(findChangedRegions, snap1, snap2, 4))
     print(f"There are {len(regions)} regions left")
     print("Performing non-changing loop")
     a = input("Input something to quit (enter to cont.): ");
     if a: break;
-
     print()
     snap1 = anal.execute(MemorySnapshot, regions)
     a = input("Input something to quit (enter to cont.): ");
     if a: break;
     snap2 = anal.execute(MemorySnapshot, regions)
     print("Finding unchanged regions")
-    rrr = anal.execute(findUnchangedRegions, snap1, snap2, 4)
-    regions = []
-    for rr in rrr:
-        for r in rr:
-            regions.append(r)
+    regions = CompressNestedMrpVec(anal.execute(findUnchangedRegions, snap1, snap2, 4))
     print(f"There are {len(regions)} regions left")
     a = input("Input something to quit (enter to cont.): ");
     if a: break;
