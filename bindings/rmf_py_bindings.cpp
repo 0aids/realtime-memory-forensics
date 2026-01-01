@@ -61,108 +61,133 @@ bool is_sequence(py::handle h)
 
 void bind_analyzer(py::module_& m)
 {
+    // Define a helper struct to hold the python objects
+    struct PyTaskPayload
+    {
+        py::function func;
+        py::list     args;
+    };
+
     using namespace rmf;
     py::class_<Analyzer>(m, "Analyzer")
         .def(py::init<size_t>())
-        .def(
-            "execute",
-            [](Analyzer& self, py::function func, py::args args)
-            {
-                // 1. Determine Batch Size (Vectorization)
-                size_t batch_size = 1;
-                for (const auto& arg : args)
-                {
-                    if (is_sequence(arg))
-                    {
-                        size_t len = py::len(arg);
-                        if (batch_size != 1 && batch_size != len)
-                        {
-                            throw std::runtime_error(
-                                "Argument lists must have matching "
-                                "lengths");
-                        }
-                        batch_size = len;
-                    }
-                }
+        .def("execute",
+             [](Analyzer& self, py::function func, py::args args)
+             {
+                 // 1. Determine Batch Size (Vectorization)
+                 size_t batch_size = 1;
+                 for (const auto& arg : args)
+                 {
+                     if (is_sequence(arg))
+                     {
+                         size_t len = py::len(arg);
+                         if (batch_size != 1 && batch_size != len)
+                         {
+                             throw std::runtime_error(
+                                 "Argument lists must have matching "
+                                 "lengths");
+                         }
+                         batch_size = len;
+                     }
+                 }
 
-                // 2. Prepare Futures container
-                // We use std::future<py::object> because the return type is dynamic
-                std::vector<std::future<py::object>> futures;
-                futures.reserve(batch_size);
+                 // 2. Prepare Futures container
+                 // We use std::future<py::object> because the return type is dynamic
+                 std::vector<std::future<py::object>> futures;
+                 futures.reserve(batch_size);
 
-                // 3. Scatter: Create and Submit Tasks
-                for (size_t i = 0; i < batch_size; ++i)
-                {
+                 // 3. Scatter: Create and Submit Tasks
+                 for (size_t i = 0; i < batch_size; ++i)
+                 {
 
-                    // Construct arguments for this specific iteration
-                    py::list call_args;
-                    for (const auto& arg : args)
-                    {
-                        if (is_sequence(arg))
-                        {
-                            // Extract element i from list
-                            call_args.append(
-                                arg.cast<py::sequence>()[i]);
-                        }
-                        else
-                        {
-                            // Use scalar as is
-                            call_args.append(arg);
-                        }
-                    }
+                     // Construct arguments for this specific iteration
+                     py::list call_args;
+                     for (const auto& arg : args)
+                     {
+                         if (is_sequence(arg))
+                         {
+                             // Extract element i from list
+                             call_args.append(
+                                 arg.cast<py::sequence>()[i]);
+                         }
+                         else
+                         {
+                             // Use scalar as is
+                             call_args.append(arg);
+                         }
+                     }
 
-                    // Create a lambda to run on the thread pool
-                    // CRITICAL: We capture func and args by value
-                    auto task_wrapper = [func,
-                                         call_args]() -> py::object
-                    {
-                        // WE ARE NOW IN A WORKER THREAD.
-                        // We must acquire the GIL to inspect py::objects and call python functions.
-                        py::gil_scoped_acquire acquire;
+                     auto* rawPayload =
+                         new PyTaskPayload{func, call_args};
+                     std::shared_ptr<PyTaskPayload> payload(
+                         rawPayload,
+                         [](PyTaskPayload* p)
+                         {
+                             py::gil_scoped_acquire aq;
+                             delete p;
+                         });
 
-                        // Call the function (Use *call_args to unpack the list into arguments)
-                        return func(*call_args);
-                    };
+                     // Create a lambda to run on the thread pool
+                     // CRITICAL: We capture func and args by value
+                     auto task_wrapper = [payload]() -> py::object
+                     {
+                         // WE ARE NOW IN A WORKER THREAD.
+                         // We must acquire the GIL to inspect py::objects and call python functions.
+                         py::gil_scoped_acquire acquire;
 
-                    // Submit to your underlying implementation
-                    // Assuming your m_impl->tp.SubmitTask can accept std::function or similar.
-                    // You might need to expose a helper method on Analyzer to accept std::function<py::object()>
-                    // For this example, I assume a standard future-based submission:
-                    auto task = Task_t<py::object>(task_wrapper);
-                    self.getImpl()->tp.SubmitTask(task, [](){
-                        rmf_Log(rmf_Warning, "Task Enqueue failed! Yielding for 1s");
-                        using namespace std::chrono_literals;
-                        py::gil_scoped_release release;
-                        std::this_thread::yield(); 
-                        std::this_thread::sleep_for(1s);
-                    });
-                    futures.emplace_back(std::move(task.getFuture()));
-                    // --- FIX: PERIODIC GIL RELEASE ---
-                    // Every few submissions, release the GIL to let workers start.
-                    // This prevents the queue from filling up and blocking the main thread,
-                    // and allows parallel processing to start immediately.
-                    rmf_Log(rmf_Debug, "python bindings: temporarily release gil to start other threads")
-                    py::gil_scoped_release release;
-                    // Yield to ensure OS scheduler gives workers a chance to grab the GIL
-                    std::this_thread::yield(); 
-                }
+                         // Call the function (Use *call_args to unpack the list into arguments)
+                         return payload->func(*payload->args);
+                     };
 
-                // 4. Gather: Wait for results
-                py::list results;
-                for (auto& f : futures)
-                {
-                    // Release GIL while waiting for C++ threads to finish!
-                    // Otherwise, the main thread holds GIL -> Worker waits for GIL -> Deadlock/Serial execution.
-                    py::object result;
-                    {
-                        py::gil_scoped_release release;
-                        result = f.get();
-                    }
-                    results.append(result);
-                }
+                     // Submit to your underlying implementation
+                     // Assuming your m_impl->tp.SubmitTask can accept std::function or similar.
+                     // You might need to expose a helper method on Analyzer to accept std::function<py::object()>
+                     // For this example, I assume a standard future-based submission:
+                     auto task = Task_t<py::object>(task_wrapper);
+                     self.getImpl()->tp.SubmitTask(
+                         task,
+                         []()
+                         {
+                             rmf_Log(rmf_Warning,
+                                     "Task Enqueue failed! Yielding "
+                                     "for 1s");
+                             {
+                                 using namespace std::chrono_literals;
+                                 py::gil_scoped_release release;
+                                 std::this_thread::sleep_for(1s);
+                             }
+                         });
+                     futures.emplace_back(
+                         std::move(task.getFuture()));
+                     // --- FIX: PERIODIC GIL RELEASE ---
+                     // Every few submissions, release the GIL to let workers start.
+                     // This prevents the queue from filling up and blocking the main thread,
+                     // and allows parallel processing to start immediately.
+                     rmf_Log(rmf_Debug,
+                             "python bindings: temporarily release "
+                             "gil to start other threads")
+                         py::gil_scoped_release release;
+                     // Yield to ensure OS scheduler gives workers a chance to grab the GIL
+                     using namespace std::chrono_literals;
+                     std::this_thread::sleep_for(50us);
+                 }
 
-                return results;
-            });
+                 // 4. Gather: Wait for results
+                 py::list results;
+                 for (auto& f : futures)
+                 {
+                     // Release GIL while waiting for C++ threads to finish!
+                     // Otherwise, the main thread holds GIL -> Worker waits for GIL -> Deadlock/Serial execution.
+                     py::object result;
+                     {
+                         py::gil_scoped_release release;
+                         result = f.get();
+                     }
+                     results.append(result);
+                 }
+
+                 return results;
+             });
 }
 
 // Ai ends here
@@ -185,16 +210,17 @@ PYBIND11_MODULE(rmf_py, m, py::mod_gil_not_used())
         .value("Info", rmf_Info)
         .value("Verbose", rmf_Verbose)
         .value("Debug", rmf_Debug)
-        .value("Reset", rmf_Reset)
-        ;
-    m.def("SetLogLevel", [](rmf_LogLevel level) {
-        rmf::g_logLevel = level;
-    }, "Updates the global C++ log level");
+        .value("Reset", rmf_Reset);
+    m.def(
+        "SetLogLevel",
+        [](rmf_LogLevel level) { rmf::g_logLevel = level; },
+        "Updates the global C++ log level");
 
     py::class_<rmf::types::MemoryRegionProperties>(
         m, "MemoryRegionProperties")
         .def(py::init<>())
-        .def("BreakIntoChunks", &rmf::types::MemoryRegionProperties::BreakIntoChunks)
+        .def("BreakIntoChunks",
+             &rmf::types::MemoryRegionProperties::BreakIntoChunks)
         .def("TrueAddress",
              &rmf::types::MemoryRegionProperties::TrueAddress)
         .def("TrueEnd", &rmf::types::MemoryRegionProperties::TrueEnd)
@@ -234,7 +260,8 @@ PYBIND11_MODULE(rmf_py, m, py::mod_gil_not_used())
                 mrpVec.assign(v.begin(), v.end());
                 return mrpVec;
             }))
-        .def("BreakIntoChunks", &rmf::types::MemoryRegionPropertiesVec::BreakIntoChunks)
+        .def("BreakIntoChunks",
+             &rmf::types::MemoryRegionPropertiesVec::BreakIntoChunks)
         .def("FilterMaxSize",
              &rmf::types::MemoryRegionPropertiesVec::FilterMaxSize)
         .def("FilterMinSize",
@@ -252,20 +279,25 @@ PYBIND11_MODULE(rmf_py, m, py::mod_gil_not_used())
              &rmf::types::MemoryRegionPropertiesVec::FilterNotPerms);
 
     m.def("ParseMaps", &rmf::utils::ParseMaps);
-    m.def("CompressNestedMrpVec", 
-        [](const py::list& listOfVecs) {
-            std::vector<rmf::types::MemoryRegionPropertiesVec> cpp_vec;
+    m.def(
+        "CompressNestedMrpVec",
+        [](const py::list& listOfVecs)
+        {
+            std::vector<rmf::types::MemoryRegionPropertiesVec>
+                cpp_vec;
             cpp_vec.reserve(listOfVecs.size());
 
-            for (auto handle : listOfVecs) {
-                cpp_vec.push_back(handle.cast<rmf::types::MemoryRegionPropertiesVec>());
+            for (auto handle : listOfVecs)
+            {
+                cpp_vec.push_back(
+                    handle.cast<
+                        rmf::types::MemoryRegionPropertiesVec>());
             }
 
             return rmf::utils::CompressNestedMrpVec(cpp_vec);
         },
         py::arg("mrp_vecs"),
-        "Compresses a list of MemoryRegionPropertiesVec objects."
-    );
+        "Compresses a list of MemoryRegionPropertiesVec objects.");
 
     py::class_<rmf::types::MemorySnapshot>(m, "MemorySnapshot")
         .def(py::init(&rmf::types::MemorySnapshot::Make),
@@ -277,19 +309,24 @@ PYBIND11_MODULE(rmf_py, m, py::mod_gil_not_used())
             "data",
             [](const rmf::types::MemorySnapshot& self)
             {
-                auto impl = self.getImpl();
+                auto impl = self.getDataSpan();
                 // Uses pycast to make a copy of the shared ptr, and assign that to the lifetime of the array that's returned.
-                return py::array(impl->mc_data.size(),
-                                 impl->mc_data.data(),
-                                 py::cast(impl));
+                return py::array(impl.size(),
+                                 impl.data(),
+                                 py::cast(self));
             });
 
     // Bind operations
-    m.def("findChangedRegions", &rmf::op::findChangedRegions, py::call_guard<py::gil_scoped_release>());
-    m.def("findUnchangedRegions", &rmf::op::findUnchangedRegions, py::call_guard<py::gil_scoped_release>());
-    m.def("findString", &rmf::op::findString, py::call_guard<py::gil_scoped_release>());
-    m.def("findPointersToRegion", &rmf::op::findPointersToRegion, py::call_guard<py::gil_scoped_release>());
-    m.def("findPointersToRegions", &rmf::op::findPointersToRegions, py::call_guard<py::gil_scoped_release>());
+    m.def("findChangedRegions", &rmf::op::findChangedRegions,
+          py::call_guard<py::gil_scoped_release>());
+    m.def("findUnchangedRegions", &rmf::op::findUnchangedRegions,
+          py::call_guard<py::gil_scoped_release>());
+    m.def("findString", &rmf::op::findString,
+          py::call_guard<py::gil_scoped_release>());
+    m.def("findPointersToRegion", &rmf::op::findPointersToRegion,
+          py::call_guard<py::gil_scoped_release>());
+    m.def("findPointersToRegions", &rmf::op::findPointersToRegions,
+          py::call_guard<py::gil_scoped_release>());
 
     // Bind some utilities
 

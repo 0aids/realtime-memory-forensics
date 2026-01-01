@@ -85,6 +85,8 @@ namespace rmf::utils
                 // Queue is full
                 rmf_Log(rmf_Warning,
                         "Unable to enqueue, queue is full!");
+                rmf_Log(rmf_Warning,
+                        "Current size: " << produceIndex - consumeIndex - 2);
                 return false;
             }
             m_data[produceIndex % size] = value;

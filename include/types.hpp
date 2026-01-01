@@ -130,9 +130,14 @@ namespace rmf::types
         std::shared_ptr<Data> d;
 
       public:
-        std::span<const uint8_t> getData() const
+        std::span<const uint8_t> getDataSpan() const
         {
             return d->mc_data; // implicit into std::span
+        }
+
+        std::vector<uint8_t> getData() const
+        {
+            return d->mc_data;
         }
 
         const MemoryRegionProperties& getMrp() const

@@ -1,4 +1,5 @@
 from rmf_py import *
+import numpy as np
 
 numThreads = int(input("Num threads: " ))
 pid = int(input("Give me the pid: "))
@@ -22,40 +23,55 @@ match logLevel:
 chunkSize = 0x10000
 
 regions = ParseMaps(location, pid).FilterPerms("rwp").BreakIntoChunks(chunkSize, 0)
+lastRegions = []
 
 anal = Analyzer(numThreads)
 
-a = ""
-while not a:
-    a = ""
-    a = input("Go to noob shop window. Input something to quit (enter to cont.): ");
-    if a: break;
-    snap1 = anal.execute(MemorySnapshot, regions)
-    regions = CompressNestedMrpVec(anal.execute(findNumeralWithinRange_f32, snap1, 61.1, 61.2))
-    print(f"There are {len(regions)} regions left")
-    print("Peforming changing region loop")
-    a = input("Input something to quit (enter to cont.): ");
-    if a: break;
-    snap1 = anal.execute(MemorySnapshot, regions)
-    a = input("Input something to quit (enter to cont.): ");
-    if a: break;
-    snap2 = anal.execute(MemorySnapshot, regions)
-    print("Finding changed regions")
-    regions = CompressNestedMrpVec(anal.execute(findChangedRegions, snap1, snap2, 4))
-    print(f"There are {len(regions)} regions left")
-    print("Performing non-changing loop")
-    a = input("Input something to quit (enter to cont.): ");
-    if a: break;
-    print()
-    snap1 = anal.execute(MemorySnapshot, regions)
-    a = input("Input something to quit (enter to cont.): ");
-    if a: break;
-    snap2 = anal.execute(MemorySnapshot, regions)
-    print("Finding unchanged regions")
-    regions = CompressNestedMrpVec(anal.execute(findUnchangedRegions, snap1, snap2, 4))
-    print(f"There are {len(regions)} regions left")
-    a = input("Input something to quit (enter to cont.): ");
-    if a: break;
+while True:
+    try:
+        a = ""
+        a = input("Enter (1 for changing. 2 for unchanging. 3 for behind bear, 4 to undo last: ");
+        print("keyboard interrupt to cancel")
+        match a:
+            case "1":
+                print("Performing change detection")
+                print("Snapshotting 1!")
+                snap1 = anal.execute(MemorySnapshot, regions)
+                a = input("Enter to snapshot 2: ");
+                print("Snapshotting 2!")
+                snap2 = anal.execute(MemorySnapshot, regions)
+                print("Finding changed regions")
+                lastRegions = regions
+                regions = CompressNestedMrpVec(anal.execute(findChangedRegions, snap1, snap2, 4))
+
+            case "2":
+                print("Performing unchanged detection")
+                print("Performin change detection")
+                print("Snapshotting 1!")
+                snap1 = anal.execute(MemorySnapshot, regions)
+                a = input("Enter to snapshot 2: ");
+                print("Snapshotting 2!")
+                snap2 = anal.execute(MemorySnapshot, regions)
+                print("Finding unchanged regions")
+                lastRegions = regions
+                regions = CompressNestedMrpVec(anal.execute(findUnchangedRegions, snap1, snap2, 4))
+
+            case "3":
+                print("Performing numeric determination")
+                print("Snapshotting 1!")
+                snap1 = anal.execute(MemorySnapshot, regions)
+                print("finding float!")
+                lastRegions = regions
+                regions = CompressNestedMrpVec(anal.execute(findNumeralWithinRange_f32, snap1, -295.0, -285.0))
+
+            case "4":
+                print("Undoing!");
+                regions = lastRegions;
+
+        print(f"There are {len(regions)} regions left")
+    except KeyboardInterrupt:
+        print("Exiting loop!")
+        break;
 
 print("do whatever now. ")
 print(f"Current values available: {globals().keys()}")
