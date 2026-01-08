@@ -34,10 +34,10 @@ void changingProcess1()
     // Very large 3gb buffer.
     volatile void* memory = new uint8_t[1000000000];
     volatile auto    list = new std::list<char>{'a', 'b', 'c', 'd'};
-    cerr << "randomthing address: " << std::hex << std::showbase
-         << &randomthing << endl;
-    cerr << "linked list address: " << std::hex << std::showbase
-         << &list << endl;
+    rmf_Log(rmf_Info, "randomthing address: " << std::hex << std::showbase
+         << &randomthing);
+    rmf_Log(rmf_Info, "linked list address: " << std::hex << std::showbase
+         << &list);
 
     string* otherrandomshit = new string(
         " Lorem ipsum dolor sit amet, consectetur adipiscing elit. "

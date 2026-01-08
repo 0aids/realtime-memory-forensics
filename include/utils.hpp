@@ -92,8 +92,8 @@ namespace rmf::utils
             m_data[produceIndex % size] = value;
             m_produceIndex.store(produceIndex + 1,
                                  std::memory_order_release);
-            rmf_Log(rmf_Verbose, "Enqueued, notifying one...");
-            rmf_Log(rmf_Verbose,
+            rmf_Log(rmf_Debug, "Enqueued, notifying one...");
+            rmf_Log(rmf_Debug,
                     "Last indices were: Consumer - "
                         << consumeIndex << ", Producer - "
                         << produceIndex + 1);
@@ -124,8 +124,8 @@ namespace rmf::utils
             uint64_t consumeIndex =
                 m_consumeIndex.fetch_add(1, std::memory_order_acquire);
 
-            rmf_Log(rmf_Verbose, "Successful dequeue.");
-            rmf_Log(rmf_Verbose,
+            rmf_Log(rmf_Debug, "Successful dequeue.");
+            rmf_Log(rmf_Debug,
                     "Last indices were: Consumer - " << consumeIndex);
 
             return m_data[consumeIndex % size];
@@ -145,8 +145,8 @@ namespace rmf::utils
             uint64_t consumeIndex =
                 m_consumeIndex.fetch_add(1, std::memory_order_acquire);
 
-            rmf_Log(rmf_Verbose, "Successful dequeue.");
-            rmf_Log(rmf_Verbose,
+            rmf_Log(rmf_Debug, "Successful dequeue.");
+            rmf_Log(rmf_Debug,
                     "Last indices were: Consumer - " << consumeIndex);
 
             return m_data[consumeIndex % size];

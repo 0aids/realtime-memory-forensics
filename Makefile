@@ -10,7 +10,7 @@ debug: _debug build
 
 
 configure:
-	cmake -B build -S . $(builder)
+	cmake -B build -S . $(builder) -DBuildTests=OFF
 
 build:
 	cmake --build build -j $(NumProcessors)

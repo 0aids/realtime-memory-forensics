@@ -18,7 +18,7 @@ namespace rmf::test
     }                                                                \
     else                                                             \
     {                                                                \
-        rmf_Log(rmf_Debug, "Assertion succeeded.");                  \
+        rmf_Log(rmf_Info, "Assertion succeeded.");                  \
     }
 
 #endif // test_helpers_hpp_INCLUDED
