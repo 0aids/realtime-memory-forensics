@@ -2,7 +2,6 @@
 #define gui_hpp_INCLUDED
 
 #include "imgui_internal.h"
-#endif // gui_hpp_INCLUDED
 #include <imgui.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_opengl.h>
@@ -11,10 +10,8 @@
 #include <imnodes.h>
 #include <string>
 #include <optional>
-#include <vector>
-#include <stack>
-#include <algorithm>
 #include "gui_examples.hpp"
+#include "memory_graph_viewer.hpp"
 
 namespace rmf::gui
 {
@@ -31,15 +28,17 @@ namespace rmf::gui
 
         bool            validState;
         bool            showMemAnalWindow;
-        // std::map<pid_t, AnalysisMenu, AnalysisMenu::Comparator> analysisMenuList;
 
         bool    showDemoWindow;
         bool    showAnotherWindow;
 
         ImGuiIO io;
 
-        examples::ColorNodeEditor exampleNodeEditor;
-        bool showExampleNodeEditor = true;
+        // examples::ColorNodeEditor exampleNodeEditor;
+        // bool showExampleNodeEditor = true;
+
+        graph::MemoryGraphViewer mgViewerTest;
+        bool showMemoryGraphViewerTest = true;
 
         GuiState(std::optional<pid_t> opt_pid = {});
         ~GuiState();
@@ -53,3 +52,4 @@ namespace rmf::gui
     };
 
 }
+#endif // gui_hpp_INCLUDED
