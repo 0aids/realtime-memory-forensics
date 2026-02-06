@@ -83,7 +83,6 @@ namespace rmf::gui
             return;
         }
         this->glContext = SDL_GL_CreateContext(this->window);
-        ImNodes::CreateContext();
         if (this->glContext == nullptr)
         {
             printf("Error: SDL_GL_CreateContext(): %s\n",
@@ -100,7 +99,9 @@ namespace rmf::gui
 
         // Setup Dear ImGui context
         IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
+        auto context = ImGui::CreateContext();
+        ImGui::SetCurrentContext(context);
+        ImNodes::CreateContext();
         this->io = ImGui::GetIO();
         (void)this->io;
         this->io.ConfigFlags |=

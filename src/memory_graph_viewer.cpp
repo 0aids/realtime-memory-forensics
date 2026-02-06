@@ -437,6 +437,13 @@ namespace rmf::graph
             // ImNodes::Link(link.data.id, 0, 1);
         }
         ImNodes::EndNodeEditor();
+        if (ImNodes::IsEditorHovered() &&
+            ImGui::GetIO().MouseWheel != 0)
+        {
+            float zoom = ImNodes::EditorContextGetZoom() +
+                ImGui::GetIO().MouseWheel * 0.1f;
+            ImNodes::EditorContextSetZoom(zoom, ImGui::GetMousePos());
+        }
     }
 
     void MemoryGraphViewer::handlePostFrameLogic(bool deletePressed)
