@@ -137,9 +137,9 @@ target_include_directories(memLib PUBLIC
     ${magic_enum_SOURCE_DIR}/include
 )
 
-add_executable(mem-anal ${MAIN_SRC_FILE})
+add_executable(rmf_exe ${MAIN_SRC_FILE})
 
-target_link_libraries(mem-anal 
+target_link_libraries(rmf_exe 
     PRIVATE memLib
     PRIVATE ImGuiSource
     PRIVATE SDL3::SDL3

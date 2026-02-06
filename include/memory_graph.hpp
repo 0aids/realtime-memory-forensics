@@ -8,82 +8,117 @@
 namespace rmf::graph
 {
     using MemoryRegionID               = uint64_t;
-    static constexpr uintptr_t noID_ce = UINTPTR_MAX;
+    static constexpr uintptr_t noID_ce = 0;
     using MemoryLinkID                 = uint64_t;
     class MemoryGraph;
 
-	// Possible policies for construction of memory links
+    // Possible policies for construction of memory links
     enum class MemoryLinkPolicy
     {
         Strict, // Will only create the links if both ends are memory regions.
-        CreateSource, 
+        CreateSource,
         CreateTarget,
         CreateSourceTarget,
     };
 
-	// All relevant data of a memory region link
+    // All relevant data of a memory region link
     struct MemoryRegionLinkData
     {
         MemoryGraph*     parentGraph = nullptr;
         MemoryLinkID     id          = noID_ce;
-        MemoryLinkPolicy policy = MemoryLinkPolicy::Strict;
+        MemoryLinkPolicy policy      = MemoryLinkPolicy::Strict;
 
         uintptr_t        sourceAddr = 0;
         uintptr_t        targetAddr = 0;
         std::string      name       = "";
+        MemoryRegionID   sourceID   = noID_ce;
+        MemoryRegionID   targetID   = noID_ce;
         std::string      toString() const;
     };
 
-	// The actual link itself. (edge in the graph).
-	// Do not create manually!!!
-    struct MemoryRegionLink
+    // The actual link itself. (edge in the graph).
+    // Do not create manually!!!
+    struct MemoryLink
     {
         MemoryRegionLinkData data;
     };
 
-	// All relevant data of a memory region for use in node graphs.
+    // All relevant data of a memory region for use in node graphs.
     struct MemoryRegionData
     {
         struct NamedValue
         {
             std::string name;
+            types::type type;
             ptrdiff_t   offset;
             std::string comment;
         };
         rmf::types::MemoryRegionProperties mrp;
-        // For now just use a vector to store, and perform O(n)
-        // Everytime we search. this is because Im lazy and I want the
-        // name to be mutable.
-        MemoryGraph*            parentGraph = nullptr;
-        MemoryRegionID          id          = noID_ce;
-        std::vector<NamedValue> namedValues{};
-        std::string             name    = "";
-        std::string             comment = "";
-        std::string      toString() const;
+        MemoryGraph*                       parentGraph = nullptr;
+        MemoryRegionID                     id          = noID_ce;
+        std::vector<NamedValue>            namedValues{};
+        std::string                        name    = "";
+        std::string                        comment = "";
+        std::string                        toString() const;
     };
 
-	// Do not create manually!!!
-    struct MemoryRegion {
+    // Do not create manually!!!
+    struct MemoryRegion
+    {
         MemoryRegionData data;
     };
 
     class MemoryGraph
     {
-        MemoryLinkID m_nextValidLinkID = 0;
-        MemoryLinkID m_nextValidRegionID = 0;
-        std::unordered_map<MemoryLinkID, MemoryRegionLink> m_links{};
-        std::unordered_map<MemoryRegionID, MemoryRegion> m_regions{};
+        struct MemoryRegionRange {
+            MemoryRegionID id;
+            uintptr_t startAddr;
+            uintptr_t endAddr;
+        };
 
-    public:
+        MemoryLinkID m_nextValidLinkID   = 1;
+        MemoryLinkID m_nextValidRegionID = 1;
+        std::unordered_map<MemoryLinkID, MemoryLink>     m_links{};
+        std::unordered_map<MemoryRegionID, MemoryRegion> m_regions{};
+        // TODO: If it becomes too slow with a large amount of regions,
+        // Make use of this + MemoryRegionRanges to perform binary
+        // search.
+        std::vector<MemoryRegionRange> range;
+
+        MemoryRegionID _LinkCreateOrGetSource(uintptr_t sourceAddr);
+        MemoryRegionID _LinkCreateOrGetTarget(uintptr_t targetAddr);
+
+      public:
         // Makes a copy, but it's basically trivially copyable.
-        MemoryRegionID AddRegion(MemoryRegionData mr);
-        void RegionsRefreshAll();
-        void RegionDelete(MemoryRegionID id);
+        MemoryRegionID RegionAdd(MemoryRegionData mr);
+        void           RegionsRefreshAll();
+        void           RegionDelete(MemoryRegionID id);
         // Returns nullopt if id doesn't exist.
-        std::optional<MemoryRegion*> RegionGetFromID(MemoryRegionID id);
-        auto RegionsGetViews() {
+        std::optional<MemoryRegion*>
+             RegionGetFromID(MemoryRegionID id);
+        auto RegionsGetViews()
+        {
             return std::views::values(m_regions);
         }
+        MemoryRegionID RegionGetRegionIdAtAddress(uintptr_t addr);
+        std::optional<MemoryRegion*>
+                     RegionGetRegionAtAddress(uintptr_t addr);
+        MemoryRegionID RegionGetRegionIdContainingAddress(uintptr_t addr);
+        std::optional<MemoryRegion*>
+                     RegionGetRegionContainingAddress(uintptr_t addr);
+
+        MemoryLinkID LinkNaiveAdd(MemoryRegionLinkData data);
+        void         LinkDelete(MemoryLinkID id);
+        auto         LinksGetViews()
+        {
+            return std::views::values(m_links);
+        }
+        std::optional<MemoryLink*> LinkGetFromID(MemoryLinkID id);
+        // Will also generate nodes according to the policy.
+        MemoryLinkID LinkSmartAdd(MemoryRegionLinkData data);
+
+        std::vector<MemoryLinkID>
+        GenerateLinks(MemoryLinkPolicy policy);
     };
 }
 

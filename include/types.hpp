@@ -44,6 +44,35 @@ struct magic_enum::customize::enum_range<rmf::types::Perms>
 
 namespace rmf::types
 {
+
+    enum class typeName : uint8_t
+    {
+        _bool,
+        _char,
+        _i8,
+        _i16,
+        _i32,
+        _i64,
+        _u8,
+        _u16,
+        _u32,
+        _u64,
+        _f32,
+        _f64,
+        _ptr,
+    };
+    struct type {
+        typeName type;
+    };
+
+    enum class compositeTypeName : uint8_t
+    {
+        array,
+        string,
+        unorderedMap,
+        orderedMap,
+    };
+
     template <typename T>
     concept Numeral = std::integral<T> || std::floating_point<T>;
     class MemoryRegionPropertiesVec;
