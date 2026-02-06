@@ -6,6 +6,20 @@
 
 namespace rmf::graph
 {
+    // Helper to generate a unique integer ID for a node's input attribute
+    int GetNodeInputAttributeId(MemoryRegionID nodeId)
+    {
+        return (static_cast<int>(nodeId) << 16) | 1;
+    }
+
+    // Helper to generate a unique integer ID for a node's output attribute based on offset
+    int GetNodeOutputAttributeId(MemoryRegionID nodeId,
+                                 ptrdiff_t      offset)
+    {
+        return (static_cast<int>(nodeId) << 16) |
+            (static_cast<int>(offset) & 0xFFF) | 2;
+    }
+
     void MemoryGraphViewer::ResetRegionBuilderState()
     {
         m_isEditingMode = false;
@@ -37,10 +51,11 @@ namespace rmf::graph
     {
         m_isEditingMode = true;
         m_editingID     = data.id;
+        m_isEditingLink = false; // Unselect any selected link
+        m_editingLinkID = -1;
 
         strncpy(m_bufName, data.name.c_str(), sizeof(m_bufName) - 1);
         m_bufName[sizeof(m_bufName) - 1] = '\0';
-
         strncpy(m_bufComment, data.comment.c_str(),
                 sizeof(m_bufComment) - 1);
         m_bufComment[sizeof(m_bufComment) - 1] = '\0';
@@ -59,6 +74,8 @@ namespace rmf::graph
     {
         m_isEditingLink = true;
         m_editingLinkID = data.id;
+        m_isEditingMode = false; // Unselect any selected node
+        m_editingID     = -1;
 
         strncpy(m_linkNameBuf, data.name.c_str(),
                 sizeof(m_linkNameBuf) - 1);
@@ -72,7 +89,6 @@ namespace rmf::graph
     void MemoryGraphViewer::drawNodeEditorTab()
     {
         using namespace magic_enum::bitwise_operators;
-        // Header changes based on mode
         if (m_isEditingMode)
         {
             ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f),
@@ -81,7 +97,6 @@ namespace rmf::graph
             if (ImGui::Button("Cancel"))
             {
                 ResetRegionBuilderState();
-                ImNodes::ClearNodeSelection();
             }
             auto region = sp_mg->RegionGetFromID(m_editingID);
             if (region.has_value())
@@ -97,7 +112,6 @@ namespace rmf::graph
         }
 
         ImGui::Separator();
-
         ImGui::InputText("Name", m_bufName, IM_ARRAYSIZE(m_bufName));
         ImGui::InputText("Comment", m_bufComment,
                          IM_ARRAYSIZE(m_bufComment));
@@ -154,76 +168,90 @@ namespace rmf::graph
         }
 
         ImGui::SeparatorText("Named Values");
-
-        ImGui::BeginChild("VarsList", ImVec2(0, 150), true);
         if (ImGui::Button("+ Add Value"))
         {
             m_tempNamedValues.push_back(
                 {"Var", rmf::types::type{rmf::types::typeName::_u64},
                  0x0, ""});
         }
-        for (size_t i = 0; i < m_tempNamedValues.size(); ++i)
+        if (ImGui::BeginTable("VarsList", 4,
+                              ImGuiTableFlags_Borders |
+                                  ImGuiTableFlags_Resizable |
+                                  ImGuiTableFlags_RowBg))
         {
-            ImGui::PushID(i);
-            char varNameBuf[64];
-            strncpy(varNameBuf, m_tempNamedValues[i].name.c_str(),
-                    sizeof(varNameBuf));
-            ImGui::SetNextItemWidth(90);
-            if (ImGui::InputText("##vn", varNameBuf,
-                                 sizeof(varNameBuf)))
+            ImGui::TableSetupColumn("Name");
+            ImGui::TableSetupColumn("Type");
+            ImGui::TableSetupColumn("Offset");
+            ImGui::TableSetupColumn(
+                "Del", ImGuiTableColumnFlags_WidthFixed, 30.0f);
+            ImGui::TableHeadersRow();
+            for (size_t i = 0; i < m_tempNamedValues.size();)
             {
-                m_tempNamedValues[i].name = varNameBuf;
-            }
-            ImGui::SameLine();
-
-            ImGui::SetNextItemWidth(70);
-            auto type_names =
-                magic_enum::enum_names<rmf::types::typeName>();
-            int current_item =
-                static_cast<int>(m_tempNamedValues[i].type.type);
-            if (ImGui::BeginCombo(
-                    "##type",
-                    std::string(type_names[current_item]).c_str()))
-            {
-                for (size_t n = 0; n < type_names.size(); n++)
+                ImGui::PushID(i);
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                char varNameBuf[64];
+                strncpy(varNameBuf, m_tempNamedValues[i].name.c_str(),
+                        sizeof(varNameBuf));
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                if (ImGui::InputText("##vn", varNameBuf,
+                                     sizeof(varNameBuf)))
                 {
-                    bool is_selected =
-                        (current_item == static_cast<int>(n));
-                    if (ImGui::Selectable(
-                            std::string(type_names[n]).c_str(),
-                            is_selected))
-                    {
-                        m_tempNamedValues[i].type.type =
-                            static_cast<rmf::types::typeName>(n);
-                    }
-                    if (is_selected)
-                    {
-                        ImGui::SetItemDefaultFocus();
-                    }
+                    m_tempNamedValues[i].name = varNameBuf;
                 }
-                ImGui::EndCombo();
-            }
 
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(60);
-            ImGui::InputScalar("##vo", ImGuiDataType_S64,
-                               &m_tempNamedValues[i].offset, NULL,
-                               NULL, "%X",
-                               ImGuiInputTextFlags_CharsHexadecimal);
-            ImGui::SameLine();
-            if (ImGui::Button("x"))
-            {
-                m_tempNamedValues.erase(m_tempNamedValues.begin() +
-                                        i);
+                ImGui::TableSetColumnIndex(1);
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                auto type_names =
+                    magic_enum::enum_names<rmf::types::typeName>();
+                int current_item =
+                    static_cast<int>(m_tempNamedValues[i].type.type);
+                if (ImGui::BeginCombo(
+                        "##type",
+                        std::string(type_names[current_item])
+                            .c_str()))
+                {
+                    for (size_t n = 0; n < type_names.size(); n++)
+                    {
+                        bool is_selected =
+                            (current_item == static_cast<int>(n));
+                        if (ImGui::Selectable(
+                                std::string(type_names[n]).c_str(),
+                                is_selected))
+                        {
+                            m_tempNamedValues[i].type.type =
+                                static_cast<rmf::types::typeName>(n);
+                        }
+                        if (is_selected)
+                        {
+                            ImGui::SetItemDefaultFocus();
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+
+                ImGui::TableSetColumnIndex(2);
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                ImGui::InputScalar(
+                    "##vo", ImGuiDataType_S64,
+                    &m_tempNamedValues[i].offset, NULL, NULL, "%X",
+                    ImGuiInputTextFlags_CharsHexadecimal);
+
+                ImGui::TableSetColumnIndex(3);
+                if (ImGui::Button("x"))
+                {
+                    m_tempNamedValues.erase(
+                        m_tempNamedValues.begin() + i);
+                    ImGui::PopID();
+                    continue;
+                }
                 ImGui::PopID();
-                continue;
+                i++;
             }
-            ImGui::PopID();
+            ImGui::EndTable();
         }
-        ImGui::EndChild();
 
         ImGui::Dummy(ImVec2(0, 10));
-
         if (m_isEditingMode)
         {
             if (ImGui::Button("Save Changes", ImVec2(-FLT_MIN, 0)))
@@ -278,7 +306,6 @@ namespace rmf::graph
             if (ImGui::Button("Cancel"))
             {
                 ResetLinkBuilderState();
-                ImNodes::ClearLinkSelection();
             }
         }
         else
@@ -287,7 +314,6 @@ namespace rmf::graph
         }
 
         ImGui::Separator();
-
         ImGui::InputText("Name", m_linkNameBuf,
                          IM_ARRAYSIZE(m_linkNameBuf));
         ImGui::InputScalar("Source Addr", ImGuiDataType_U64,
@@ -336,6 +362,7 @@ namespace rmf::graph
                     link->data.sourceAddr = m_linkSourceAddr;
                     link->data.targetAddr = m_linkTargetAddr;
                     link->data.policy     = m_linkPolicy;
+                    sp_mg->LinkSmartAdd(link->data);
                 }
             }
         }
@@ -355,18 +382,59 @@ namespace rmf::graph
 
         ImGui::Separator();
         ImGui::Text("Existing Links");
-        ImGui::BeginChild("LinkList", ImVec2(0, 0), true);
-        for (const auto& link : sp_mg->LinksGetViews())
+        if (ImGui::BeginTable("LinkList", 3,
+                              ImGuiTableFlags_Borders |
+                                  ImGuiTableFlags_Resizable |
+                                  ImGuiTableFlags_RowBg))
         {
-            ImGui::PushID(link.data.id);
-            if (ImGui::Selectable(link.data.name.c_str(),
-                                  m_editingLinkID == link.data.id))
+            ImGui::TableSetupColumn("Name");
+            ImGui::TableSetupColumn("Source");
+            ImGui::TableSetupColumn("Target");
+            ImGui::TableHeadersRow();
+
+            for (const auto& link : sp_mg->LinksGetViews())
             {
-                LoadLinkIntoState(link.data);
+                ImGui::PushID(link.data.id);
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+
+                if (ImGui::Selectable(
+                        link.data.name.c_str(),
+                        m_editingLinkID == link.data.id,
+                        ImGuiSelectableFlags_SpanAllColumns))
+                {
+                    LoadLinkIntoState(link.data);
+                }
+
+                ImGui::TableSetColumnIndex(1);
+                auto sourceNode =
+                    sp_mg->RegionGetFromID(link.data.sourceID);
+                if (sourceNode.has_value())
+                {
+                    ImGui::TextUnformatted(
+                        sourceNode.value()->data.name.c_str());
+                }
+                else
+                {
+                    ImGui::Text("N/A");
+                }
+
+                ImGui::TableSetColumnIndex(2);
+                auto targetNode =
+                    sp_mg->RegionGetFromID(link.data.targetID);
+                if (targetNode.has_value())
+                {
+                    ImGui::TextUnformatted(
+                        targetNode.value()->data.name.c_str());
+                }
+                else
+                {
+                    ImGui::Text("N/A");
+                }
+                ImGui::PopID();
             }
-            ImGui::PopID();
+            ImGui::EndTable();
         }
-        ImGui::EndChild();
     }
 
     void MemoryGraphViewer::drawSidebar()
@@ -399,23 +467,76 @@ namespace rmf::graph
         ImGui::TextUnformatted(node.data.name.c_str());
         ImNodes::EndNodeTitleBar();
 
-        ImGui::Text("Addr: 0x%lX", node.data.mrp.TrueAddress());
-        ImGui::Text("Size: 0x%lX", node.data.mrp.relativeRegionSize);
-        ImGui::Text("Perms: %s",
-                    std::string(magic_enum::enum_flags_name(
-                                    node.data.mrp.perms))
-                        .c_str());
+        ImNodes::BeginInputAttribute(
+            GetNodeInputAttributeId(node.data.id));
+        ImGui::Text("In");
+        ImNodes::EndInputAttribute();
+
+        if (ImGui::BeginTable("NodeProps", 2,
+                              ImGuiTableFlags_NoBordersInBody |
+                                  ImGuiTableFlags_SizingFixedFit))
+        {
+            ImGui::TableSetupColumn("Prop");
+            ImGui::TableSetupColumn("Value");
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("Addr:");
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("0x%lX", node.data.mrp.TrueAddress());
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("Size:");
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("0x%lX", node.data.mrp.relativeRegionSize);
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("Perms:");
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("%s",
+                        std::string(magic_enum::enum_flags_name(
+                                        node.data.mrp.perms))
+                            .c_str());
+            ImGui::EndTable();
+        }
 
         if (!node.data.namedValues.empty())
         {
-            // ImGui::Separator();
-            for (const auto& val : node.data.namedValues)
+            ImGui::Separator();
+            if (ImGui::BeginTable("NodeValues", 2,
+                                  ImGuiTableFlags_Borders |
+                                      ImGuiTableFlags_RowBg |
+                                      ImGuiTableFlags_SizingFixedFit))
             {
-                ImGui::Text(
-                    "%s: %s",
-                    std::string(magic_enum::enum_name(val.type.type))
-                        .c_str(),
-                    val.name.c_str());
+                ImGui::TableSetupColumn("Type");
+                ImGui::TableSetupColumn("Name");
+                ImGui::TableHeadersRow();
+                for (const auto& val : node.data.namedValues)
+                {
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::TextUnformatted(
+                        std::string(
+                            magic_enum::enum_name(val.type.type))
+                            .c_str());
+
+                    ImGui::TableSetColumnIndex(1);
+                    if (val.type.type == rmf::types::typeName::_ptr)
+                    {
+                        ImNodes::BeginOutputAttribute(
+                            GetNodeOutputAttributeId(node.data.id,
+                                                     val.offset));
+                        ImGui::TextUnformatted(val.name.c_str());
+                        ImNodes::EndOutputAttribute();
+                    }
+                    else
+                    {
+                        ImGui::TextUnformatted(val.name.c_str());
+                    }
+                }
+                ImGui::EndTable();
             }
         }
         ImNodes::EndNode();
@@ -428,13 +549,26 @@ namespace rmf::graph
         {
             drawNode(node);
         }
-        // links should be drawn after nodes
-        for ([[maybe_unused]] const auto& link :
-             sp_mg->LinksGetViews())
+
+        for (const auto& link : sp_mg->LinksGetViews())
         {
-            // TODO: This is not correct, we need to find which node contains the source and target address.
-            // For now, we will just draw a link between node 0 and 1 if they exist.
-            // ImNodes::Link(link.data.id, 0, 1);
+            if (link.data.sourceID != noID_ce &&
+                link.data.targetID != noID_ce)
+            {
+                auto sourceNodeOpt =
+                    sp_mg->RegionGetFromID(link.data.sourceID);
+                if (!sourceNodeOpt.has_value())
+                    continue;
+
+                ptrdiff_t offset = link.data.sourceAddr -
+                    sourceNodeOpt.value()->data.mrp.TrueAddress();
+
+                ImNodes::Link(
+                    link.data.id,
+                    GetNodeOutputAttributeId(link.data.sourceID,
+                                             offset),
+                    GetNodeInputAttributeId(link.data.targetID));
+            }
         }
         ImNodes::EndNodeEditor();
         if (ImNodes::IsEditorHovered() &&
@@ -448,10 +582,10 @@ namespace rmf::graph
 
     void MemoryGraphViewer::handlePostFrameLogic(bool deletePressed)
     {
-        // Handle Nodes
         int numSelectedNodes = ImNodes::NumSelectedNodes();
         if (numSelectedNodes > 0)
         {
+            ResetLinkBuilderState(); // Unselect link if node is selected from canvas
             std::vector<int> selectedNodes(numSelectedNodes);
             ImNodes::GetSelectedNodes(selectedNodes.data());
             int selectedID = selectedNodes[0];
@@ -478,15 +612,11 @@ namespace rmf::graph
                 ImNodes::ClearNodeSelection();
             }
         }
-        else if (m_isEditingMode)
-        {
-            ResetRegionBuilderState();
-        }
 
-        // Handle Links
         int numSelectedLinks = ImNodes::NumSelectedLinks();
         if (numSelectedLinks > 0)
         {
+            ResetRegionBuilderState(); // Unselect node if link is selected from canvas
             std::vector<int> selectedLinks(numSelectedLinks);
             ImNodes::GetSelectedLinks(selectedLinks.data());
             int selectedID = selectedLinks[0];
@@ -514,8 +644,19 @@ namespace rmf::graph
                 ImNodes::ClearLinkSelection();
             }
         }
-        else if (m_isEditingLink)
+
+        // Deselect if clicking on empty canvas background
+        int  hovered_node_id = -1;
+        int  hovered_link_id = -1;
+        bool is_node_hovered =
+            ImNodes::IsNodeHovered(&hovered_node_id);
+        bool is_link_hovered =
+            ImNodes::IsLinkHovered(&hovered_link_id);
+        if (ImNodes::IsEditorHovered() &&
+            ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
+            !is_node_hovered && !is_link_hovered)
         {
+            ResetRegionBuilderState();
             ResetLinkBuilderState();
         }
     }

@@ -151,7 +151,7 @@ namespace rmf::gui
 
         if (opt_pid.has_value())
         {
-            pid_t pid = opt_pid.value();
+            // TODO: Do something with the PID
         }
     }
 

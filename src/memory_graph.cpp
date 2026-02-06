@@ -185,15 +185,20 @@ namespace rmf::graph
         MemoryRegionID targetID = noID_ce;
         switch (data.policy)
         {
-            case MemoryLinkPolicy::Strict: break;
+            case MemoryLinkPolicy::Strict: 
+                sourceID = RegionGetRegionIdContainingAddress(data.sourceAddr);
+                targetID = RegionGetRegionIdContainingAddress(data.targetAddr);
+                break;
             case MemoryLinkPolicy::CreateSource:
                 sourceID = _LinkCreateOrGetSource(data.sourceAddr);
+                targetID = RegionGetRegionIdContainingAddress(data.targetAddr);
                 break;
             case MemoryLinkPolicy::CreateSourceTarget:
                 sourceID = _LinkCreateOrGetSource(data.sourceAddr);
                 targetID = _LinkCreateOrGetTarget(data.targetAddr);
                 break;
             case MemoryLinkPolicy::CreateTarget:
+                sourceID = RegionGetRegionIdContainingAddress(data.sourceAddr);
                 targetID = _LinkCreateOrGetTarget(data.targetAddr);
                 break;
             default:
