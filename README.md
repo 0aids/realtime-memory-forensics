@@ -5,6 +5,23 @@ bindings/scripting support, allowing reproducible analysis of key data flow
 via node-graph visualisation, all done without analysing executed assembly.
 
 
+# TODO
+- [ ] feat/testing: Setup an opencode agent that will create and run unit tests for all available functions and methods
+- [ ] feat: Incorporate MrpVec capabilities (assigning and adding nodes)
+- [ ] refac: Remove named Values -> added later
+- [ ] feat: Add link details on hover
+- [ ] feat: Add node details on hover
+- [ ] refac: Remove PIDs (should be user managed, idk why i'm storing it in the mrps)
+- [ ] feat: Incorporate auto linking using an inputted analyzer.
+- [ ] feat: undo + redo
+- [ ] feat: python interoperability
+- [ ] feat: integrated python shell
+- [ ] feat: integrated python scripting in gui and file saving
+- [ ] feat: re-add named values?
+- [ ] feat: graph serialisation?
+- [ ] done for now?
+
+
 # Example script
 ```python
 # file: globalVars.py
