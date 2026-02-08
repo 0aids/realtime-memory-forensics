@@ -1,19 +1,20 @@
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests")
+find_package(GTest REQUIRED)
+include(GoogleTest)
 
-file(GLOB_RECURSE TEST_CPP_FILES "*.cpp")
+file(GLOB testFiles_cpp "*.cpp")
+set(testNames)
 
-foreach(TEST_FILE ${TEST_CPP_FILES})
-    get_filename_component(TEST_NAME ${TEST_FILE} NAME_WE)
-    add_executable(${TEST_NAME} ${TEST_FILE})
-    target_include_directories(${TEST_NAME} PUBLIC
-        "include"
-    )
-    target_link_libraries(${TEST_NAME}
+foreach(testFile_cpp ${testFiles_cpp})
+    get_filename_component(testName ${testFile_cpp} NAME_WE)
+	add_executable(${testName} ${testFile_cpp})
+	target_link_libraries(${testName} 
         PRIVATE memLib
         PRIVATE ImGuiSource
         PRIVATE SDL3::SDL3
         PRIVATE OpenGL::GL
         PRIVATE magic_enum::magic_enum
-    )
-    add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
+		PUBLIC GTest::gtest_main
+	)
+    gtest_discover_tests(${testName})
 endforeach()
+
