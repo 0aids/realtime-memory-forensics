@@ -10,6 +10,13 @@ namespace rmf::graph
 {
     class MemoryGraphViewer
     {
+        enum class State {
+            NodeEditor,
+            LinkEditor,
+        };
+
+		State m_editorState = State::NodeEditor;
+
         // Member, unique ptr
         // --- State Variables ---
         // Ideally these should be members of MemoryGraphViewer
@@ -19,7 +26,7 @@ namespace rmf::graph
         uintptr_t m_inputAddr       = 0x0;
         uintptr_t m_inputSize       = 1024;
         uintptr_t m_inputParentAddr = 0x0;
-        uintptr_t m_inputParentSize = 0;
+        uintptr_t m_inputParentSize = 1024;
         rmf::types::Perms m_inputPerms = rmf::types::Perms::None;
         int       m_inputPid        = 0;
         std::vector<rmf::graph::MemoryRegionData::NamedValue>
@@ -30,13 +37,15 @@ namespace rmf::graph
         uintptr_t m_linkSourceAddr = 0x0;
         uintptr_t m_linkTargetAddr = 0x0;
         rmf::graph::MemoryLinkPolicy m_linkPolicy = rmf::graph::MemoryLinkPolicy::Strict;
-        rmf::graph::MemoryLinkID m_editingLinkID = -1;
+        rmf::graph::MemoryLinkID m_editingLinkID = noID_ce;
         bool m_isEditingLink = false;
 
         // Track editing state
         bool                       m_isEditingMode = false;
         rmf::graph::MemoryRegionID m_editingID =
             -1; // -1 or generic invalid ID
+        
+        std::string m_nodeEditorError;
 
         // --- Helper: Reset to "Create New" state ---
         void ResetRegionBuilderState();
@@ -44,9 +53,9 @@ namespace rmf::graph
 
         // --- Helper: Load existing node data into inputs ---
         void
-        LoadRegionIntoState(const rmf::graph::MemoryRegionData& data);
+        LoadRegionIntoState(const rmf::graph::MemoryRegion& data);
         void
-        LoadLinkIntoState(const rmf::graph::MemoryRegionLinkData& data);
+        LoadLinkIntoState(const rmf::graph::MemoryLink& data);
 
       private:
         // --- Drawing helpers ---
@@ -55,6 +64,7 @@ namespace rmf::graph
         void drawLinkEditorTab();
         void drawEditor();
         void drawNode(const rmf::graph::MemoryRegion& node);
+        void drawLink(const rmf::graph::MemoryLink& link);
         void handlePostFrameLogic(bool deletePressed);
 
       public:

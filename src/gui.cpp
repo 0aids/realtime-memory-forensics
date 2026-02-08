@@ -208,6 +208,10 @@ namespace rmf::gui
                 //                 &this->showExampleNodeEditor);
                 ImGui::MenuItem("Show extra window", NULL,
                                 &this->showAnotherWindow);
+                // ImGui::MenuItem("Show example node editor", NULL,
+                //                 &this->showExampleNodeEditor);
+                ImGui::MenuItem("Show test memory graph", NULL,
+                                &this->showMemoryGraphViewerTest);
                 ImGui::EndMenu();
             }
             ImGui::EndMainMenuBar();
@@ -225,11 +229,11 @@ namespace rmf::gui
             ImGui::ShowDemoWindow(&this->showDemoWindow);
         }
 
-        // if (this->showExampleNodeEditor)
-        // {
-        //     this->exampleNodeEditor.show(
-        //         &this->showExampleNodeEditor);
-        // }
+        if (this->showExampleNodeEditor)
+        {
+            this->exampleNodeEditor.show(
+                &this->showExampleNodeEditor);
+        }
 
         if (this->showMemoryGraphViewerTest)
         {

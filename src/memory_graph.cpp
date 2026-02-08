@@ -6,20 +6,20 @@
 namespace rmf::graph
 {
 
-    std::string MemoryRegionLinkData::toString() const
+    std::string MemoryLink::toString() const
     {
         return std::format("id: {} policy: {} SourceAddress: "
                            "{:#x} TargetAddress: {:#x} name: {}",
-                           id, magic_enum::enum_name(policy),
-                           sourceAddr, targetAddr, name);
+                           id, magic_enum::enum_name(data.policy),
+                           data.sourceAddr, data.targetAddr, data.name);
     }
 
-    std::string MemoryRegionData::toString() const
+    std::string MemoryRegion::toString() const
     {
         std::string result = std::format(
-            "name: {} id: {}\ncomment: {}", name, id, comment);
+            "name: {} id: {}\ncomment: {}", data.name, id, data.comment);
 
-        for (const auto& namedValue : namedValues)
+        for (const auto& namedValue : data.namedValues)
         {
             result += std::format("\n\tNamed value: {} offset: "
                                   "{:#x}\n\tcomment: {}",
@@ -31,9 +31,7 @@ namespace rmf::graph
     MemoryRegionID MemoryGraph::RegionAdd(MemoryRegionData data)
     {
         MemoryRegionID assignedID = m_nextValidRegionID++;
-        data.id                   = assignedID;
-        data.parentGraph          = this;
-        m_regions.emplace(assignedID, MemoryRegion{data});
+        m_regions.emplace(assignedID, MemoryRegion{data, this, assignedID});
         return assignedID;
     }
 
@@ -51,12 +49,11 @@ namespace rmf::graph
     }
 
     MemoryLinkID
-    MemoryGraph::LinkNaiveAdd(MemoryRegionLinkData linkData)
+    MemoryGraph::LinkNaiveAdd(MemoryLinkData linkData)
     {
-        linkData.id          = m_nextValidLinkID++;
-        linkData.parentGraph = this;
-        m_links.emplace(linkData.id, linkData);
-        return linkData.id;
+        MemoryLinkID assignedID = m_nextValidLinkID++;
+        m_links.emplace(assignedID, MemoryLink{linkData, this, assignedID});
+        return assignedID;
     }
 
     void MemoryGraph::LinkDelete(MemoryLinkID id)
@@ -78,7 +75,7 @@ namespace rmf::graph
         for (const auto& region : RegionsGetViews())
         {
             if (region.data.mrp.TrueAddress() == addr)
-                return region.data.id;
+                return region.id;
         }
         return noID_ce;
     }
@@ -99,9 +96,9 @@ namespace rmf::graph
     {
         for (const auto& region : RegionsGetViews())
         {
-            if (region.data.mrp.TrueAddress() >= addr &&
-                region.data.mrp.TrueEnd() < addr)
-                return region.data.id;
+            if (region.data.mrp.TrueAddress() <= addr &&
+                region.data.mrp.TrueEnd() > addr)
+                return region.id;
         }
         return noID_ce;
     }
@@ -111,8 +108,8 @@ namespace rmf::graph
     {
         for (auto& region : RegionsGetViews())
         {
-            if (region.data.mrp.TrueAddress() >= addr &&
-                region.data.mrp.TrueEnd() < addr)
+            if (region.data.mrp.TrueAddress() <= addr &&
+                region.data.mrp.TrueEnd() > addr)
                 return std::optional<MemoryRegion*>{&region};
         }
         return std::optional<MemoryRegion*>{std::nullopt};
@@ -134,7 +131,7 @@ namespace rmf::graph
             linkingValue.offset =
                 sourceAddr - region_p->data.mrp.TrueAddress();
             region_p->data.namedValues.push_back(linkingValue);
-            return region_o.value()->data.id;
+            return region_o.value()->id;
         }
         else
             return RegionAdd({
@@ -159,7 +156,7 @@ namespace rmf::graph
         auto region_o = RegionGetRegionContainingAddress(targetAddr);
         if (region_o.has_value())
         {
-            return region_o.value()->data.id;
+            return region_o.value()->id;
         }
         return RegionAdd({
             .mrp =
@@ -177,7 +174,7 @@ namespace rmf::graph
         });
     }
 
-    MemoryLinkID MemoryGraph::LinkSmartAdd(MemoryRegionLinkData data)
+    MemoryLinkID MemoryGraph::LinkSmartAdd(MemoryLinkData data)
     {
         // Loop through the unordered map to figure out if our link
         // lies anywhere.

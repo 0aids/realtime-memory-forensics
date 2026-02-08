@@ -34,8 +34,8 @@ namespace rmf::gui
 
         ImGuiIO io;
 
-        // examples::ColorNodeEditor exampleNodeEditor;
-        // bool showExampleNodeEditor = true;
+        examples::ColorNodeEditor exampleNodeEditor;
+        bool showExampleNodeEditor = false;
 
         graph::MemoryGraphViewer mgViewerTest;
         bool showMemoryGraphViewerTest = true;

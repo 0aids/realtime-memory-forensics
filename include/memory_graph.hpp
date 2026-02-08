@@ -7,25 +7,23 @@
 
 namespace rmf::graph
 {
-    using MemoryRegionID               = uint64_t;
-    static constexpr uintptr_t noID_ce = 0;
-    using MemoryLinkID                 = uint64_t;
-    class MemoryGraph;
-
     // Possible policies for construction of memory links
-    enum class MemoryLinkPolicy
+    enum class MemoryLinkPolicy : uint8_t
     {
         Strict, // Will only create the links if both ends are memory regions.
         CreateSource,
         CreateTarget,
         CreateSourceTarget,
     };
+    using MemoryRegionID               = uint64_t;
+    static constexpr uintptr_t noID_ce = 0;
+    using MemoryLinkID                 = uint64_t;
+    class MemoryGraph;
+
 
     // All relevant data of a memory region link
-    struct MemoryRegionLinkData
+    struct MemoryLinkData
     {
-        MemoryGraph*     parentGraph = nullptr;
-        MemoryLinkID     id          = noID_ce;
         MemoryLinkPolicy policy      = MemoryLinkPolicy::Strict;
 
         uintptr_t        sourceAddr = 0;
@@ -33,14 +31,16 @@ namespace rmf::graph
         std::string      name       = "";
         MemoryRegionID   sourceID   = noID_ce;
         MemoryRegionID   targetID   = noID_ce;
-        std::string      toString() const;
     };
 
     // The actual link itself. (edge in the graph).
     // Do not create manually!!!
     struct MemoryLink
     {
-        MemoryRegionLinkData data;
+        MemoryLinkData data;
+        MemoryGraph*     parentGraph = nullptr;
+        MemoryLinkID     id          = noID_ce;
+        std::string      toString() const;
     };
 
     // All relevant data of a memory region for use in node graphs.
@@ -54,20 +54,22 @@ namespace rmf::graph
             std::string comment;
         };
         rmf::types::MemoryRegionProperties mrp;
-        MemoryGraph*                       parentGraph = nullptr;
-        MemoryRegionID                     id          = noID_ce;
         std::vector<NamedValue>            namedValues{};
         std::string                        name    = "";
         std::string                        comment = "";
-        std::string                        toString() const;
     };
 
     // Do not create manually!!!
     struct MemoryRegion
     {
         MemoryRegionData data;
+        MemoryGraph*                       parentGraph = nullptr;
+        MemoryRegionID                     id          = noID_ce;
+        std::string                        toString() const;
     };
 
+	// Desired workflow:
+	// 		Use in tandem with the analyzer to receive memory regions.
     class MemoryGraph
     {
         struct MemoryRegionRange {
@@ -107,7 +109,7 @@ namespace rmf::graph
         std::optional<MemoryRegion*>
                      RegionGetRegionContainingAddress(uintptr_t addr);
 
-        MemoryLinkID LinkNaiveAdd(MemoryRegionLinkData data);
+        MemoryLinkID LinkNaiveAdd(MemoryLinkData data);
         void         LinkDelete(MemoryLinkID id);
         auto         LinksGetViews()
         {
@@ -115,10 +117,16 @@ namespace rmf::graph
         }
         std::optional<MemoryLink*> LinkGetFromID(MemoryLinkID id);
         // Will also generate nodes according to the policy.
-        MemoryLinkID LinkSmartAdd(MemoryRegionLinkData data);
+        MemoryLinkID LinkSmartAdd(MemoryLinkData data);
 
         std::vector<MemoryLinkID>
-        GenerateLinks(MemoryLinkPolicy policy);
+        UpdateLinks(MemoryLinkPolicy policy);
+
+		// Assigns floating mrps to their respective parent regions + offsets.
+        void RegionsAssignToMaps(const types::MemoryRegionPropertiesVec &OGMaps);
+
+        // Dump all mrps in here.
+        void RegionsAddMrpVec(const types::MemoryRegionPropertiesVec &mrpVec);
     };
 }
 

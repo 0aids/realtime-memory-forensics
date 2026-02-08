@@ -14,7 +14,7 @@ namespace rmf::graph
 
     // Helper to generate a unique integer ID for a node's output attribute based on offset
     int GetNodeOutputAttributeId(MemoryRegionID nodeId,
-                                 ptrdiff_t      offset)
+                                 ptrdiff_t      offset = 0)
     {
         return (static_cast<int>(nodeId) << 16) |
             (static_cast<int>(offset) & 0xFFF) | 2;
@@ -29,8 +29,8 @@ namespace rmf::graph
         m_bufComment[0]   = '\0';
         m_inputAddr       = 0x0;
         m_inputSize       = 1024;
-        m_inputParentAddr = 0x0;
-        m_inputParentSize = 0;
+        m_inputParentAddr = 0;
+        m_inputParentSize = 1024;
         m_inputPerms      = rmf::types::Perms::None;
         m_inputPid        = 0;
         m_tempNamedValues.clear();
@@ -39,7 +39,7 @@ namespace rmf::graph
     void MemoryGraphViewer::ResetLinkBuilderState()
     {
         m_isEditingLink = false;
-        m_editingLinkID = -1;
+        m_editingLinkID = noID_ce;
         snprintf(m_linkNameBuf, sizeof(m_linkNameBuf), "New Link");
         m_linkSourceAddr = 0x0;
         m_linkTargetAddr = 0x0;
@@ -47,43 +47,44 @@ namespace rmf::graph
     }
 
     void MemoryGraphViewer::LoadRegionIntoState(
-        const rmf::graph::MemoryRegionData& data)
+        const rmf::graph::MemoryRegion& region)
     {
         m_isEditingMode = true;
-        m_editingID     = data.id;
+        m_editingID     = region.id;
         m_isEditingLink = false; // Unselect any selected link
-        m_editingLinkID = -1;
+        m_editingLinkID = noID_ce;
 
-        strncpy(m_bufName, data.name.c_str(), sizeof(m_bufName) - 1);
+        strncpy(m_bufName, region.data.name.c_str(),
+                sizeof(m_bufName) - 1);
         m_bufName[sizeof(m_bufName) - 1] = '\0';
-        strncpy(m_bufComment, data.comment.c_str(),
+        strncpy(m_bufComment, region.data.comment.c_str(),
                 sizeof(m_bufComment) - 1);
         m_bufComment[sizeof(m_bufComment) - 1] = '\0';
 
-        m_inputAddr       = data.mrp.relativeRegionAddress;
-        m_inputSize       = data.mrp.relativeRegionSize;
-        m_inputParentAddr = data.mrp.parentRegionAddress;
-        m_inputParentSize = data.mrp.parentRegionSize;
-        m_inputPerms      = data.mrp.perms;
-        m_inputPid        = data.mrp.pid;
-        m_tempNamedValues = data.namedValues;
+        m_inputAddr       = region.data.mrp.relativeRegionAddress;
+        m_inputSize       = region.data.mrp.relativeRegionSize;
+        m_inputParentAddr = region.data.mrp.parentRegionAddress;
+        m_inputParentSize = region.data.mrp.parentRegionSize;
+        m_inputPerms      = region.data.mrp.perms;
+        m_inputPid        = region.data.mrp.pid;
+        m_tempNamedValues = region.data.namedValues;
     }
 
     void MemoryGraphViewer::LoadLinkIntoState(
-        const rmf::graph::MemoryRegionLinkData& data)
+        const rmf::graph::MemoryLink& link)
     {
         m_isEditingLink = true;
-        m_editingLinkID = data.id;
+        m_editingLinkID = link.id;
         m_isEditingMode = false; // Unselect any selected node
         m_editingID     = -1;
 
-        strncpy(m_linkNameBuf, data.name.c_str(),
+        strncpy(m_linkNameBuf, link.data.name.c_str(),
                 sizeof(m_linkNameBuf) - 1);
         m_linkNameBuf[sizeof(m_linkNameBuf) - 1] = '\0';
 
-        m_linkSourceAddr = data.sourceAddr;
-        m_linkTargetAddr = data.targetAddr;
-        m_linkPolicy     = data.policy;
+        m_linkSourceAddr = link.data.sourceAddr;
+        m_linkTargetAddr = link.data.targetAddr;
+        m_linkPolicy     = link.data.policy;
     }
 
     void MemoryGraphViewer::drawNodeEditorTab()
@@ -252,26 +253,46 @@ namespace rmf::graph
         }
 
         ImGui::Dummy(ImVec2(0, 10));
+
+        if (!m_nodeEditorError.empty())
+        {
+            ImGui::TextColored(ImVec4(1.f, 0.f, 0.f, 1.f),
+                               "Error: %s",
+                               m_nodeEditorError.c_str());
+        }
+
         if (m_isEditingMode)
         {
             if (ImGui::Button("Save Changes", ImVec2(-FLT_MIN, 0)))
             {
-                auto optRegion = sp_mg->RegionGetFromID(m_editingID);
-                if (optRegion.has_value())
+                if (m_inputAddr >= m_inputParentSize ||
+                    m_inputSize > (m_inputParentSize - m_inputAddr))
                 {
-                    MemoryRegion* region = optRegion.value();
-                    region->data.name    = m_bufName;
-                    region->data.comment = m_bufComment;
-                    region->data.mrp.relativeRegionAddress =
-                        m_inputAddr;
-                    region->data.mrp.relativeRegionSize = m_inputSize;
-                    region->data.mrp.parentRegionAddress =
-                        m_inputParentAddr;
-                    region->data.mrp.parentRegionSize =
-                        m_inputParentSize;
-                    region->data.mrp.perms   = m_inputPerms;
-                    region->data.mrp.pid     = m_inputPid;
-                    region->data.namedValues = m_tempNamedValues;
+                    m_nodeEditorError =
+                        "Relative region exceeds parent boundaries!";
+                }
+                else
+                {
+                    m_nodeEditorError.clear();
+                    auto optRegion =
+                        sp_mg->RegionGetFromID(m_editingID);
+                    if (optRegion.has_value())
+                    {
+                        MemoryRegion* region = optRegion.value();
+                        region->data.name    = m_bufName;
+                        region->data.comment = m_bufComment;
+                        region->data.mrp.relativeRegionAddress =
+                            m_inputAddr;
+                        region->data.mrp.relativeRegionSize =
+                            m_inputSize;
+                        region->data.mrp.parentRegionAddress =
+                            m_inputParentAddr;
+                        region->data.mrp.parentRegionSize =
+                            m_inputParentSize;
+                        region->data.mrp.perms   = m_inputPerms;
+                        region->data.mrp.pid     = m_inputPid;
+                        region->data.namedValues = m_tempNamedValues;
+                    }
                 }
             }
         }
@@ -279,18 +300,29 @@ namespace rmf::graph
         {
             if (ImGui::Button("Create Region", ImVec2(-FLT_MIN, 0)))
             {
-                MemoryRegionData newData;
-                newData.name                      = m_bufName;
-                newData.comment                   = m_bufComment;
-                newData.mrp.relativeRegionAddress = m_inputAddr;
-                newData.mrp.relativeRegionSize    = m_inputSize;
-                newData.mrp.parentRegionAddress   = m_inputParentAddr;
-                newData.mrp.parentRegionSize      = m_inputParentSize;
-                newData.mrp.perms                 = m_inputPerms;
-                newData.mrp.pid                   = m_inputPid;
-                newData.namedValues               = m_tempNamedValues;
-                sp_mg->RegionAdd(newData);
-                ResetRegionBuilderState();
+                if (m_inputAddr >= m_inputParentSize ||
+                    m_inputSize > (m_inputParentSize - m_inputAddr))
+                {
+                    m_nodeEditorError =
+                        "Relative region exceeds parent boundaries!";
+                }
+                else
+                {
+                    m_nodeEditorError.clear();
+                    MemoryRegionData newData;
+                    newData.name                      = m_bufName;
+                    newData.comment                   = m_bufComment;
+                    newData.mrp.relativeRegionAddress = m_inputAddr;
+                    newData.mrp.relativeRegionSize    = m_inputSize;
+                    newData.mrp.parentRegionAddress =
+                        m_inputParentAddr;
+                    newData.mrp.parentRegionSize = m_inputParentSize;
+                    newData.mrp.perms            = m_inputPerms;
+                    newData.mrp.pid              = m_inputPid;
+                    newData.namedValues          = m_tempNamedValues;
+                    sp_mg->RegionAdd(newData);
+                    ResetRegionBuilderState();
+                }
             }
         }
     }
@@ -370,7 +402,7 @@ namespace rmf::graph
         {
             if (ImGui::Button("Create Link", ImVec2(-FLT_MIN, 0)))
             {
-                MemoryRegionLinkData newLink;
+                MemoryLinkData newLink;
                 newLink.name       = m_linkNameBuf;
                 newLink.sourceAddr = m_linkSourceAddr;
                 newLink.targetAddr = m_linkTargetAddr;
@@ -394,16 +426,16 @@ namespace rmf::graph
 
             for (const auto& link : sp_mg->LinksGetViews())
             {
-                ImGui::PushID(link.data.id);
+                ImGui::PushID(link.id);
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
 
                 if (ImGui::Selectable(
                         link.data.name.c_str(),
-                        m_editingLinkID == link.data.id,
+                        m_editingLinkID == link.id,
                         ImGuiSelectableFlags_SpanAllColumns))
                 {
-                    LoadLinkIntoState(link.data);
+                    LoadLinkIntoState(link);
                 }
 
                 ImGui::TableSetColumnIndex(1);
@@ -446,11 +478,13 @@ namespace rmf::graph
         {
             if (ImGui::BeginTabItem("Nodes"))
             {
+                m_editorState = State::NodeEditor;
                 drawNodeEditorTab();
                 ImGui::EndTabItem();
             }
             if (ImGui::BeginTabItem("Links"))
             {
+                m_editorState = State::LinkEditor;
                 drawLinkEditorTab();
                 ImGui::EndTabItem();
             }
@@ -462,84 +496,77 @@ namespace rmf::graph
     void
     MemoryGraphViewer::drawNode(const rmf::graph::MemoryRegion& node)
     {
-        ImNodes::BeginNode(node.data.id);
+        ImNodes::BeginNode(node.id);
         ImNodes::BeginNodeTitleBar();
         ImGui::TextUnformatted(node.data.name.c_str());
         ImNodes::EndNodeTitleBar();
 
         ImNodes::BeginInputAttribute(
-            GetNodeInputAttributeId(node.data.id));
-        ImGui::Text("In");
+            GetNodeInputAttributeId(node.id));
+        ImGui::Text("Default In");
         ImNodes::EndInputAttribute();
 
-        if (ImGui::BeginTable("NodeProps", 2,
-                              ImGuiTableFlags_NoBordersInBody |
-                                  ImGuiTableFlags_SizingFixedFit))
-        {
-            ImGui::TableSetupColumn("Prop");
-            ImGui::TableSetupColumn("Value");
+        ImNodes::BeginOutputAttribute(
+            GetNodeOutputAttributeId(node.id));
+        ImGui::Text("Default Out");
+        ImNodes::EndOutputAttribute();
 
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::Text("Addr:");
-            ImGui::TableSetColumnIndex(1);
-            ImGui::Text("0x%lX", node.data.mrp.TrueAddress());
-
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::Text("Size:");
-            ImGui::TableSetColumnIndex(1);
-            ImGui::Text("0x%lX", node.data.mrp.relativeRegionSize);
-
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::Text("Perms:");
-            ImGui::TableSetColumnIndex(1);
-            ImGui::Text("%s",
-                        std::string(magic_enum::enum_flags_name(
-                                        node.data.mrp.perms))
-                            .c_str());
-            ImGui::EndTable();
-        }
+        ImGui::Text("Addr: 0x%lX", node.data.mrp.TrueAddress());
+        ImGui::Text("Size: 0x%lX", node.data.mrp.relativeRegionSize);
+        ImGui::Text("Perms: %s",
+                    std::string(magic_enum::enum_flags_name(
+                                    node.data.mrp.perms))
+                        .c_str());
 
         if (!node.data.namedValues.empty())
         {
             ImGui::Separator();
-            if (ImGui::BeginTable("NodeValues", 2,
-                                  ImGuiTableFlags_Borders |
-                                      ImGuiTableFlags_RowBg |
-                                      ImGuiTableFlags_SizingFixedFit))
+            for (const auto& val : node.data.namedValues)
             {
-                ImGui::TableSetupColumn("Type");
-                ImGui::TableSetupColumn("Name");
-                ImGui::TableHeadersRow();
-                for (const auto& val : node.data.namedValues)
+                if (val.type.type == rmf::types::typeName::_ptr)
                 {
-                    ImGui::TableNextRow();
-                    ImGui::TableSetColumnIndex(0);
-                    ImGui::TextUnformatted(
-                        std::string(
-                            magic_enum::enum_name(val.type.type))
-                            .c_str());
-
-                    ImGui::TableSetColumnIndex(1);
-                    if (val.type.type == rmf::types::typeName::_ptr)
-                    {
-                        ImNodes::BeginOutputAttribute(
-                            GetNodeOutputAttributeId(node.data.id,
-                                                     val.offset));
-                        ImGui::TextUnformatted(val.name.c_str());
-                        ImNodes::EndOutputAttribute();
-                    }
-                    else
-                    {
-                        ImGui::TextUnformatted(val.name.c_str());
-                    }
+                    // ImNodes::BeginOutputAttribute(
+                    //     GetNodeOutputAttributeId(node.id,
+                    //                              val.offset));
+                    ImGui::Text("%s: %s",
+                                std::string(magic_enum::enum_name(
+                                                val.type.type))
+                                    .c_str(),
+                                val.name.c_str());
+                    // ImNodes::EndOutputAttribute();
                 }
-                ImGui::EndTable();
+                else
+                {
+                    ImGui::Text("%s: %s",
+                                std::string(magic_enum::enum_name(
+                                                val.type.type))
+                                    .c_str(),
+                                val.name.c_str());
+                }
             }
         }
         ImNodes::EndNode();
+    }
+
+    void
+    MemoryGraphViewer::drawLink(const rmf::graph::MemoryLink& link)
+    {
+        if (link.data.sourceID != noID_ce &&
+            link.data.targetID != noID_ce)
+        {
+            auto sourceNodeOpt =
+                sp_mg->RegionGetFromID(link.data.sourceID);
+            if (!sourceNodeOpt.has_value())
+                return;
+
+            ptrdiff_t offset = link.data.sourceAddr -
+                sourceNodeOpt.value()->data.mrp.TrueAddress();
+
+            ImNodes::Link(
+                link.id,
+                GetNodeOutputAttributeId(link.data.sourceID),
+                GetNodeInputAttributeId(link.data.targetID));
+        }
     }
 
     void MemoryGraphViewer::drawEditor()
@@ -552,24 +579,9 @@ namespace rmf::graph
 
         for (const auto& link : sp_mg->LinksGetViews())
         {
-            if (link.data.sourceID != noID_ce &&
-                link.data.targetID != noID_ce)
-            {
-                auto sourceNodeOpt =
-                    sp_mg->RegionGetFromID(link.data.sourceID);
-                if (!sourceNodeOpt.has_value())
-                    continue;
-
-                ptrdiff_t offset = link.data.sourceAddr -
-                    sourceNodeOpt.value()->data.mrp.TrueAddress();
-
-                ImNodes::Link(
-                    link.data.id,
-                    GetNodeOutputAttributeId(link.data.sourceID,
-                                             offset),
-                    GetNodeInputAttributeId(link.data.targetID));
-            }
+            drawLink(link);
         }
+        ImNodes::MiniMap(0.2, ImNodesMiniMapLocation_BottomRight);
         ImNodes::EndNodeEditor();
         if (ImNodes::IsEditorHovered() &&
             ImGui::GetIO().MouseWheel != 0)
@@ -583,7 +595,8 @@ namespace rmf::graph
     void MemoryGraphViewer::handlePostFrameLogic(bool deletePressed)
     {
         int numSelectedNodes = ImNodes::NumSelectedNodes();
-        if (numSelectedNodes > 0)
+        if (numSelectedNodes > 0 &&
+            m_editorState == State::NodeEditor)
         {
             ResetLinkBuilderState(); // Unselect link if node is selected from canvas
             std::vector<int> selectedNodes(numSelectedNodes);
@@ -595,7 +608,7 @@ namespace rmf::graph
                 auto optRegion = sp_mg->RegionGetFromID(selectedID);
                 if (optRegion.has_value())
                 {
-                    LoadRegionIntoState(optRegion.value()->data);
+                    LoadRegionIntoState(*optRegion.value());
                 }
             }
 
@@ -614,7 +627,8 @@ namespace rmf::graph
         }
 
         int numSelectedLinks = ImNodes::NumSelectedLinks();
-        if (numSelectedLinks > 0)
+        if (numSelectedLinks > 0 &&
+            m_editorState == State::LinkEditor)
         {
             ResetRegionBuilderState(); // Unselect node if link is selected from canvas
             std::vector<int> selectedLinks(numSelectedLinks);
@@ -626,7 +640,7 @@ namespace rmf::graph
                 auto optLink = sp_mg->LinkGetFromID(selectedID);
                 if (optLink.has_value())
                 {
-                    LoadLinkIntoState(optLink.value()->data);
+                    LoadLinkIntoState(*optLink.value());
                 }
             }
 
@@ -663,8 +677,14 @@ namespace rmf::graph
 
     void MemoryGraphViewer::draw()
     {
-        const bool deletePressed =
-            ImGui::IsKeyReleased(ImGuiKey_Delete);
+        bool deletePressed = ImGui::IsKeyReleased(ImGuiKey_Delete);
+        // Check if we are editing an link, if so, delete it.
+        if (deletePressed && m_editingLinkID != noID_ce)
+        {
+            sp_mg->LinkDelete(m_editingLinkID);
+            deletePressed = false;
+            ResetLinkBuilderState();
+        }
 
         if (ImGui::BeginTable("ViewerSplit", 2,
                               ImGuiTableFlags_Resizable |
