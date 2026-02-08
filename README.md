@@ -7,7 +7,7 @@ via node-graph visualisation, all done without analysing executed assembly.
 
 # TODO
 - [ ] feat/testing: Setup an opencode agent that will create and run unit tests for all available functions and methods
-- [ ] feat: Incorporate MrpVec capabilities (assigning and adding nodes)
+- [x] feat: Incorporate MrpVec capabilities (assigning and adding nodes)
 - [ ] refac: Remove named Values -> added later
 - [ ] feat: Add link details on hover
 - [ ] feat: Add node details on hover

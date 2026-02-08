@@ -126,7 +126,7 @@ namespace rmf::graph
         void RegionsAssignToMaps(const types::MemoryRegionPropertiesVec &OGMaps);
 
         // Dump all mrps in here.
-        void RegionsAddMrpVec(const types::MemoryRegionPropertiesVec &mrpVec);
+        void RegionsAddMrpVec(const types::MemoryRegionPropertiesVec &mrpVec, std::string name = "");
     };
 }
 

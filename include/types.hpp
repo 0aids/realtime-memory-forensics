@@ -147,6 +147,9 @@ namespace rmf::types
                     perms) // Handles bitmask names automatically
             );
         }
+
+        void AssignNewParentRegion(const MemoryRegionProperties& other);
+
         MemoryRegionPropertiesVec
         BreakIntoChunks(uintptr_t chunkSize,
                         uintptr_t overlapSize = 0);
@@ -234,8 +237,8 @@ namespace rmf::types
         rmf::types::MemoryRegionPropertiesVec
         BreakIntoChunks(uintptr_t chunkSize,
                         uintptr_t overlapSize = 0);
+        std::optional<MemoryRegionProperties> GetRegionContainingAddress(uintptr_t addr) const;
     };
-
 };
 
 #endif // types_hpp_INCLUDED

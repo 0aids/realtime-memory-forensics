@@ -11,13 +11,15 @@ namespace rmf::graph
         return std::format("id: {} policy: {} SourceAddress: "
                            "{:#x} TargetAddress: {:#x} name: {}",
                            id, magic_enum::enum_name(data.policy),
-                           data.sourceAddr, data.targetAddr, data.name);
+                           data.sourceAddr, data.targetAddr,
+                           data.name);
     }
 
     std::string MemoryRegion::toString() const
     {
-        std::string result = std::format(
-            "name: {} id: {}\ncomment: {}", data.name, id, data.comment);
+        std::string result =
+            std::format("name: {} id: {}\ncomment: {}", data.name, id,
+                        data.comment);
 
         for (const auto& namedValue : data.namedValues)
         {
@@ -31,7 +33,8 @@ namespace rmf::graph
     MemoryRegionID MemoryGraph::RegionAdd(MemoryRegionData data)
     {
         MemoryRegionID assignedID = m_nextValidRegionID++;
-        m_regions.emplace(assignedID, MemoryRegion{data, this, assignedID});
+        m_regions.emplace(assignedID,
+                          MemoryRegion{data, this, assignedID});
         return assignedID;
     }
 
@@ -48,11 +51,11 @@ namespace rmf::graph
         return std::optional<MemoryRegion*>{std::nullopt};
     }
 
-    MemoryLinkID
-    MemoryGraph::LinkNaiveAdd(MemoryLinkData linkData)
+    MemoryLinkID MemoryGraph::LinkNaiveAdd(MemoryLinkData linkData)
     {
         MemoryLinkID assignedID = m_nextValidLinkID++;
-        m_links.emplace(assignedID, MemoryLink{linkData, this, assignedID});
+        m_links.emplace(assignedID,
+                        MemoryLink{linkData, this, assignedID});
         return assignedID;
     }
 
@@ -72,6 +75,7 @@ namespace rmf::graph
     MemoryRegionID
     MemoryGraph::RegionGetRegionIdAtAddress(uintptr_t addr)
     {
+        // Replace for binary search when using properly ordered region storage.
         for (const auto& region : RegionsGetViews())
         {
             if (region.data.mrp.TrueAddress() == addr)
@@ -182,20 +186,24 @@ namespace rmf::graph
         MemoryRegionID targetID = noID_ce;
         switch (data.policy)
         {
-            case MemoryLinkPolicy::Strict: 
-                sourceID = RegionGetRegionIdContainingAddress(data.sourceAddr);
-                targetID = RegionGetRegionIdContainingAddress(data.targetAddr);
+            case MemoryLinkPolicy::Strict:
+                sourceID = RegionGetRegionIdContainingAddress(
+                    data.sourceAddr);
+                targetID = RegionGetRegionIdContainingAddress(
+                    data.targetAddr);
                 break;
             case MemoryLinkPolicy::CreateSource:
                 sourceID = _LinkCreateOrGetSource(data.sourceAddr);
-                targetID = RegionGetRegionIdContainingAddress(data.targetAddr);
+                targetID = RegionGetRegionIdContainingAddress(
+                    data.targetAddr);
                 break;
             case MemoryLinkPolicy::CreateSourceTarget:
                 sourceID = _LinkCreateOrGetSource(data.sourceAddr);
                 targetID = _LinkCreateOrGetTarget(data.targetAddr);
                 break;
             case MemoryLinkPolicy::CreateTarget:
-                sourceID = RegionGetRegionIdContainingAddress(data.sourceAddr);
+                sourceID = RegionGetRegionIdContainingAddress(
+                    data.sourceAddr);
                 targetID = _LinkCreateOrGetTarget(data.targetAddr);
                 break;
             default:
@@ -206,5 +214,40 @@ namespace rmf::graph
         data.sourceID = sourceID;
         data.targetID = targetID;
         return LinkNaiveAdd(data);
+    }
+
+    void MemoryGraph::RegionsAssignToMaps(
+        const types::MemoryRegionPropertiesVec& OGMaps)
+    {
+        for (auto& region : RegionsGetViews())
+        {
+            auto container_opt = OGMaps.GetRegionContainingAddress(
+                region.data.mrp.TrueAddress());
+            if (!container_opt.has_value())
+            {
+                rmf_Log(rmf_Warning,
+                        "Region: '"
+                            << region.toString()
+                            << "' does not have containing region!");
+                continue;
+            }
+            auto container = container_opt.value();
+            region.data.mrp.AssignNewParentRegion(container);
+        }
+    }
+
+    void MemoryGraph::RegionsAddMrpVec(
+        const types::MemoryRegionPropertiesVec& mrpVec, std::string name)
+    {
+        size_t i = 0;
+        for (const auto& region : mrpVec)
+        {
+            RegionAdd({
+                .mrp         = region,
+                .namedValues = {},
+                .name        = name + std::to_string(i++),
+                .comment     = "",
+            });
+        }
     }
 }

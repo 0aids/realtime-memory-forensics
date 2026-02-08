@@ -2,6 +2,7 @@
 #include "logger.hpp"
 #include "utils.hpp"
 #include <chrono>
+#include <cstddef>
 #include <cstdio>
 #include <memory>
 #include <optional>
@@ -129,6 +130,31 @@ namespace rmf::types
         return utils::BreakIntoChunks(*this, chunkSize, overlapSize);
     }
 
+    void MemoryRegionProperties::AssignNewParentRegion(
+        const MemoryRegionProperties& other)
+    {
+        // This is sus, write test cases please.
+        // Calculate new relative region address.
+        ptrdiff_t diff =
+            parentRegionAddress - other.parentRegionAddress;
+        relativeRegionAddress += diff;
+        parentRegionAddress = other.parentRegionAddress;
+        diff = relativeRegionSize - other.parentRegionSize;
+        if (TrueEnd() > other.parentRegionAddress + other.parentRegionSize)
+        {
+            rmf_Log(rmf_Warning,
+                    "Region: '"
+                        << this->toString()
+                        << "' has a parent region that is smaller "
+                           "than itself! Will truncate!");
+            // Truncate the relative region size
+            relativeRegionSize -= diff;
+        }
+        parentRegionSize = other.parentRegionSize;
+        regionName_sp = other.regionName_sp;
+        perms = other.perms;
+    }
+
     rmf::types::MemoryRegionPropertiesVec
     MemoryRegionPropertiesVec::BreakIntoChunks(uintptr_t chunkSize,
                                                uintptr_t overlapSize)
@@ -176,5 +202,16 @@ namespace rmf::types
         const std::string_view& perms)
     {
         return utils::FilterNotPerms(*this, perms);
+    }
+    std::optional<MemoryRegionProperties>
+    rmf::types::MemoryRegionPropertiesVec::GetRegionContainingAddress(
+        uintptr_t addr) const
+    {
+        for (const auto& mrp : *this)
+        {
+            if (mrp.TrueAddress() <= addr && mrp.TrueEnd() > addr)
+                return mrp;
+        }
+        return std::nullopt;
     }
 }
