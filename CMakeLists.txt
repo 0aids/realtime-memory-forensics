@@ -16,7 +16,7 @@ endif()
 set(GLOBAL_WARNINGS
     -Wall -Wextra -Wpedantic -Wno-cpp --warn-no-format-security
     -fdiagnostics-show-template-tree
-    -fmacro-prefix-map=${CMAKE_SOURCE_DIR}=.
+    -fmacro-prefix-map=${CMAKE_SOURCE_DIR}=. -g -O0
 )
 
 # ---------------- Sanitizers ----------------

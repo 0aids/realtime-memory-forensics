@@ -8,7 +8,8 @@ via node-graph visualisation, all done without analysing executed assembly.
 # TODO
 - [-] feat/testing: Setup an opencode agent that will create and run unit tests for all available functions and methods
 - [x] feat: Incorporate MrpVec capabilities (assigning and adding nodes)
-- [ ] refac: fix build script for better incorporation of testing
+- [x] refac: fix build script for better incorporation of testing
+- [ ] feat: better testing and more coverage
 - [ ] refac: Remove named Values -> added later
 - [ ] feat: Add link details on hover
 - [ ] feat: Add node details on hover
@@ -21,6 +22,14 @@ via node-graph visualisation, all done without analysing executed assembly.
 - [ ] feat: re-add named values?
 - [ ] feat: graph serialisation?
 - [ ] done for now?
+
+
+# Running tests
+Make sure that you have memory limits setup otherwise it will crash your computer on failing
+tests sometimes.
+```bash
+cmake -S . -B build -Dbuild_tests=ON && cmake --build build && (ulimit -m 1000000 && ulimit -v 1000000 && cd build && ctest)
+```
 
 
 # Example script
@@ -53,7 +62,7 @@ def getPointersToValue(memoryGraph, analyzer, maps):
     # Valuable information about the sizes of your desired thing
     transaction.mrp = mrp
     # Maybe you want to increase the size
-    transaction.mrp.relativeRegionSize += 0x10 # add by 8 bytes
+    transaction.mrp.relativeRegionSize += 0x10 # add by 16 bytes
     transaction.mrp.relativeRegionSize += types.i8.size # add by 1 byte
     transaction.namedValues.add(
         name="randomNamedValue",
