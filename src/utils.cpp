@@ -198,7 +198,9 @@ BreakIntoChunks(const rmf::types::MemoryRegionProperties& other,
         res.push_back(other);
         res.back().relativeRegionSize = actualChunkSize;
         res.back().relativeRegionAddress = ptrHead;
-        ptrHead += actualChunkSize - ovelapSize;
+        ptrHead += actualChunkSize;
+        if (ptrHead >= end) break;
+        ptrHead -= ovelapSize;
     }
     rmf_Log(rmf_Debug, "Broken into: " << res.size() << " chunks");
     return res;
@@ -225,7 +227,9 @@ rmf::types::MemoryRegionPropertiesVec BreakIntoChunks(
             res.push_back(mrp);
             res.back().relativeRegionSize = actualChunkSize;
             res.back().relativeRegionAddress = ptrHead;
-            ptrHead += actualChunkSize - ovelapSize;
+            ptrHead += actualChunkSize;
+            if (ptrHead >= end) break;
+            ptrHead -= ovelapSize;
         }
     }
     rmf_Log(rmf_Debug, "Total size: " << std::hex << std::showbase << overallSize);

@@ -17,56 +17,128 @@
 #include <utility>
 #include "abbreviations.hpp"
 
+#pragma GCC push_options
+#pragma GCC optimize("O0")
+
 namespace rmf::test
 {
     using namespace rmf::abv;
     using namespace std::chrono_literals;
 
-	void testComponent::setup() {
-    	m_nextScheduledTime = std::chrono::steady_clock::now() + 1s;
-	}
+    void testComponent::setup()
+    {
+        m_nextScheduledTime = std::chrono::steady_clock::now() + 1s;
+    }
 
-	void testComponent::execute()
-	{
-    	// Do nothing
-	}
+    void testComponent::execute()
+    {
+        // Do nothing
+    }
 
-	timepoint testComponent::reschedule()
-	{
-    	m_nextScheduledTime = std::chrono::steady_clock::now() + 1s;
-    	return m_nextScheduledTime;
-	}
+    timepoint testComponent::reschedule()
+    {
+        m_nextScheduledTime = std::chrono::steady_clock::now() + 1s;
+        return m_nextScheduledTime;
+    }
 
-	timepoint testComponent::getCurrentSchedule()
-	{
-    	return m_nextScheduledTime;
-	}
+    timepoint testComponent::getCurrentSchedule()
+    {
+        return m_nextScheduledTime;
+    }
 
-	void staticStringTestComponent::setup()
-	{
-    	for (size_t i = 0; i < 6; i++)
-    	{
-        	bigString += bigString;
-    	}
-    	m_nextScheduledTime = std::chrono::steady_clock::now() + 5s;
-	}
+    void staticStringTestComponent::setup()
+    {
+        for (size_t i = 0; i < 6; i++)
+        {
+            bigString += bigString;
+        }
+        m_nextScheduledTime = std::chrono::steady_clock::now() + 5s;
+    }
 
-	void staticStringTestComponent::execute()
-	{
-	}
+    void      staticStringTestComponent::execute() {}
 
-	timepoint staticStringTestComponent::reschedule()
-	{
-    	m_nextScheduledTime = std::chrono::steady_clock::now() + 5s;
-    	return m_nextScheduledTime;
-	}
+    timepoint staticStringTestComponent::reschedule()
+    {
+        m_nextScheduledTime = std::chrono::steady_clock::now() + 5s;
+        return m_nextScheduledTime;
+    }
 
-	timepoint staticStringTestComponent::getCurrentSchedule()
-	{
-    	return m_nextScheduledTime;
-	}
+    timepoint staticStringTestComponent::getCurrentSchedule()
+    {
+        return m_nextScheduledTime;
+    }
 
-	// > so that we get a min priority queue
+    incrementingIntComponent::incrementingIntComponent(
+        int32_t initialValue, int32_t incrementAmount) :
+        m_value(initialValue), m_incrementAmount(incrementAmount)
+    {
+    }
+
+    void incrementingIntComponent::setup()
+    {
+        m_nextScheduledTime = std::chrono::steady_clock::now() + 1s;
+    }
+
+    void incrementingIntComponent::execute()
+    {
+        m_value += m_incrementAmount;
+    }
+
+    timepoint incrementingIntComponent::reschedule()
+    {
+        m_nextScheduledTime = std::chrono::steady_clock::now() + 1s;
+        return m_nextScheduledTime;
+    }
+
+    timepoint incrementingIntComponent::getCurrentSchedule()
+    {
+        return m_nextScheduledTime;
+    }
+
+    int32_t incrementingIntComponent::getValue() const
+    {
+        return m_value;
+    }
+
+    void staticValueComponent::setup()
+    {
+        m_nextScheduledTime = std::chrono::steady_clock::now() + 60s;
+    }
+
+    void      staticValueComponent::execute() {}
+
+    timepoint staticValueComponent::reschedule()
+    {
+        m_nextScheduledTime = std::chrono::steady_clock::now() + 60s;
+        return m_nextScheduledTime;
+    }
+
+    timepoint staticValueComponent::getCurrentSchedule()
+    {
+        return m_nextScheduledTime;
+    }
+
+    int32_t staticValueComponent::getStaticInt() const
+    {
+        return m_staticInt;
+    }
+
+    int64_t staticValueComponent::getStaticLong() const
+    {
+        return m_staticLong;
+    }
+
+    float staticValueComponent::getStaticFloat() const
+    {
+        return m_staticFloat;
+    }
+
+    double staticValueComponent::getStaticDouble() const
+    {
+        return m_staticDouble;
+    }
+
+    // > so that we get a min priority queue
     bool
     testComponentComparator::operator()(const sptr<testComponent> lhs,
                                         const sptr<testComponent> rhs)
@@ -74,15 +146,18 @@ namespace rmf::test
         return lhs->getCurrentSchedule() > rhs->getCurrentSchedule();
     }
 
-    pid_t testProcess::run() {
-        if (m_pid) 
+    pid_t testProcess::run()
+    {
+        if (m_pid)
         {
             rmf_Log(rmf_Error, "Already running a test process!");
             return m_pid;
         }
         m_pid = fork();
-        if (m_pid < 0) throw std::runtime_error("Failed to fork test process!");
-        else if (m_pid > 0) return m_pid;
+        if (m_pid < 0)
+            throw std::runtime_error("Failed to fork test process!");
+        else if (m_pid > 0)
+            return m_pid;
 
         // Set it so we die on parent process death.
         if (prctl(PR_SET_PDEATHSIG, SIGKILL) == -1)
@@ -91,9 +166,8 @@ namespace rmf::test
             exit(EXIT_FAILURE);
         }
 
-
-		// initialise stuff
-        for (auto& component:m_componentHolder)
+        // initialise stuff
+        for (auto& component : m_componentHolder)
         {
             component->setup();
             component->reschedule();
@@ -109,7 +183,8 @@ namespace rmf::test
             }
             sptr<testComponent> component = m_componentQueue.top();
             m_componentQueue.pop();
-            std::this_thread::sleep_until(component->getCurrentSchedule());
+            std::this_thread::sleep_until(
+                component->getCurrentSchedule());
             component->execute();
             component->reschedule();
             m_componentQueue.push(component);
@@ -125,6 +200,8 @@ namespace rmf::test
 
     testProcess::~testProcess()
     {
-        if (m_pid) stop();
+        if (m_pid)
+            stop();
     }
 } // namespace rmf::test
+#pragma GCC pop_options
