@@ -5,10 +5,10 @@
 // Main code
 int main(int, char**)
 {
-    pid_t sampleProcessPID = rmf::test::forkTestFunction(rmf::test::changingProcess1);
+    // pid_t sampleProcessPID = rmf::test::forkTestFunction(rmf::test::changingProcess1);
 
     // Default construct the gui state.
-    rmf::gui::GuiState gs(sampleProcessPID);
+    rmf::gui::GuiState gs;
     if (!gs.validState)
     {
         rmf_Log(rmf_Error, "Failed to initalize the GUI!");

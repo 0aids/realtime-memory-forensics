@@ -1,7 +1,7 @@
 find_package(GTest REQUIRED)
 include(GoogleTest)
 
-file(GLOB testFiles_cpp "*.cpp")
+file(GLOB_RECURSE testFiles_cpp "*.cpp")
 set(testNames)
 
 foreach(testFile_cpp ${testFiles_cpp})
