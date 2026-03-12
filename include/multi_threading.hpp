@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <pthread.h>
+#include <semaphore>
 #include <thread>
 #include <ranges>
 #include "logger.hpp"
@@ -21,16 +22,24 @@ namespace rmf
     template <typename Return_t>
     class Task_t
     {
-        private:
-            struct Data {
-                std::packaged_task<Return_t()> packagedTask;
-                std::future<Return_t>      future;
-            };
-            std::shared_ptr<Data> d;
+      private:
+        struct Data
+        {
+            std::packaged_task<Return_t()> packagedTask;
+            std::future<Return_t>          future;
+        };
+        std::shared_ptr<Data> d;
+
       public:
-          inline std::future<Return_t>& getFuture() { return d->future; }
-          inline std::packaged_task<Return_t()>& getPackagedTask() { return d->packagedTask; }
-        explicit                   operator bool() const
+        inline std::future<Return_t>& getFuture()
+        {
+            return d->future;
+        }
+        inline std::packaged_task<Return_t()>& getPackagedTask()
+        {
+            return d->packagedTask;
+        }
+        explicit operator bool() const
         {
             return d->future.valid();
         }
@@ -41,62 +50,67 @@ namespace rmf
             // Copies, so if you want to be fast always use trivially copyable.
             // for example handle-body idiom: hidden shared pointers.
             // No more lifetime problems hopefully.
-            using stdFuncType = decltype(std::function{func});
+            using stdFuncType  = decltype(std::function{func});
             using FuncReturn_t = stdFuncType::result_type;
             static_assert(
                 std::is_invocable_v<Func_t, Args...>,
-                "Arguments do not match function signature"
-            );
-            static_assert(std::is_same_v<FuncReturn_t, Return_t>, 
-            "Inputted function and templated return type are different!");
-            d = std::make_shared<Data>(std::packaged_task<Return_t()>(
-                [argsTuple = std::make_tuple(inputs...), func]() { return std::apply(func, argsTuple); }), std::future<Return_t>{});
+                "Arguments do not match function signature");
+            static_assert(std::is_same_v<FuncReturn_t, Return_t>,
+                          "Inputted function and templated return "
+                          "type are different!");
+            d = std::make_shared<Data>(
+                std::packaged_task<Return_t()>(
+                    [argsTuple = std::make_tuple(inputs...), func]()
+                    { return std::apply(func, argsTuple); }),
+                std::future<Return_t>{});
             d->future = d->packagedTask.get_future();
         }
     };
 
-    // TODO: Implement a turn-key system using std::move to ensure lapping doesn't occur.
-    // Means modifying SPMCQueueNonOwning to have std::pair<atomic<uint32_t>, T>
-    // Add a custom dequeue that checks the turn-key.
     class TaskThreadPool_t
     {
       private:
-        utils::SPMCQueue<std::function<void()>
-                                >
-                                 m_queue;
-        std::vector<std::thread> m_threads;
-        std::vector<std::string> m_threadNames;
-        std::atomic<bool>        m_alive;
+        utils::SPMCQueue<std::function<void()>> m_queue;
+        std::vector<std::thread>                m_threads;
+        std::vector<std::string>                m_threadNames;
+        std::atomic<bool>                       m_alive;
+        std::atomic<uint32_t>                   m_numRunning;
 
-        static void                     threadFunction(
-                                const std::atomic<bool>&                       alive,
-                                utils::SPMCQueue<std::function<void()>>& queue
-                                );
+        static void
+        threadFunction(const std::atomic<bool>&                 alive,
+                       utils::SPMCQueue<std::function<void()>>& queue,
+                       std::atomic<uint32_t>& numRunning);
 
       public:
-          // Tasks' data are held by a shared ptr, so they will not die, and are trivially copyable.
+        // Tasks' data are held by a shared ptr, so they will not die, and are trivially copyable.
         template <typename T>
-        void SubmitTask(Task_t<T>& task)
+        void SubmitTask(Task_t<T> task)
         {
             // Why the fuck aren't you mutable by default!!!!!!!!!!!!
             // Literally going to kill who designed this language.
-            while (!m_queue.enqueue([task]() mutable { task.getPackagedTask()(); }))
+            while (!m_queue.enqueue([task]() mutable
+                                    { task.getPackagedTask()(); }))
             {
                 using namespace std::chrono_literals;
-                rmf_Log(rmf_Warning, "Failed to enqueue task! Task Queue is Full!!!");
+                rmf_Log(
+                    rmf_Warning,
+                    "Failed to enqueue task! Task Queue is Full!!!");
                 std::this_thread::sleep_for(1s);
             }
         }
 
         template <typename T, typename func_t>
-        void SubmitTask(Task_t<T>& task, func_t yieldingCallback)
+        void SubmitTask(Task_t<T> task, func_t yieldingCallback)
         {
             // Why the fuck aren't you mutable by default!!!!!!!!!!!!
             // Literally going to kill who designed this language.
-            while (!m_queue.enqueue([task]() mutable { task.getPackagedTask()(); }))
+            while (!m_queue.enqueue([task]() mutable
+                                    { task.getPackagedTask()(); }))
             {
                 using namespace std::chrono_literals;
-                rmf_Log(rmf_Warning, "Failed to enqueue task! Task Queue is Full!!!");
+                rmf_Log(
+                    rmf_Warning,
+                    "Failed to enqueue task! Task Queue is Full!!!");
                 yieldingCallback();
             }
         }
@@ -113,28 +127,33 @@ namespace rmf
         void AwaitTasks()
         {
             using namespace std::chrono_literals;
-            while (!m_queue.empty())
+            while (!m_queue.empty() ||
+                   m_numRunning.load(std::memory_order_acquire) > 0)
             {
-                std::this_thread::sleep_for(10ms);
+                std::this_thread::sleep_for(1ms);
             }
         }
 
-        TaskThreadPool_t(size_t numThreads) : m_queue(rmf::utils::d_defaultQueueSize), m_alive(true)
+        TaskThreadPool_t(size_t numThreads) :
+            m_queue(rmf::utils::d_defaultQueueSize), m_alive(true), m_numRunning(0)
         {
-            for (size_t i = 0; i < numThreads; i++) {
-                m_threads.emplace_back(threadFunction, std::ref(m_alive), std::ref(m_queue));
+            for (size_t i = 0; i < numThreads; i++)
+            {
+                m_threads.emplace_back(
+                    threadFunction, std::ref(m_alive),
+                    std::ref(m_queue), std::ref(m_numRunning));
                 m_threadNames.emplace_back(std::to_string(i + 1));
 
-                pthread_setname_np(
-                    m_threads.back().native_handle(), m_threadNames.back().c_str());
+                pthread_setname_np(m_threads.back().native_handle(),
+                                   m_threadNames.back().c_str());
             }
         }
 
-        ~TaskThreadPool_t(){
-            // The only problem with lock-free is sometimes someone doesn't want to join.
-            // This is why there is a notifier spam here.
+        ~TaskThreadPool_t()
+        {
             m_alive.store(false, std::memory_order_release);
-            for (auto &thread:m_threads) {
+            for (auto& thread : m_threads)
+            {
                 thread.join();
             }
         }

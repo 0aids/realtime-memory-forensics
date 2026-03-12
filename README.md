@@ -13,8 +13,8 @@ via node-graph visualisation, all done without analysing executed assembly.
 - [x] feat: Incorporate MrpVec capabilities (assigning and adding nodes)
 - [x] refac: fix build script for better incorporation of testing
 - [x] feat: better testing and more coverage
-- [ ] refac: Remove PIDs (should be user managed, idk why i'm storing it in the mrps)
-- [ ] refac: Remove named Values -> added later
+- [x] refac: Remove PIDs (should be user managed, idk why i'm storing it in the mrps)
+- [?] refac: Remove named Values -> added later? why?
 - [ ] feat: Add link details on hover
 - [ ] feat: Add node details on hover
 - [ ] feat: Incorporate auto linking using an inputted analyzer.
