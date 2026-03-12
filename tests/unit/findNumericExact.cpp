@@ -38,7 +38,7 @@ TEST(findNumericExactTest, findInt32InTestProcessDefault)
 
     for (const auto& mrp : readableRegions)
     {
-        auto snapshot = MemorySnapshot::Make(mrp);
+        auto snapshot = MemorySnapshot::Make(mrp, childPid);
         if (!snapshot.isValid())
             continue;
 
@@ -80,7 +80,7 @@ TEST(findNumericExactTest, findInt32InTestProcess)
 
     for (const auto& mrp : readableRegions)
     {
-        auto snapshot = MemorySnapshot::Make(mrp);
+        auto snapshot = MemorySnapshot::Make(mrp, childPid);
         if (!snapshot.isValid())
             continue;
 
@@ -143,7 +143,7 @@ TEST(findNumericExactTest, findInt64InTestProcess)
 
     for (const auto& mrp : readableRegions)
     {
-        auto snapshot = MemorySnapshot::Make(mrp);
+        auto snapshot = MemorySnapshot::Make(mrp, childPid);
         if (!snapshot.isValid())
             continue;
 
@@ -185,7 +185,7 @@ TEST(findNumericExactTest, findNonExistentValue)
 
     for (const auto& mrp : readableRegions)
     {
-        auto snapshot = MemorySnapshot::Make(mrp);
+        auto snapshot = MemorySnapshot::Make(mrp, childPid);
         if (!snapshot.isValid())
             continue;
 

@@ -34,7 +34,7 @@ TEST(findStringTest, findStringInTestProcess)
 
     for (const auto& mrp : readableRegions)
     {
-        auto snapshot = MemorySnapshot::Make(mrp);
+        auto snapshot = MemorySnapshot::Make(mrp, childPid);
         if (!snapshot.isValid())
             continue;
 
@@ -95,7 +95,7 @@ TEST(findStringTest, findLoremIpsum)
 
     for (const auto& mrp : readableRegions)
     {
-        auto snapshot = MemorySnapshot::Make(mrp);
+        auto snapshot = MemorySnapshot::Make(mrp, childPid);
         if (!snapshot.isValid())
             continue;
 
@@ -133,7 +133,7 @@ TEST(findStringTest, findNonExistentString)
 
     for (const auto& mrp : readableRegions)
     {
-        auto snapshot = MemorySnapshot::Make(mrp);
+        auto snapshot = MemorySnapshot::Make(mrp, childPid);
         if (!snapshot.isValid())
             continue;
 

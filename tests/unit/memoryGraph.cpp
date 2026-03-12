@@ -8,13 +8,14 @@ TEST(memoryGraphTest, addRegion)
     MemoryGraph      graph;
 
     MemoryRegionData data;
-    data.mrp  = {0x1000,
-                 0x1000,
-                 0,
-                 0x1000,
-                 std::make_shared<const std::string>("test"),
-                 rmf::types::Perms::Read,
-                 0};
+    data.mrp = {
+        0x1000,
+        0x1000,
+        0,
+        0x1000,
+        std::make_shared<const std::string>("test"),
+        rmf::types::Perms::Read,
+    };
     data.name = "testRegion";
 
     auto id = graph.RegionAdd(data);
@@ -31,24 +32,26 @@ TEST(memoryGraphTest, getRegionAtAddress)
     MemoryGraph      graph;
 
     MemoryRegionData data1;
-    data1.mrp  = {0x1000,
-                  0x1000,
-                  0,
-                  0x1000,
-                  std::make_shared<const std::string>("region1"),
-                  rmf::types::Perms::Read,
-                  0};
+    data1.mrp = {
+        0x1000,
+        0x1000,
+        0,
+        0x1000,
+        std::make_shared<const std::string>("region1"),
+        rmf::types::Perms::Read,
+    };
     data1.name = "region1";
     graph.RegionAdd(data1);
 
     MemoryRegionData data2;
-    data2.mrp  = {0x2000,
-                  0x1000,
-                  0,
-                  0x1000,
-                  std::make_shared<const std::string>("region2"),
-                  rmf::types::Perms::Read,
-                  0};
+    data2.mrp = {
+        0x2000,
+        0x1000,
+        0,
+        0x1000,
+        std::make_shared<const std::string>("region2"),
+        rmf::types::Perms::Read,
+    };
     data2.name = "region2";
     graph.RegionAdd(data2);
 
@@ -72,24 +75,26 @@ TEST(memoryGraphTest, getRegionContainingAddress)
     MemoryGraph      graph;
 
     MemoryRegionData data1;
-    data1.mrp  = {0x1000,
-                  0x1000,
-                  0,
-                  0x1000,
-                  std::make_shared<const std::string>("region1"),
-                  rmf::types::Perms::Read,
-                  0};
+    data1.mrp = {
+        0x1000,
+        0x1000,
+        0,
+        0x1000,
+        std::make_shared<const std::string>("region1"),
+        rmf::types::Perms::Read,
+    };
     data1.name = "region1";
     graph.RegionAdd(data1);
 
     MemoryRegionData data2;
-    data2.mrp  = {0x2000,
-                  0x1000,
-                  0,
-                  0x1000,
-                  std::make_shared<const std::string>("region2"),
-                  rmf::types::Perms::Read,
-                  0};
+    data2.mrp = {
+        0x2000,
+        0x1000,
+        0,
+        0x1000,
+        std::make_shared<const std::string>("region2"),
+        rmf::types::Perms::Read,
+    };
     data2.name = "region2";
     graph.RegionAdd(data2);
 
@@ -113,24 +118,26 @@ TEST(memoryGraphTest, addLink)
     MemoryGraph      graph;
 
     MemoryRegionData data1;
-    data1.mrp            = {0x1000,
-                            0x1000,
-                            0,
-                            0x1000,
-                            std::make_shared<const std::string>("source"),
-                            rmf::types::Perms::Read,
-                            0};
+    data1.mrp = {
+        0x1000,
+        0x1000,
+        0,
+        0x1000,
+        std::make_shared<const std::string>("source"),
+        rmf::types::Perms::Read,
+    };
     data1.name           = "source";
     auto             id1 = graph.RegionAdd(data1);
 
     MemoryRegionData data2;
-    data2.mrp          = {0x2000,
-                          0x1000,
-                          0,
-                          0x1000,
-                          std::make_shared<const std::string>("target"),
-                          rmf::types::Perms::Read,
-                          0};
+    data2.mrp = {
+        0x2000,
+        0x1000,
+        0,
+        0x1000,
+        std::make_shared<const std::string>("target"),
+        rmf::types::Perms::Read,
+    };
     data2.name         = "target";
     auto           id2 = graph.RegionAdd(data2);
 
@@ -155,13 +162,14 @@ TEST(memoryGraphTest, deleteRegion)
     MemoryGraph      graph;
 
     MemoryRegionData data;
-    data.mrp  = {0x1000,
-                 0x1000,
-                 0,
-                 0x1000,
-                 std::make_shared<const std::string>("test"),
-                 rmf::types::Perms::Read,
-                 0};
+    data.mrp = {
+        0x1000,
+        0x1000,
+        0,
+        0x1000,
+        std::make_shared<const std::string>("test"),
+        rmf::types::Perms::Read,
+    };
     data.name = "testRegion";
 
     auto id = graph.RegionAdd(data);
@@ -178,13 +186,14 @@ TEST(memoryGraphTest, deleteLink)
     MemoryGraph      graph;
 
     MemoryRegionData data1;
-    data1.mrp            = {0x1000,
-                            0x1000,
-                            0,
-                            0x1000,
-                            std::make_shared<const std::string>("source"),
-                            rmf::types::Perms::Read,
-                            0};
+    data1.mrp = {
+        0x1000,
+        0x1000,
+        0,
+        0x1000,
+        std::make_shared<const std::string>("source"),
+        rmf::types::Perms::Read,
+    };
     data1.name           = "source";
     auto             id1 = graph.RegionAdd(data1);
 
@@ -194,8 +203,7 @@ TEST(memoryGraphTest, deleteLink)
                           0,
                           0x1000,
                           std::make_shared<const std::string>("target"),
-                          rmf::types::Perms::Read,
-                          0};
+                          rmf::types::Perms::Read};
     data2.name         = "target";
     auto           id2 = graph.RegionAdd(data2);
 
@@ -226,8 +234,7 @@ TEST(memoryGraphTest, getAllRegions)
                      0x1000,
                      std::make_shared<const std::string>(
                         "region" + std::to_string(i)),
-                     rmf::types::Perms::Read,
-                     0};
+                     rmf::types::Perms::Read};
         data.name = "region" + std::to_string(i);
         graph.RegionAdd(data);
     }

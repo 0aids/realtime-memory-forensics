@@ -94,7 +94,6 @@ namespace rmf::types
         std::shared_ptr<const std::string> regionName_sp =
             std::make_shared<const std::string>("");
         Perms            perms = Perms::None;
-        pid_t            pid   = 0;
 
         inline uintptr_t TrueAddress() const
         {
@@ -187,7 +186,7 @@ namespace rmf::types
             return d->mrp;
         }
 
-        static MemorySnapshot Make(const MemoryRegionProperties& mrp);
+        static MemorySnapshot Make(const MemoryRegionProperties& mrp, pid_t pid);
 
         inline bool           isValid() const
         {

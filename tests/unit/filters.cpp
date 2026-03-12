@@ -10,15 +10,24 @@ using namespace rmf::utils;
 TEST(filtersTest, filterMinSize)
 {
     MemoryRegionPropertiesVec regions = {
-        {0x1000, 0x1000, 0, 0x100,
-         std::make_shared<const std::string>("small"),  Perms::Read,
-         0},
-        {0x2000, 0x2000, 0, 0x1000,
-         std::make_shared<const std::string>("medium"), Perms::Read,
-         0},
-        {0x3000, 0x3000, 0, 0x10000,
-         std::make_shared<const std::string>("large"),  Perms::Read,
-         0},
+        {
+         0x1000,                                        0x1000,
+         0,      0x100,
+         std::make_shared<const std::string>("small"),
+         Perms::Read,
+         },
+        {
+         0x2000,                                             0x2000,
+         0, 0x1000,
+         std::make_shared<const std::string>("medium"),
+         Perms::Read,
+         },
+        {
+         0x3000, 0x3000,
+         0,      0x10000,
+         std::make_shared<const std::string>("large"),
+         Perms::Read,
+         },
     };
 
     auto result = FilterMinSize(regions, 0x1000);
@@ -31,15 +40,24 @@ TEST(filtersTest, filterMinSize)
 TEST(filtersTest, filterMaxSize)
 {
     MemoryRegionPropertiesVec regions = {
-        {0x1000, 0x1000, 0, 0x100,
-         std::make_shared<const std::string>("small"),  Perms::Read,
-         0},
-        {0x2000, 0x2000, 0, 0x1000,
-         std::make_shared<const std::string>("medium"), Perms::Read,
-         0},
-        {0x3000, 0x3000, 0, 0x10000,
-         std::make_shared<const std::string>("large"),  Perms::Read,
-         0},
+        {
+         0x1000,                                        0x1000,
+         0,      0x100,
+         std::make_shared<const std::string>("small"),
+         Perms::Read,
+         },
+        {
+         0x2000,                                             0x2000,
+         0, 0x1000,
+         std::make_shared<const std::string>("medium"),
+         Perms::Read,
+         },
+        {
+         0x3000, 0x3000,
+         0,      0x10000,
+         std::make_shared<const std::string>("large"),
+         Perms::Read,
+         },
     };
 
     auto result = FilterMaxSize(regions, 0x1000);
@@ -52,15 +70,24 @@ TEST(filtersTest, filterMaxSize)
 TEST(filtersTest, filterName)
 {
     MemoryRegionPropertiesVec regions = {
-        {0x1000, 0x1000, 0, 0x100,
-         std::make_shared<const std::string>("test1"), Perms::Read,
-         0},
-        {0x2000, 0x2000, 0, 0x100,
-         std::make_shared<const std::string>("test2"), Perms::Read,
-         0},
-        {0x3000, 0x3000, 0, 0x100,
-         std::make_shared<const std::string>("other"), Perms::Read,
-         0},
+        {
+         0x1000,                                       0x1000,
+         0,      0x100,
+         std::make_shared<const std::string>("test1"),
+         Perms::Read,
+         },
+        {
+         0x2000,                                            0x2000,
+         0, 0x100,
+         std::make_shared<const std::string>("test2"),
+         Perms::Read,
+         },
+        {
+         0x3000, 0x3000,
+         0,      0x100,
+         std::make_shared<const std::string>("other"),
+         Perms::Read,
+         },
     };
 
     auto result = FilterName(regions, "test1");
@@ -72,15 +99,24 @@ TEST(filtersTest, filterName)
 TEST(filtersTest, filterContainsName)
 {
     MemoryRegionPropertiesVec regions = {
-        {0x1000, 0x1000, 0, 0x100,
-         std::make_shared<const std::string>("test1"), Perms::Read,
-         0},
-        {0x2000, 0x2000, 0, 0x100,
-         std::make_shared<const std::string>("test2"), Perms::Read,
-         0},
-        {0x3000, 0x3000, 0, 0x100,
-         std::make_shared<const std::string>("other"), Perms::Read,
-         0},
+        {
+         0x1000,                                       0x1000,
+         0,      0x100,
+         std::make_shared<const std::string>("test1"),
+         Perms::Read,
+         },
+        {
+         0x2000,                                            0x2000,
+         0, 0x100,
+         std::make_shared<const std::string>("test2"),
+         Perms::Read,
+         },
+        {
+         0x3000, 0x3000,
+         0,      0x100,
+         std::make_shared<const std::string>("other"),
+         Perms::Read,
+         },
     };
 
     auto result = FilterContainsName(regions, "test");
@@ -93,13 +129,24 @@ TEST(filtersTest, filterContainsName)
 TEST(filtersTest, filterPermsExact)
 {
     MemoryRegionPropertiesVec regions = {
-        {0x1000, 0x1000, 0, 0x100,
-         std::make_shared<const std::string>("r"),   Perms::Read, 0},
-        {0x2000, 0x2000, 0, 0x100,
+        {
+         0x1000,                                    0x1000,
+         0,      0x100,
+         std::make_shared<const std::string>("r"),
+         Perms::Read,
+         },
+        {
+         0x2000,                                         0x2000,
+         0, 0x100,
          std::make_shared<const std::string>("rw"),
-         Perms::Read | Perms::Write,                              0},
-        {0x3000, 0x3000, 0, 0x100,
-         std::make_shared<const std::string>("r"), Perms::Read, 0},
+         Perms::Read | Perms::Write,
+         },
+        {
+         0x3000, 0x3000,
+         0,      0x100,
+         std::make_shared<const std::string>("r"),
+         Perms::Read,
+         },
     };
 
     auto result = FilterPerms(regions, "r");
@@ -111,14 +158,24 @@ TEST(filtersTest, filterPermsExact)
 TEST(filtersTest, filterHasPerms)
 {
     MemoryRegionPropertiesVec regions = {
-        {0x1000, 0x1000, 0, 0x100,
-         std::make_shared<const std::string>("r"),   Perms::Read, 0},
-        {0x2000, 0x2000, 0, 0x100,
+        {
+         0x1000,                                    0x1000,
+         0,      0x100,
+         std::make_shared<const std::string>("r"),
+         Perms::Read,
+         },
+        {
+         0x2000,                                         0x2000,
+         0, 0x100,
          std::make_shared<const std::string>("rw"),
-         Perms::Read | Perms::Write,                              0},
-        {0x3000, 0x3000, 0, 0x100,
+         Perms::Read | Perms::Write,
+         },
+        {
+         0x3000, 0x3000,
+         0,      0x100,
          std::make_shared<const std::string>("rwx"),
-         Perms::Read | Perms::Write | Perms::Execute,             0},
+         Perms::Read | Perms::Write | Perms::Execute,
+         },
     };
 
     auto result = FilterHasPerms(regions, "r");
@@ -129,14 +186,24 @@ TEST(filtersTest, filterHasPerms)
 TEST(filtersTest, filterNotPerms)
 {
     MemoryRegionPropertiesVec regions = {
-        {0x1000, 0x1000, 0, 0x100,
-         std::make_shared<const std::string>("r"),   Perms::Read, 0},
-        {0x2000, 0x2000, 0, 0x100,
+        {
+         0x1000,                                    0x1000,
+         0,      0x100,
+         std::make_shared<const std::string>("r"),
+         Perms::Read,
+         },
+        {
+         0x2000,                                         0x2000,
+         0, 0x100,
          std::make_shared<const std::string>("rw"),
-         Perms::Read | Perms::Write,                              0},
-        {0x3000, 0x3000, 0, 0x100,
+         Perms::Read | Perms::Write,
+         },
+        {
+         0x3000, 0x3000,
+         0,      0x100,
          std::make_shared<const std::string>("rwx"),
-         Perms::Read | Perms::Write | Perms::Execute,             0},
+         Perms::Read | Perms::Write | Perms::Execute,
+         },
     };
 
     auto result = FilterNotPerms(regions, "x");
@@ -151,15 +218,24 @@ TEST(filtersTest, filterNotPerms)
 TEST(filtersTest, getRegionContainingAddress)
 {
     MemoryRegionPropertiesVec regions = {
-        {0x1000, 0x1000, 0, 0x100,
-         std::make_shared<const std::string>("region1"), Perms::Read,
-         0},
-        {0x2000, 0x2000, 0, 0x100,
-         std::make_shared<const std::string>("region2"), Perms::Read,
-         0},
-        {0x3000, 0x3000, 0, 0x100,
-         std::make_shared<const std::string>("region3"), Perms::Read,
-         0},
+        {
+         0x1000,                                         0x1000,
+         0,      0x100,
+         std::make_shared<const std::string>("region1"),
+         Perms::Read,
+         },
+        {
+         0x2000,                                              0x2000,
+         0, 0x100,
+         std::make_shared<const std::string>("region2"),
+         Perms::Read,
+         },
+        {
+         0x3000, 0x3000,
+         0,      0x100,
+         std::make_shared<const std::string>("region3"),
+         Perms::Read,
+         },
     };
 
     auto result = regions.GetRegionContainingAddress(0x1050);

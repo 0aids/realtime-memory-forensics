@@ -19,7 +19,6 @@ TEST(parseMapsTest, parseOwnProcessMaps)
 
     for (const auto& mrp : regions)
     {
-        EXPECT_EQ(mrp.pid, pid);
         EXPECT_GT(mrp.parentRegionAddress, 0);
         EXPECT_GT(mrp.relativeRegionSize, 0);
         EXPECT_NE(mrp.perms, Perms::None);
@@ -49,7 +48,6 @@ TEST(parseMapsTest, parseTestProcessMaps)
 
     for (const auto& mrp : readableRegions)
     {
-        EXPECT_EQ(mrp.pid, childPid);
         EXPECT_TRUE(hasPerms(mrp.perms, Perms::Read));
     }
 

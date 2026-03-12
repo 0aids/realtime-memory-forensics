@@ -170,7 +170,6 @@ rmf::types::MemoryRegionPropertiesVec ParseMaps(const std::string fullPath, pid_
             endAddr - startAddr,
             std::make_shared<const std::string>(name),
             rmf::utils::ParsePerms(perms),
-            pid,
         };
         rmf_Log(rmf_Debug, "Found region: " << m.toString());
         regionProperties.push_back(std::move(m));

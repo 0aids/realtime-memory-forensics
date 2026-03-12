@@ -25,7 +25,7 @@ namespace rmf::types
     }
 
     MemorySnapshot
-    MemorySnapshot::Make(const MemoryRegionProperties& mrp)
+    MemorySnapshot::Make(const MemoryRegionProperties& mrp, pid_t pid)
     {
         constexpr uintptr_t chunkSize = 1 << 24;
         MemorySnapshot      snap(mrp);
@@ -56,7 +56,7 @@ namespace rmf::types
                 snap.d->mc_data.data() + totalBytesRead;
             localIovec[0].iov_len = bytesToRead;
 
-            ssize_t nread = process_vm_readv(mrp.pid, localIovec, 1,
+            ssize_t nread = process_vm_readv(pid, localIovec, 1,
                                              sourceIovec, 1, 0);
 
             if (nread <= 0)

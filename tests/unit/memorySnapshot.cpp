@@ -26,7 +26,7 @@ TEST(memorySnapshotTest, takeSnapshotOfTestProcess)
     ASSERT_FALSE(readableRegions.empty());
 
     auto& firstRegion = readableRegions.front();
-    auto  snapshot    = MemorySnapshot::Make(firstRegion);
+    auto  snapshot    = MemorySnapshot::Make(firstRegion, childPid);
 
     EXPECT_TRUE(snapshot.isValid());
     EXPECT_EQ(snapshot.getDataSpan().size(),
@@ -52,7 +52,7 @@ TEST(memorySnapshotTest, snapshotDataMatchesExpected)
 
     for (const auto& mrp : readableRegions)
     {
-        auto snapshot = MemorySnapshot::Make(mrp);
+        auto snapshot = MemorySnapshot::Make(mrp, childPid);
         if (snapshot.isValid())
         {
             EXPECT_EQ(snapshot.getDataSpan().size(),
@@ -82,8 +82,8 @@ TEST(memorySnapshotTest, multipleSnapshots)
 
     auto& region = readableRegions.front();
 
-    auto  snapshot1 = MemorySnapshot::Make(region);
-    auto  snapshot2 = MemorySnapshot::Make(region);
+    auto  snapshot1 = MemorySnapshot::Make(region, childPid);
+    auto  snapshot2 = MemorySnapshot::Make(region, childPid);
 
     EXPECT_TRUE(snapshot1.isValid());
     EXPECT_TRUE(snapshot2.isValid());

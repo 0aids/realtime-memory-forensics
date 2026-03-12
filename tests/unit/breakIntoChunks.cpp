@@ -14,7 +14,7 @@ TEST(breakIntoChunksTest, singleRegionIntoChunks)
         0x10000,
         std::make_shared<const std::string>("test"),
         Perms::Read,
-        0};
+    };
 
     auto chunks = BreakIntoChunks(region, 0x1000);
 
@@ -36,7 +36,7 @@ TEST(breakIntoChunksTest, regionSmallerThanChunk)
         0x500,
         std::make_shared<const std::string>("test"),
         Perms::Read,
-        0};
+    };
 
     auto chunks = BreakIntoChunks(region, 0x1000);
 
@@ -53,7 +53,6 @@ TEST(breakIntoChunksTest, withOverlap)
         0x4000,
         std::make_shared<const std::string>("test"),
         Perms::Read,
-        0
     };
 
     auto chunks = BreakIntoChunks(region, 0x1000, 0x100);
@@ -70,10 +69,18 @@ TEST(breakIntoChunksTest, withOverlap)
 TEST(breakIntoChunksTest, vectorOfRegions)
 {
     MemoryRegionPropertiesVec regions = {
-        {0x1000, 0x1000, 0, 0x1000,
-         std::make_shared<const std::string>("a"), Perms::Read, 0},
-        {0x2000, 0x2000, 0, 0x2000,
-         std::make_shared<const std::string>("b"), Perms::Read, 0},
+        {
+         0x1000, 0x1000,
+         0,      0x1000,
+         std::make_shared<const std::string>("a"),
+         Perms::Read,
+         },
+        {
+         0x2000,      0x2000,
+         0, 0x2000,
+         std::make_shared<const std::string>("b"),
+         Perms::Read,
+         },
     };
 
     auto chunks = BreakIntoChunks(regions, 0x800);
@@ -85,19 +92,31 @@ TEST(compressNestedMrpVecTest, flattenNestedVectors)
 {
     std::vector<MemoryRegionPropertiesVec> nested = {
         MemoryRegionPropertiesVec({
-                                   {0x1000, 0x100, 0, 0x100,
-             std::make_shared<const std::string>("a"), Perms::Read,
-             0},
-                                   {0x2000, 0x100, 0, 0x100,
-             std::make_shared<const std::string>("b"), Perms::Read,
-             0},
-                                   }
+                                   {
+                0x1000,
+                0x100,
+                0,
+                0x100,
+                std::make_shared<const std::string>("a"),
+                Perms::Read,
+            }, {
+                0x2000,
+                0x100,
+                0,
+                0x100,
+                std::make_shared<const std::string>("b"),
+                Perms::Read,
+            }, }
         ),
         MemoryRegionPropertiesVec({
-                                   {0x3000, 0x100, 0, 0x100,
-             std::make_shared<const std::string>("c"), Perms::Read,
-             0},
-                                   }
+                                   {
+                0x3000,
+                0x100,
+                0,
+                0x100,
+                std::make_shared<const std::string>("c"),
+                Perms::Read,
+            }, }
         )
     };
 

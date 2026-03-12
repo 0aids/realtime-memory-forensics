@@ -66,7 +66,6 @@ namespace rmf::graph
         m_inputParentAddr = region.data.mrp.parentRegionAddress;
         m_inputParentSize = region.data.mrp.parentRegionSize;
         m_inputPerms      = region.data.mrp.perms;
-        m_inputPid        = region.data.mrp.pid;
         m_tempNamedValues = region.data.namedValues;
     }
 
@@ -290,7 +289,6 @@ namespace rmf::graph
                         region->data.mrp.parentRegionSize =
                             m_inputParentSize;
                         region->data.mrp.perms   = m_inputPerms;
-                        region->data.mrp.pid     = m_inputPid;
                         region->data.namedValues = m_tempNamedValues;
                     }
                 }
@@ -318,7 +316,6 @@ namespace rmf::graph
                         m_inputParentAddr;
                     newData.mrp.parentRegionSize = m_inputParentSize;
                     newData.mrp.perms            = m_inputPerms;
-                    newData.mrp.pid              = m_inputPid;
                     newData.namedValues          = m_tempNamedValues;
                     sp_mg->RegionAdd(newData);
                     ResetRegionBuilderState();

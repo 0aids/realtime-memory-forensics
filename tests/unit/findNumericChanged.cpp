@@ -32,7 +32,7 @@ TEST(findNumericChangedTest, detectChangedValue)
 
     for (const auto& mrp : readableRegions)
     {
-        auto snapshot = MemorySnapshot::Make(mrp);
+        auto snapshot = MemorySnapshot::Make(mrp, childPid);
         if (snapshot.isValid())
         {
             if (!snap1.has_value())
@@ -50,8 +50,8 @@ TEST(findNumericChangedTest, detectChangedValue)
 
     std::this_thread::sleep_for(std::chrono::seconds(2));
 
-    auto snap1Updated = MemorySnapshot::Make(snap1->getMrp());
-    auto snap2Updated = MemorySnapshot::Make(snap2->getMrp());
+    auto snap1Updated = MemorySnapshot::Make(snap1->getMrp(), childPid);
+    auto snap2Updated = MemorySnapshot::Make(snap2->getMrp(), childPid);
 
     auto changedResults =
         findNumericChanged<int32_t>(snap1Updated, snap2Updated, 0);
@@ -77,11 +77,11 @@ TEST(findNumericChangedTest, unchangedRegionsBetweenSnapshots)
     ASSERT_FALSE(readableRegions.empty());
 
     auto& mrp   = readableRegions.front();
-    auto  snap1 = MemorySnapshot::Make(mrp);
+    auto  snap1 = MemorySnapshot::Make(mrp, childPid);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    auto snap2 = MemorySnapshot::Make(mrp);
+    auto snap2 = MemorySnapshot::Make(mrp, childPid);
 
     ASSERT_TRUE(snap1.isValid());
     ASSERT_TRUE(snap2.isValid());
