@@ -48,10 +48,6 @@ namespace rmf::test
 
     void staticStringTestComponent::setup()
     {
-        for (size_t i = 0; i < 6; i++)
-        {
-            bigString += bigString;
-        }
         m_nextScheduledTime = std::chrono::steady_clock::now() + 5s;
     }
 
@@ -98,6 +94,15 @@ namespace rmf::test
     int32_t incrementingIntComponent::getValue() const
     {
         return m_value;
+    }
+
+    staticValueComponent::staticValueComponent(int32_t int32value,
+                                               int64_t int64value,
+                                               float   float32value,
+                                               double  float64value) :
+        m_staticInt(int32value), m_staticLong(int64value),
+        m_staticFloat(float32value), m_staticDouble(float64value)
+    {
     }
 
     void staticValueComponent::setup()

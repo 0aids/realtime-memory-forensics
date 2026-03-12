@@ -27,8 +27,10 @@ TEST(findStringTest, findStringInTestProcess)
 
     ASSERT_FALSE(readableRegions.empty());
 
+    // There should be 2 of this string. One from the search and the other from
+    // component.
     std::string targetString = "I am a small string";
-    bool        found        = false;
+    uint8_t     numFound     = 0;
 
     for (const auto& mrp : readableRegions)
     {
@@ -39,12 +41,12 @@ TEST(findStringTest, findStringInTestProcess)
         auto results = findString(snapshot, targetString);
         if (!results.empty())
         {
-            found = true;
-            break;
+            numFound += results.size();
+            continue;
         }
     }
 
-    EXPECT_TRUE(found);
+    EXPECT_EQ(numFound, 2);
     tp.stop();
 }
 
@@ -65,8 +67,31 @@ TEST(findStringTest, findLoremIpsum)
 
     ASSERT_FALSE(readableRegions.empty());
 
-    std::string targetString = "lorem ipsum";
-    bool        found        = false;
+    // There should be 2 of this string. One from the search and the other from
+    // component.
+    std::string targetString =
+        "lorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+        "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+        "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+        "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+        "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+        "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+        "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+        "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+        "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+        "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+        "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+        "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+        "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+        "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+        "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+        "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+        "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+        "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+        "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+        "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+        "ipsum";
+    uint8_t numFound = 0;
 
     for (const auto& mrp : readableRegions)
     {
@@ -77,12 +102,12 @@ TEST(findStringTest, findLoremIpsum)
         auto results = findString(snapshot, targetString);
         if (!results.empty())
         {
-            found = true;
-            break;
+            numFound += results.size();
+            continue;
         }
     }
 
-    EXPECT_TRUE(found);
+    EXPECT_EQ(numFound, 2);
     tp.stop();
 }
 
@@ -103,6 +128,7 @@ TEST(findStringTest, findNonExistentString)
 
     ASSERT_FALSE(readableRegions.empty());
 
+    // this string does exist, but only once and it's right here.
     std::string targetString = "THIS_STRING_DOES_NOT_EXIST_IN_MEMORY";
 
     for (const auto& mrp : readableRegions)
@@ -112,7 +138,7 @@ TEST(findStringTest, findNonExistentString)
             continue;
 
         auto results = findString(snapshot, targetString);
-        EXPECT_TRUE(results.empty());
+        EXPECT_LE(results.size(), 1);
     }
 
     tp.stop();

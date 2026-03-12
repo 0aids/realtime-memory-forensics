@@ -56,7 +56,28 @@ namespace rmf::test
       private:
         std::string smallString = "I am a small string";
         std::string bigString =
-            "lorem ipsum"; // Multiplied by 100 during startup.
+            "lorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+            "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+            "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+            "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+            "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+            "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+            "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+            "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+            "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+            "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+            "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+            "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+            "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+            "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+            "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+            "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+            "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+            "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+            "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+            "ipsumlorem ipsumlorem ipsumlorem ipsumlorem ipsumlorem "
+            "ipsum";
+
       public:
         void      setup() override;
         void      execute() override;
@@ -83,12 +104,17 @@ namespace rmf::test
     class staticValueComponent : public testComponent
     {
       private:
-        int32_t m_staticInt    = 42;
-        int64_t m_staticLong   = 1234567890123;
-        float   m_staticFloat  = 3.14159f;
-        double  m_staticDouble = 2.718281828;
+        int32_t m_staticInt;
+        int64_t m_staticLong;
+        float   m_staticFloat;
+        double  m_staticDouble;
 
       public:
+        explicit staticValueComponent(
+            int32_t int32value   = 0x99998888,
+            int64_t int64value   = 1234567890123,
+            float   float32value = 3.141519f,
+            double  float64value = 2.718281828);
         void      setup() override;
         void      execute() override;
         timepoint reschedule() override;

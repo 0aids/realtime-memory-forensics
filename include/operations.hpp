@@ -122,7 +122,7 @@ namespace rmf::op
     template <types::Numeral N>
     types::MemoryRegionPropertiesVec
     findNumeralExact(const types::MemorySnapshot& snap1,
-                     const N&                     number)
+                     const N                     number)
     {
         auto span = snap1.getData();
         auto &mrp = snap1.getMrp();
@@ -143,6 +143,7 @@ namespace rmf::op
                 newmrp.relativeRegionAddress += bytesCompared;
                 newmrp.relativeRegionSize = size;
                 results.push_back(newmrp);
+                rmf_Log(rmf_Debug, "Found value at address: " << newmrp.toString()) ;
             }
             bytesCompared += alignment;
         }

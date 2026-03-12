@@ -99,12 +99,12 @@ TEST(filtersTest, filterPermsExact)
          std::make_shared<const std::string>("rw"),
          Perms::Read | Perms::Write,                              0},
         {0x3000, 0x3000, 0, 0x100,
-         std::make_shared<const std::string>("r--"), Perms::Read, 0},
+         std::make_shared<const std::string>("r"), Perms::Read, 0},
     };
 
-    auto result = FilterPerms(regions, "r--");
+    auto result = FilterPerms(regions, "r");
 
-    ASSERT_EQ(result.size(), 1);
+    ASSERT_EQ(result.size(), 2);
     EXPECT_EQ(result[0].perms, Perms::Read);
 }
 

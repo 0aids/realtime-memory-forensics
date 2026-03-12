@@ -53,12 +53,59 @@ TEST(memoryGraphTest, getRegionAtAddress)
     graph.RegionAdd(data2);
 
     auto region = graph.RegionGetRegionAtAddress(0x1500);
-    ASSERT_TRUE(region.has_value());
-    EXPECT_EQ((*region)->data.name, "region1");
+    ASSERT_FALSE(region.has_value());
 
     region = graph.RegionGetRegionAtAddress(0x2500);
+    ASSERT_FALSE(region.has_value());
+
+    region = graph.RegionGetRegionAtAddress(0x1000);
     ASSERT_TRUE(region.has_value());
-    EXPECT_EQ((*region)->data.name, "region2");
+    EXPECT_EQ(region.value()->data.name, "region1");
+
+    region = graph.RegionGetRegionAtAddress(0x2000);
+    ASSERT_TRUE(region.has_value());
+    EXPECT_EQ(region.value()->data.name, "region2");
+}
+
+TEST(memoryGraphTest, getRegionContainingAddress)
+{
+    MemoryGraph      graph;
+
+    MemoryRegionData data1;
+    data1.mrp  = {0x1000,
+                  0x1000,
+                  0,
+                  0x1000,
+                  std::make_shared<const std::string>("region1"),
+                  rmf::types::Perms::Read,
+                  0};
+    data1.name = "region1";
+    graph.RegionAdd(data1);
+
+    MemoryRegionData data2;
+    data2.mrp  = {0x2000,
+                  0x1000,
+                  0,
+                  0x1000,
+                  std::make_shared<const std::string>("region2"),
+                  rmf::types::Perms::Read,
+                  0};
+    data2.name = "region2";
+    graph.RegionAdd(data2);
+
+    auto region = graph.RegionGetRegionContainingAddress(0x3000);
+    ASSERT_FALSE(region.has_value());
+
+    region = graph.RegionGetRegionContainingAddress(0x0fff);
+    ASSERT_FALSE(region.has_value());
+
+    region = graph.RegionGetRegionContainingAddress(0x2fff);
+    ASSERT_TRUE(region.has_value());
+    EXPECT_EQ(region.value()->data.name, "region2");
+
+    region = graph.RegionGetRegionContainingAddress(0x1500);
+    ASSERT_TRUE(region.has_value());
+    EXPECT_EQ(region.value()->data.name, "region1");
 }
 
 TEST(memoryGraphTest, addLink)
@@ -170,7 +217,7 @@ TEST(memoryGraphTest, getAllRegions)
 {
     MemoryGraph graph;
 
-    for (int i = 0; i < 5; i++)
+    for (uintptr_t i = 0; i < 5; i++)
     {
         MemoryRegionData data;
         data.mrp  = {0x1000 * (i + 1),
