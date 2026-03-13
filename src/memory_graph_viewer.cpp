@@ -560,8 +560,7 @@ namespace rmf::graph
                 sourceNodeOpt.value()->data.mrp.TrueAddress();
 
             ImNodes::Link(
-                link.id,
-                GetNodeOutputAttributeId(link.data.sourceID),
+                link.id, GetNodeOutputAttributeId(link.data.sourceID),
                 GetNodeInputAttributeId(link.data.targetID));
         }
     }
@@ -683,26 +682,7 @@ namespace rmf::graph
             ResetLinkBuilderState();
         }
 
-        if (ImGui::BeginTable("ViewerSplit", 2,
-                              ImGuiTableFlags_Resizable |
-                                  ImGuiTableFlags_BordersInnerV))
-        {
-            ImGui::TableSetupColumn(
-                "Sidebar", ImGuiTableColumnFlags_WidthFixed, 300.0f);
-            ImGui::TableSetupColumn("Editor",
-                                    ImGuiTableColumnFlags_None);
-
-            ImGui::TableNextRow();
-
-            ImGui::TableSetColumnIndex(0);
-            drawSidebar();
-
-            ImGui::TableSetColumnIndex(1);
-            drawEditor();
-
-            ImGui::EndTable();
-        }
-
+        drawEditor();
         handlePostFrameLogic(deletePressed);
     }
 }
