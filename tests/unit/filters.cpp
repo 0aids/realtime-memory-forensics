@@ -149,7 +149,7 @@ TEST(filtersTest, filterPermsExact)
          },
     };
 
-    auto result = FilterPerms(regions, "r");
+    auto result = FilterExactPerms(regions, "r");
 
     ASSERT_EQ(result.size(), 2);
     EXPECT_EQ(result[0].perms, Perms::Read);

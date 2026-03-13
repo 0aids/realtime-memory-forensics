@@ -143,6 +143,111 @@ namespace rmf::test
         return m_staticDouble;
     }
 
+    template <typename T>
+    SListComponent<T>::SListComponent(std::vector<T> values) :
+        m_values(std::move(values))
+    {
+    }
+
+    template <typename T>
+    SListComponent<T>::~SListComponent()
+    {
+        for (auto* node : m_nodes)
+        {
+            delete node;
+        }
+        m_nodes.clear();
+    }
+
+    template <typename T>
+    void SListComponent<T>::setup()
+    {
+        m_nextScheduledTime = std::chrono::steady_clock::now() + 60s;
+
+        for (size_t i = 0; i < m_values.size(); i++)
+        {
+            auto* node = new Node;
+            node->data = m_values[i];
+            node->next = nullptr;
+            m_nodes.push_back(node);
+        }
+
+        for (size_t i = 0; i + 1 < m_nodes.size(); i++)
+        {
+            m_nodes[i]->next = m_nodes[i + 1];
+        }
+
+        if (!m_nodes.empty())
+        {
+            m_head = m_nodes.front();
+        }
+    }
+
+    template <typename T>
+    void SListComponent<T>::execute()
+    {
+    }
+
+    template <typename T>
+    typename SListComponent<T>::timepoint
+    SListComponent<T>::reschedule()
+    {
+        m_nextScheduledTime = std::chrono::steady_clock::now() + 60s;
+        return m_nextScheduledTime;
+    }
+
+    template <typename T>
+    typename SListComponent<T>::timepoint
+    SListComponent<T>::getCurrentSchedule()
+    {
+        return m_nextScheduledTime;
+    }
+
+    template <typename T>
+    typename SListComponent<T>::Node* SListComponent<T>::getHead()
+    {
+        return m_head;
+    }
+
+    template <typename T>
+    typename SListComponent<T>::Node*
+    SListComponent<T>::getNodeAt(size_t index)
+    {
+        if (index < m_nodes.size())
+        {
+            return m_nodes[index];
+        }
+        return nullptr;
+    }
+
+    template <typename T>
+    size_t SListComponent<T>::size() const
+    {
+        return m_nodes.size();
+    }
+
+    template <typename T>
+    uintptr_t SListComponent<T>::getHeadAddress() const
+    {
+        return reinterpret_cast<uintptr_t>(m_head);
+    }
+
+    template <typename T>
+    uintptr_t SListComponent<T>::getNodeAddress(size_t index) const
+    {
+        if (index < m_nodes.size())
+        {
+            return reinterpret_cast<uintptr_t>(m_nodes[index]);
+        }
+        return 0;
+    }
+
+    // Explicit template instantiations for common types
+    template class SListComponent<int32_t>;
+    template class SListComponent<int64_t>;
+    template class SListComponent<uint32_t>;
+    template class SListComponent<uint64_t>;
+
     // > so that we get a min priority queue
     bool
     testComponentComparator::operator()(const sptr<testComponent> lhs,

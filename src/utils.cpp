@@ -89,7 +89,7 @@ FilterContainsName(const rmf::types::MemoryRegionPropertiesVec& other,
 }
 
 rmf::types::MemoryRegionPropertiesVec
-FilterPerms(const rmf::types::MemoryRegionPropertiesVec& other,
+FilterExactPerms(const rmf::types::MemoryRegionPropertiesVec& other,
             const std::string_view&                      perms)
 {
     rmf::types::Perms permsToMatch = rmf::utils::ParsePerms(perms);

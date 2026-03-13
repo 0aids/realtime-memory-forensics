@@ -125,6 +125,38 @@ namespace rmf::test
         double    getStaticDouble() const;
     };
 
+    template <typename T>
+    class SListComponent : public testComponent
+    {
+      private:
+        struct Node
+        {
+            T     data;
+            Node* next;
+        };
+        std::vector<Node*> m_nodes;
+        Node*              m_head;
+        std::vector<T>     m_values;
+
+      public:
+        using timepoint =
+            std::chrono::time_point<std::chrono::steady_clock>;
+
+        explicit SListComponent(std::vector<T> values);
+        ~SListComponent();
+
+        void      setup() override;
+        void      execute() override;
+        timepoint reschedule() override;
+        timepoint getCurrentSchedule() override;
+
+        Node*     getHead();
+        Node*     getNodeAt(size_t index);
+        size_t    size() const;
+        uintptr_t getHeadAddress() const;
+        uintptr_t getNodeAddress(size_t index) const;
+    };
+
     class testProcess
     {
       private:
@@ -162,4 +194,3 @@ namespace rmf::test
 #pragma GCC pop_options
 
 #endif // test_helpers_hpp_INCLUDED
-

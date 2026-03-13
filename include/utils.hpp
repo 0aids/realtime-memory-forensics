@@ -29,7 +29,7 @@ namespace rmf::utils
         { t.end() } -> std::same_as<typename T::iterator>;
     };
 
-    template <typename T>
+    template <typename... T>
     struct typePrinter;
 
     template <typename...>
@@ -173,7 +173,7 @@ namespace rmf::utils
 
     // Exact match of perms
     rmf::types::MemoryRegionPropertiesVec
-    FilterPerms(const rmf::types::MemoryRegionPropertiesVec& other,
+    FilterExactPerms(const rmf::types::MemoryRegionPropertiesVec& other,
                 const std::string_view&                      perms);
 
     // Has perm/s, but may also have other ones.

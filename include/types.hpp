@@ -228,7 +228,7 @@ namespace rmf::types
         rmf::types::MemoryRegionPropertiesVec
         FilterContainsName(const std::string_view& string);
         rmf::types::MemoryRegionPropertiesVec
-        FilterPerms(const std::string_view& perms);
+        FilterExactPerms(const std::string_view& perms);
         rmf::types::MemoryRegionPropertiesVec
         FilterHasPerms(const std::string_view& perms);
         rmf::types::MemoryRegionPropertiesVec

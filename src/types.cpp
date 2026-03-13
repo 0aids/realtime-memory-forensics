@@ -186,10 +186,10 @@ namespace rmf::types
         return utils::FilterContainsName(*this, string);
     }
     rmf::types::MemoryRegionPropertiesVec
-    MemoryRegionPropertiesVec::FilterPerms(
+    MemoryRegionPropertiesVec::FilterExactPerms(
         const std::string_view& perms)
     {
-        return utils::FilterPerms(*this, perms);
+        return utils::FilterExactPerms(*this, perms);
     }
     rmf::types::MemoryRegionPropertiesVec
     MemoryRegionPropertiesVec::FilterHasPerms(

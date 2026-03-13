@@ -26,12 +26,28 @@ via node-graph visualisation, all done without analysing executed assembly.
 - [ ] feat: graph serialisation?
 - [ ] done for now?
 
+# memory graph structure/use
+```c++
+int main() {
+    MemoryGraph graph;
+    Analyzer analyzer(6 /*threads*/);
+    pid_t pid = /*pid here*/;
+
+    std::string mapsPath =
+        "/proc/" + std::to_string(childPid) + "/maps";
+    auto regions         = ParseMaps(mapsPath);
+    auto readableRegions = regions.FilterHasPerms("r");
+
+    auto snaps = analyzer.Execute(MemorySnapshot::Make, readableRegions);
+}
+```
+
 
 # Running tests
 Make sure that you have memory limits setup otherwise it will crash your computer on failing
 tests sometimes.
 ```bash
-cmake -S . -B build -Dbuild_tests=ON && cmake --build build && (ulimit -m 1000000 && ulimit -v 1000000 && cd build && ctest)
+cmake -S . -B build -Dbuild_tests=ON && cmake --build build -j 12 && (ulimit -m 1000000 && ulimit -v 1000000 && cd build && ctest)
 ```
 
 
