@@ -164,6 +164,8 @@ namespace rmf::gui
         {
             attachToProcess(opt_pid.value());
         }
+
+        ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     }
 
     GuiState::~GuiState()
@@ -205,6 +207,26 @@ namespace rmf::gui
 
     void GuiState::draw()
     {
+        dockspaceId = ImGui::GetID("Dockspace");
+        viewport = ImGui::GetMainViewport();
+        
+        // Create settings
+        if (ImGui::DockBuilderGetNode(dockspaceId) == nullptr)
+        {
+            ImGui::DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags_DockSpace);
+            ImGui::DockBuilderSetNodeSize(dockspaceId, viewport->Size);
+            ImGuiID dock_id_left = 0;
+            ImGuiID dock_id_main = dockspaceId;
+            ImGui::DockBuilderSplitNode(dock_id_main, ImGuiDir_Left, 0.20f, &dock_id_left, &dock_id_main);
+            ImGuiID dock_id_left_top = 0;
+            ImGuiID dock_id_left_bottom = 0;
+            ImGui::DockBuilderSplitNode(dock_id_left, ImGuiDir_Up, 0.50f, &dock_id_left_top, &dock_id_left_bottom);
+            ImGui::DockBuilderDockWindow("Game", dock_id_main);
+            ImGui::DockBuilderDockWindow("Properties", dock_id_left_top);
+            ImGui::DockBuilderDockWindow("Scene", dock_id_left_bottom);
+            ImGui::DockBuilderFinish(dockspaceId);
+        }
+        ImGui::DockSpaceOverViewport(dockspaceId, viewport, ImGuiDockNodeFlags_PassthruCentralNode);
         if (ImGui::BeginMainMenuBar())
         {
             if (ImGui::BeginMenu("View"))

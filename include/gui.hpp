@@ -71,6 +71,8 @@ namespace rmf::gui
         bool                      showMemoryRegionsWindow = true;
 
         ImGuiIO                   io;
+        ImGuiID dockspaceId;
+        ImGuiViewport* viewport;
 
         examples::ColorNodeEditor exampleNodeEditor;
         bool                      showExampleNodeEditor = false;
