@@ -16,99 +16,45 @@
 #include "rmf.hpp"
 #include "types.hpp"
 #include "utils.hpp"
+#include "gui_types.hpp"
+#include "process_manager.hpp"
+#include "scan_manager.hpp"
+#include "graph_manager.hpp"
 
 namespace rmf::gui
 {
 
-    enum class ScanOperation
-    {
-        ExactValue,
-        Changed,
-        Unchanged,
-        String,
-        PointerToRegion
-    };
-
-    enum class ScanValueType
-    {
-        i8,
-        i16,
-        i32,
-        i64,
-        u8,
-        u16,
-        u32,
-        u64,
-        f32,
-        f64,
-        string
-    };
-
-    struct ScanResult
-    {
-        uintptr_t                     address;
-        std::string                   valueStr;
-        types::MemoryRegionProperties mrp;
-    };
-
     struct GuiState
     {
-        SDL_Window*               window;
-        SDL_WindowFlags           windowFlags;
-        std::string               glslVersion;
-        SDL_GLContext             glContext;
+        SDL_Window*     window;
+        SDL_WindowFlags windowFlags;
+        std::string     glslVersion;
+        SDL_GLContext   glContext;
 
-        float                     mainScale;
-        ImVec4                    bgColor;
+        float           mainScale;
+        ImVec4          bgColor;
 
-        bool                      validState;
-        bool                      showMemAnalWindow;
+        bool            validState;
+        bool            showMemAnalWindow;
 
-        bool                      showDemoWindow;
-        bool                      showAnotherWindow;
+        bool            showDemoWindow;
+        bool            showAnotherWindow;
 
-        bool                      showProcessWindow       = true;
-        bool                      showMemoryRegionsWindow = true;
+        // Managers
+        std::unique_ptr<ProcessManager> processManager;
+        std::unique_ptr<ScanManager>    scanManager;
+        std::unique_ptr<GraphManager>   graphManager;
 
-        ImGuiIO                   io;
-        ImGuiID dockspaceId;
+        // UI State
+        ImGuiIO        io;
+        ImGuiID        dockspaceId;
         ImGuiViewport* viewport;
 
-        examples::ColorNodeEditor exampleNodeEditor;
-        bool                      showExampleNodeEditor = false;
-
-        graph::MemoryGraphViewer  mgViewerTest;
-        bool                      showMemoryGraphViewerTest = true;
-
-        // Analysis state
-        std::optional<pid_t>             targetPid;
-        std::string                      targetProcessName;
-        size_t                           analyzerThreadCount;
-        std::unique_ptr<rmf::Analyzer>   analyzer;
-        types::MemoryRegionPropertiesVec currentRegions;
-        std::string                      regionFilter;
-        int                              selectedRegionIndex;
-
-        // Process browser
-        std::vector<std::pair<pid_t, std::string>> processList;
-        void refreshProcessList();
-        void attachToProcess(pid_t pid);
-        void detachFromProcess();
-
-        // Scan state
-        bool          showScanWindow   = true;
-        ScanOperation scanOperation    = ScanOperation::ExactValue;
-        ScanValueType scanValueType    = ScanValueType::i32;
-        char          scanValueBuf[64] = "";
-        bool          scanHexInput     = false;
-        bool          isScanning       = false;
-        std::vector<ScanResult> scanResults;
-        int                     selectedResultIndex = -1;
-        std::chrono::steady_clock::time_point scanStartTime;
-        std::chrono::milliseconds             scanDuration{0};
-
-        void                                  runScan();
-        void                                  clearScanResults();
+        // Windows visibility
+        bool showProcessWindow       = true;
+        bool showMemoryRegionsWindow = true;
+        bool showScanWindow          = true;
+        bool showNodeViewer          = true;
 
         GuiState(std::optional<pid_t> opt_pid = {});
         ~GuiState();

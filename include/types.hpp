@@ -61,7 +61,8 @@ namespace rmf::types
         _f64,
         _ptr,
     };
-    struct type {
+    struct type
+    {
         typeName type;
     };
 
@@ -147,7 +148,8 @@ namespace rmf::types
             );
         }
 
-        void AssignNewParentRegion(const MemoryRegionProperties& other);
+        void
+        AssignNewParentRegion(const MemoryRegionProperties& other);
 
         MemoryRegionPropertiesVec
         BreakIntoChunks(uintptr_t chunkSize,
@@ -186,7 +188,8 @@ namespace rmf::types
             return d->mrp;
         }
 
-        static MemorySnapshot Make(const MemoryRegionProperties& mrp, pid_t pid);
+        static MemorySnapshot Make(const MemoryRegionProperties& mrp,
+                                   pid_t                         pid);
 
         inline bool           isValid() const
         {
@@ -230,13 +233,14 @@ namespace rmf::types
         rmf::types::MemoryRegionPropertiesVec
         FilterExactPerms(const std::string_view& perms);
         rmf::types::MemoryRegionPropertiesVec
-        FilterHasPerms(const std::string_view& perms);
+        FilterHasPerms(const std::string_view& perms) const;
         rmf::types::MemoryRegionPropertiesVec
         FilterNotPerms(const std::string_view& perms);
         rmf::types::MemoryRegionPropertiesVec
         BreakIntoChunks(uintptr_t chunkSize,
                         uintptr_t overlapSize = 0);
-        std::optional<MemoryRegionProperties> GetRegionContainingAddress(uintptr_t addr) const;
+        std::optional<MemoryRegionProperties>
+        GetRegionContainingAddress(uintptr_t addr) const;
 
         rmf::types::MemoryRegionPropertiesVec
         FilterActiveRegions(pid_t pid);

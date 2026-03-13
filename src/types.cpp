@@ -140,7 +140,8 @@ namespace rmf::types
         relativeRegionAddress += diff;
         parentRegionAddress = other.parentRegionAddress;
         diff = relativeRegionSize - other.parentRegionSize;
-        if (TrueEnd() > other.parentRegionAddress + other.parentRegionSize)
+        if (TrueEnd() >
+            other.parentRegionAddress + other.parentRegionSize)
         {
             rmf_Log(rmf_Warning,
                     "Region: '"
@@ -151,8 +152,8 @@ namespace rmf::types
             relativeRegionSize -= diff;
         }
         parentRegionSize = other.parentRegionSize;
-        regionName_sp = other.regionName_sp;
-        perms = other.perms;
+        regionName_sp    = other.regionName_sp;
+        perms            = other.perms;
     }
 
     rmf::types::MemoryRegionPropertiesVec
@@ -193,7 +194,7 @@ namespace rmf::types
     }
     rmf::types::MemoryRegionPropertiesVec
     MemoryRegionPropertiesVec::FilterHasPerms(
-        const std::string_view& perms)
+        const std::string_view& perms) const
     {
         return utils::FilterHasPerms(*this, perms);
     }
