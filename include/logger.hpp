@@ -2,6 +2,7 @@
 #define logger_hpp_INCLUDED
 
 #include <iostream>
+#include <atomic>
 #include <sstream>
 #include <mutex>
 #include <string_view>
@@ -17,7 +18,7 @@ enum rmf_LogLevel : uint8_t {
 
 namespace rmf {
     inline std::thread::id mainThreadId = std::this_thread::get_id();
-    inline rmf_LogLevel g_logLevel = rmf_Debug;
+    inline std::atomic<rmf_LogLevel> g_logLevel = rmf_Debug;
 
     constexpr std::array<std::string, 6> StringColors = {
         "\033[31m", // Corresponds the the above loglevels

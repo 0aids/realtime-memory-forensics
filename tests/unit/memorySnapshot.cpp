@@ -20,7 +20,7 @@ TEST(memorySnapshotTest, takeSnapshotOfTestProcess)
 
     std::string mapsPath =
         "/proc/" + std::to_string(childPid) + "/maps";
-    auto regions         = ParseMaps(mapsPath, childPid);
+    auto regions         = ParseMaps(mapsPath);
     auto readableRegions = regions.FilterHasPerms("r");
 
     ASSERT_FALSE(readableRegions.empty());
@@ -47,7 +47,7 @@ TEST(memorySnapshotTest, snapshotDataMatchesExpected)
 
     std::string mapsPath =
         "/proc/" + std::to_string(childPid) + "/maps";
-    auto regions         = ParseMaps(mapsPath, childPid);
+    auto regions         = ParseMaps(mapsPath);
     auto readableRegions = regions.FilterHasPerms("r");
 
     for (const auto& mrp : readableRegions)
@@ -75,7 +75,7 @@ TEST(memorySnapshotTest, multipleSnapshots)
 
     std::string mapsPath =
         "/proc/" + std::to_string(childPid) + "/maps";
-    auto regions         = ParseMaps(mapsPath, childPid);
+    auto regions         = ParseMaps(mapsPath);
     auto readableRegions = regions.FilterHasPerms("r");
 
     ASSERT_FALSE(readableRegions.empty());

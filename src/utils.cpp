@@ -138,7 +138,7 @@ FilterNotPerms(const rmf::types::MemoryRegionPropertiesVec& other,
     }
     return rl;
 }
-rmf::types::MemoryRegionPropertiesVec ParseMaps(const std::string fullPath, pid_t pid) {
+rmf::types::MemoryRegionPropertiesVec ParseMaps(const std::string fullPath) {
     std::ifstream        memoryMapFile(fullPath);
     std::string          line;
     int                  unnamedRegionNumber = 1;

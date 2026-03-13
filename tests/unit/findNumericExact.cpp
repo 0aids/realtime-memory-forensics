@@ -29,7 +29,7 @@ TEST(findNumericExactTest, findInt32InTestProcessDefault)
 
     std::string mapsPath =
         "/proc/" + std::to_string(childPid) + "/maps";
-    auto regions         = ParseMaps(mapsPath, childPid);
+    auto regions         = ParseMaps(mapsPath);
     auto readableRegions = regions.FilterHasPerms("r");
 
     ASSERT_FALSE(readableRegions.empty());
@@ -70,7 +70,7 @@ TEST(findNumericExactTest, findInt32InTestProcess)
 
     std::string mapsPath =
         "/proc/" + std::to_string(childPid) + "/maps";
-    auto regions         = ParseMaps(mapsPath, childPid);
+    auto regions         = ParseMaps(mapsPath);
     auto readableRegions = regions.FilterHasPerms("r");
     MemoryRegionPropertiesVec foundRegions;
 
@@ -134,7 +134,7 @@ TEST(findNumericExactTest, findInt64InTestProcess)
 
     std::string mapsPath =
         "/proc/" + std::to_string(childPid) + "/maps";
-    auto regions         = ParseMaps(mapsPath, childPid);
+    auto regions         = ParseMaps(mapsPath);
     auto readableRegions = regions.FilterHasPerms("r");
 
     ASSERT_FALSE(readableRegions.empty());
@@ -173,7 +173,7 @@ TEST(findNumericExactTest, findNonExistentValue)
 
     std::string mapsPath =
         "/proc/" + std::to_string(childPid) + "/maps";
-    auto regions         = ParseMaps(mapsPath, childPid);
+    auto regions         = ParseMaps(mapsPath);
     auto readableRegions = regions.FilterHasPerms("r");
 
     ASSERT_FALSE(readableRegions.empty());

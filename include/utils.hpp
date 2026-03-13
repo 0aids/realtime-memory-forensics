@@ -47,13 +47,9 @@ namespace rmf::utils
         using argsTuple = std::tuple<Args...>;
     };
 
-    // I swear to god if you unscope tasks before they are done, I am going to completely bomb you.
-    //
-    // TODO: Fix using shared pointers or something that notifies this guy that the references are
-    // invalid!!!
     // BUG: In the very off-chance that we get a shit tonne of tasks such that it wraps around the ring
     // buffer and catches the tail, there might be a chance that the data read by a task becomes
-    // rewritten. Currently not possible because the queue size is massive, but who knows in the future.
+    // rewritten. 
     template <typename T>
     class SPMCQueue
     {
@@ -154,8 +150,9 @@ namespace rmf::utils
     };
 
     std::string PidToMapsString(const pid_t pid);
+
     rmf::types::MemoryRegionPropertiesVec
-    ParseMaps(const std::string fullPath, pid_t pid);
+    ParseMaps(const std::string fullPath);
 
     rmf::types::MemoryRegionPropertiesVec
     FilterMinSize(const rmf::types::MemoryRegionPropertiesVec& other,

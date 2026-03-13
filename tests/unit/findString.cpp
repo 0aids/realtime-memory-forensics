@@ -22,7 +22,7 @@ TEST(findStringTest, findStringInTestProcess)
 
     std::string mapsPath =
         "/proc/" + std::to_string(childPid) + "/maps";
-    auto regions         = ParseMaps(mapsPath, childPid);
+    auto regions         = ParseMaps(mapsPath);
     auto readableRegions = regions.FilterHasPerms("r");
 
     ASSERT_FALSE(readableRegions.empty());
@@ -62,7 +62,7 @@ TEST(findStringTest, findLoremIpsum)
 
     std::string mapsPath =
         "/proc/" + std::to_string(childPid) + "/maps";
-    auto regions         = ParseMaps(mapsPath, childPid);
+    auto regions         = ParseMaps(mapsPath);
     auto readableRegions = regions.FilterHasPerms("r");
 
     ASSERT_FALSE(readableRegions.empty());
@@ -123,7 +123,7 @@ TEST(findStringTest, findNonExistentString)
 
     std::string mapsPath =
         "/proc/" + std::to_string(childPid) + "/maps";
-    auto regions         = ParseMaps(mapsPath, childPid);
+    auto regions         = ParseMaps(mapsPath);
     auto readableRegions = regions.FilterHasPerms("r");
 
     ASSERT_FALSE(readableRegions.empty());

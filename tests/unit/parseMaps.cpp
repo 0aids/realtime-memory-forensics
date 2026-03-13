@@ -13,7 +13,7 @@ TEST(parseMapsTest, parseOwnProcessMaps)
     pid_t       pid      = getpid();
     std::string mapsPath = "/proc/" + std::to_string(pid) + "/maps";
 
-    auto        regions = ParseMaps(mapsPath, pid);
+    auto        regions = ParseMaps(mapsPath);
 
     ASSERT_FALSE(regions.empty());
 
@@ -39,7 +39,7 @@ TEST(parseMapsTest, parseTestProcessMaps)
 
     std::string mapsPath =
         "/proc/" + std::to_string(childPid) + "/maps";
-    auto regions = ParseMaps(mapsPath, childPid);
+    auto regions = ParseMaps(mapsPath);
 
     ASSERT_FALSE(regions.empty());
 
@@ -66,7 +66,7 @@ TEST(parseMapsTest, filterRegionsByPerms)
 
     std::string mapsPath =
         "/proc/" + std::to_string(childPid) + "/maps";
-    auto regions = ParseMaps(mapsPath, childPid);
+    auto regions = ParseMaps(mapsPath);
 
     auto readable   = regions.FilterHasPerms("r");
     auto writable   = regions.FilterHasPerms("w");
@@ -91,7 +91,7 @@ TEST(parseMapsTest, filterRegionsBySize)
 
     std::string mapsPath =
         "/proc/" + std::to_string(childPid) + "/maps";
-    auto regions = ParseMaps(mapsPath, childPid);
+    auto regions = ParseMaps(mapsPath);
 
     auto largeRegions = regions.FilterMinSize(0x1000);
     auto smallRegions = regions.FilterMaxSize(0x1000);

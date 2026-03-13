@@ -28,6 +28,7 @@ namespace rmf
             std::packaged_task<Return_t()> packagedTask;
             std::future<Return_t>          future;
         };
+        // Handle body idiom, now trivially copyable. No more stupid reference going out of scope.
         std::shared_ptr<Data> d;
 
       public:
@@ -86,8 +87,6 @@ namespace rmf
         template <typename T>
         void SubmitTask(Task_t<T> task)
         {
-            // Why the fuck aren't you mutable by default!!!!!!!!!!!!
-            // Literally going to kill who designed this language.
             while (!m_queue.enqueue([task]() mutable
                                     { task.getPackagedTask()(); }))
             {
@@ -102,8 +101,6 @@ namespace rmf
         template <typename T, typename func_t>
         void SubmitTask(Task_t<T> task, func_t yieldingCallback)
         {
-            // Why the fuck aren't you mutable by default!!!!!!!!!!!!
-            // Literally going to kill who designed this language.
             while (!m_queue.enqueue([task]() mutable
                                     { task.getPackagedTask()(); }))
             {

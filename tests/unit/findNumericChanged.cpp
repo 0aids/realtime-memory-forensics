@@ -22,7 +22,7 @@ TEST(findNumericChangedTest, detectChangedValue)
 
     std::string mapsPath =
         "/proc/" + std::to_string(childPid) + "/maps";
-    auto regions         = ParseMaps(mapsPath, childPid);
+    auto regions         = ParseMaps(mapsPath);
     auto readableRegions = regions.FilterHasPerms("rw");
 
     ASSERT_FALSE(readableRegions.empty());
@@ -71,7 +71,7 @@ TEST(findNumericChangedTest, unchangedRegionsBetweenSnapshots)
 
     std::string mapsPath =
         "/proc/" + std::to_string(childPid) + "/maps";
-    auto regions         = ParseMaps(mapsPath, childPid);
+    auto regions         = ParseMaps(mapsPath);
     auto readableRegions = regions.FilterHasPerms("r");
 
     ASSERT_FALSE(readableRegions.empty());

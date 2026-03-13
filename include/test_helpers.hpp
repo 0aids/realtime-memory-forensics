@@ -159,17 +159,6 @@ namespace rmf::test
     };
 } // namespace rmf::test
 
-// Legacy assertion macro (kept for backward compatibility)
-#define rmf_Assert(shouldBeTrue, FailureMessage)                     \
-    if (!(shouldBeTrue))                                             \
-    {                                                                \
-        rmf_Log(rmf_Error, "Assertion failed: " << FailureMessage);  \
-        exit(EXIT_FAILURE);                                          \
-    }                                                                \
-    else                                                             \
-    {                                                                \
-        rmf_Log(rmf_Info, "Assertion succeeded.");                   \
-    }
 #pragma GCC pop_options
 
 #endif // test_helpers_hpp_INCLUDED
