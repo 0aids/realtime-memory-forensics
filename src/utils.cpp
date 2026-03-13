@@ -3,6 +3,7 @@
 #include "types.hpp"
 #include <fstream>
 #include <cstring>
+#include <fcntl.h>
 
 using namespace magic_enum::bitwise_operators; // out-of-the-box bitwise operators for enums.
 
@@ -252,6 +253,53 @@ CompressNestedMrpVec(const std::vector<types::MemoryRegionPropertiesVec> &mrpvec
         }
     }
     return res;
+}
+rmf::types::MemoryRegionPropertiesVec
+FilterActiveRegions(const types::MemoryRegionPropertiesVec &mrpVec, pid_t pid)
+{
+    if (mrpVec.size() == 0){
+    rmf_Log(rmf_Warning, "Given an empty types::MemoryRegionPropertiesVec!!!");
+    return {};
+    }
+    types::MemoryRegionPropertiesVec regions;
+    long pageSize = sysconf(_SC_PAGE_SIZE);
+    const std::string pagemapPath = "/proc/" + std::to_string(pid) + "/pagemap";
+    int fd = open(pagemapPath.c_str(), O_RDONLY);
+    if (fd < 0) {
+        rmf_Log(rmf_Error, "Failed to open the pageMap!!!!");
+        return {};
+    }
+    const uint64_t ACTIVE_BIT = (1ULL << 63);
+    for (const auto &mrp:mrpVec) {
+        for (uintptr_t addr = mrp.TrueAddress();
+             addr < mrp.TrueAddress() + mrp.relativeRegionSize;
+             addr += pageSize)
+        {
+            // Multiply by 8 because each 8 byte chunk represents a page.
+            uintptr_t offset = (addr / pageSize) * 8;
+            if (lseek(fd, offset, SEEK_SET) == (off_t) -1) {
+                rmf_Log(rmf_Error, "Failed to seek the pagemap!");
+                perror("failed to seek pagemap");
+                continue;
+            }
+
+            uint64_t entry;
+            if (read(fd, &entry, 8) != 8) {
+                rmf_Log(rmf_Error, "Failed to READ the pagemap!")
+                perror("failed to read pagemap");
+                continue;
+            }
+
+            if (entry & ACTIVE_BIT) {
+                types::MemoryRegionProperties newMrp = mrp;
+                newMrp.relativeRegionSize = pageSize;
+                newMrp.relativeRegionAddress = addr - mrp.parentRegionAddress;
+                regions.push_back(newMrp);
+            }
+        }
+    }
+    close(fd);
+    return regions;
 }
 
 }

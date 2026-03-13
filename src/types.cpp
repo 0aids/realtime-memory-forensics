@@ -214,4 +214,10 @@ namespace rmf::types
         }
         return std::nullopt;
     }
+
+    rmf::types::MemoryRegionPropertiesVec
+    MemoryRegionPropertiesVec::FilterActiveRegions(pid_t pid)
+    {
+        return utils::FilterActiveRegions(*this, pid);
+    }
 }

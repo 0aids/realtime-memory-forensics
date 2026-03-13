@@ -14,7 +14,7 @@ via node-graph visualisation, all done without analysing executed assembly.
 - [x] refac: fix build script for better incorporation of testing
 - [x] feat: better testing and more coverage
 - [x] refac: Remove PIDs (should be user managed, idk why i'm storing it in the mrps)
-- [?] refac: Remove named Values -> added later? why?
+- [?] refac: Remove named values for now for simplification.
 - [ ] feat: Add link details on hover
 - [ ] feat: Add node details on hover
 - [ ] feat: Incorporate auto linking using an inputted analyzer.
@@ -24,6 +24,7 @@ via node-graph visualisation, all done without analysing executed assembly.
 - [ ] feat: integrated python scripting in gui and file saving
 - [ ] feat: re-add named values?
 - [ ] feat: graph serialisation?
+- [ ] feat: lazy snapshots for reduced memory usage?
 - [ ] done for now?
 
 # memory graph structure/use
@@ -32,13 +33,23 @@ int main() {
     MemoryGraph graph;
     Analyzer analyzer(6 /*threads*/);
     pid_t pid = /*pid here*/;
+    int32_t targetValue = 0x98989898;
 
     std::string mapsPath =
         "/proc/" + std::to_string(childPid) + "/maps";
     auto regions         = ParseMaps(mapsPath);
-    auto readableRegions = regions.FilterHasPerms("r");
+    auto readableRegions = regions.FilterHasPerms("r").FilterActiveRegions(pid);
 
     auto snaps = analyzer.Execute(MemorySnapshot::Make, readableRegions);
+    MemoryRegionProperties result;
+    {
+    	result.clear();
+        auto intermediate = analyzer.Execute(findNumeralExact<int32_t>,
+                                       snaps, targetValue) |
+            std::views::join;
+        std::move(intermediate.begin(), intermediate.end(),
+                  std::back_inserter(result));
+    }
 }
 ```
 

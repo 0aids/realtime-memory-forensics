@@ -67,7 +67,7 @@ TEST(analyzerIntegrationTest, findInt32AndPtrs)
     std::string mapsPath =
         "/proc/" + std::to_string(childPid) + "/maps";
     auto          regions         = ParseMaps(mapsPath);
-    auto          readableRegions = regions.FilterHasPerms("r").BreakIntoChunks(0x10000, 0);
+    auto          readableRegions = regions.FilterHasPerms("r").FilterActiveRegions(childPid);
     rmf::Analyzer analyzer(6);
 
     ASSERT_FALSE(readableRegions.empty());

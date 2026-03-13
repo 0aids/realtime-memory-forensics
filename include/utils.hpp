@@ -198,6 +198,10 @@ namespace rmf::utils
 
     rmf::types::MemoryRegionPropertiesVec
     CompressNestedMrpVec(const std::vector<types::MemoryRegionPropertiesVec> &mrpvecVec);
+
+	// Gets actively in memory regions only.
+    rmf::types::MemoryRegionPropertiesVec
+    FilterActiveRegions(const types::MemoryRegionPropertiesVec &mrpVec, pid_t pid);
 }
 
 #endif // utils_hpp_INCLUDED

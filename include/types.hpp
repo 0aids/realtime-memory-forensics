@@ -237,6 +237,9 @@ namespace rmf::types
         BreakIntoChunks(uintptr_t chunkSize,
                         uintptr_t overlapSize = 0);
         std::optional<MemoryRegionProperties> GetRegionContainingAddress(uintptr_t addr) const;
+
+        rmf::types::MemoryRegionPropertiesVec
+        FilterActiveRegions(pid_t pid);
     };
 };
 
