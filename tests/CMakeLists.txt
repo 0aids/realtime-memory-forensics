@@ -17,6 +17,7 @@ foreach(testFile_cpp ${testFiles_cpp})
         PRIVATE SDL3::SDL3
         PRIVATE OpenGL::GL
         PRIVATE magic_enum::magic_enum
+		PRIVATE pybind11::embed
 		PUBLIC GTest::gtest_main
 	)
     gtest_discover_tests(${testName})
