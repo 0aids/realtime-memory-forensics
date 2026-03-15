@@ -33,6 +33,7 @@ namespace rmf::py
 
         std::string getStdout() const;
         std::string getStderr() const;
+        py::dict getGlobals();
     };
 }
 

@@ -68,3 +68,8 @@ std::string rmf::py::embedPythonScopedGuard::getStdout() const
 {
     return m_stdoutBuffer.str();
 }
+
+py::dict rmf::py::embedPythonScopedGuard::getGlobals()
+{
+    return py::globals();
+}
