@@ -20,7 +20,7 @@ via node-graph visualisation, all done without analysing executed assembly.
 - [ ] feat: integrated python scripting in gui and file saving
 - [ ] feat: Add link details on hover
 - [ ] feat: Add node details on hover
-- [ ] feat: Incorporate auto linking using an inputted analyzer.
+- [ ] feat: Incorporate auto linking using an inputted ANALYZER.
 - [ ] feat: undo + redo
 - [ ] feat: re-add named values?
 - [ ] feat: graph serialisation?
@@ -31,20 +31,20 @@ via node-graph visualisation, all done without analysing executed assembly.
 ```c++
 int main() {
     MemoryGraph graph;
-    Analyzer analyzer(6 /*threads*/);
-    pid_t pid = /*pid here*/;
+    Analyzer ANALYZER(6 /*threads*/);
+    pid_t PID = /*PID here*/;
     int32_t targetValue = 0x98989898;
 
     std::string mapsPath =
         "/proc/" + std::to_string(childPid) + "/maps";
-    auto regions         = ParseMaps(mapsPath);
-    auto readableRegions = regions.FilterHasPerms("r").FilterActiveRegions(pid);
+    auto REGIONS         = ParseMaps(mapsPath);
+    auto readableRegions = REGIONS.FilterHasPerms("r").FilterActiveRegions(PID);
 
-    auto snaps = analyzer.Execute(MemorySnapshot::Make, readableRegions);
+    auto snaps = ANALYZER.Execute(MemorySnapshot::Make, readableRegions);
     MemoryRegionProperties result;
     {
     	result.clear();
-        auto intermediate = analyzer.Execute(findNumeralExact<int32_t>,
+        auto intermediate = ANALYZER.Execute(findNumeralExact<int32_t>,
                                        snaps, targetValue) |
             std::views::join;
         std::move(intermediate.begin(), intermediate.end(),
@@ -62,62 +62,115 @@ cmake -S . -B build -Dbuild_tests=ON && cmake --build build -j 12 && (ulimit -m 
 ```
 
 
-# Example script
+# Example script for gui
+Basic script
 ```python
-# file: globalVars.py
-# Global Variables
-# These are a script that is accessible in any script, and are imported before the function
-# via "from globalVars import *"
-pointerValueName = "Value to my pointer"
-otherName = "Other name"
+import rmf_py as rmf # preinjected / run within the embedded interpreter before everything.
+import rmf_gui_py as rmfg # preinjected / run within the embedded interpreter before everything.
+PID = # pre injected / run within the embedded interpreter before everything.
+ANALYZER = rmf.Analyzer(6) # pre injected / run within the embedded interpreter before everything.
+REGIONS = rmf.parseMaps(PID) # pre injected / run within the embedded interpreter before everything.
 
-# file: script1.py # Currently cannot have names, but will have that functionality later.
-# Do not modify these values here in the arguments
-def getPointersToValue(memoryGraph, analyzer, maps):
-    targetValue = -10685103945
-    transaction = memoryGraph.StartCreateMemoryRegionTransaction()
-    # Returns the class with the ID filled out for us.
-    # Remember this name, that's how we will access the value later.
-    transaction.name = pointerValueName
-    transaction.comment = "Used for something"
-    readableMaps = maps.FilterByHasPerms("r")
+# Filters for regions actively in memory, and then breaks them into chunks with sizes 0x1000
+chunkedRegions = REGIONS.filterActiveRegions().breakIntoChunks(0x10000, overlap=0)
+snapshots = ANALYZER(rmf.makeSnapshot, chunkedRegions)
 
-    snaps = analyzer.Execute(MemorySnapshot, readableMaps)
+# returns a list of lists of memory REGIONS. which is then flattened
+# Not really sure about this api.
+results = ANALYZER.execute(rmf.findString, snapshots, "hello world!").flatten()
 
-    results = CompressNestedMrpVec(analyzer.Execute(findNumericExact_i64, targetValue))
+results.batchModify(sizeDiff=+0x100, addrDiff=-0x50)
 
-    # do some more stuff with the results to get your desired values.
-    mrp = results...desiredMrp
+# Dump the results into a graph
+mg = rmf.MemoryGraph()
+mg.pushNodes(results)
 
-    # Valuable information about the sizes of your desired thing
-    transaction.mrp = mrp
-    # Maybe you want to increase the size
-    transaction.mrp.relativeRegionSize += 0x10 # add by 16 bytes
-    transaction.mrp.relativeRegionSize += types.i8.size # add by 1 byte
-    transaction.namedValues.add(
-        name="randomNamedValue",
-        offset=0x4,
-        type=rmf_py.types.i32,
-    )
+# Create links between nodes that exist in the graph.
+# Does this naively by analyzing 8 byte chunks within each
+# region and sees if it links into or inside another region
+# already in the graph.
+mg.findLinksStrict(ANALYZER)
 
-    memoryGraph.ProcessTransaction(transaction)
+rmfg.pushMemoryGraph(mg, policy="combine")
+```
 
-# file: script2.py
-def updateThatRegion(memoryGraph, analyzer, maps):
-    transaction = memoryGraph.StartUpdateMemoryRegionTransaction(name=pointerValueName)
+Finding changing regions (as an extension on what happened previously
+```python
+import rmf_py as rmf # preinjected / run within the embedded interpreter before everything.
+import rmf_gui_py as rmfg # preinjected / run within the embedded interpreter before everything.
+PID = # pre injected / run within the embedded interpreter before everything.
+ANALYZER = rmf.Analyzer(6) # pre injected / run within the embedded interpreter before everything.
+REGIONS = rmf.parseMaps(PID) # pre injected / run within the embedded interpreter before everything.
 
-    # update your values in some way you want.
-    # Can even change the name and what not.
-    # Just remember that you did that.
-    # Whatever you do, do not remove or change the id.
+chunkedRegions = REGIONS.filterActiveRegions().filterHasPerms("rw").breakIntoChunks(0x10000, overlap=0)
 
-    memoryGraph.ProcessTransaction(transaction)
+from copy import deepcopy
+results = deepcopy(chunkedRegions)
 
-# file: script3.py
-def findLinks(memoryGraph, analyzer, maps):
-    # In this example we have a couple memory regions already made, named "a", "b", and "c"
-    # Give us the next usable ID. You can create loops to do this etc.
-    t1 = memoryGraph.StartCreateMemoryLinkTransaction()
-    t2 = memoryGraph.StartCreateMemoryLinkTransaction()
-    t3 = memoryGraph.StartCreateMemoryLinkTransaction()
+from time import sleep
+
+while len(results) > 10:
+    snaps1 = ANALYZER.execute(rmf.makeSnapshot, results)
+    sleep(1) # wait 1s
+    snaps2 = ANALYZER.execute(rmf.makeSnapshot, results)
+
+    results = ANALYZER.execute(rmf.findChangedRegions, snaps1, snaps2, 32) # using 32 byte chunks.
+
+# Only modify relative parameters obviously
+results.batchModify(sizeDiff = +10, addrDiff = -10)
+# or we can set them to be batchStructified?
+
+mg = rmfg.pullMemoryGraph()
+mg.pushNodes(results)
+
+# Relaxed, so creates nodes which point to existing nodes.
+# internally will update, but also will return a list of new mrps generated
+mg.findLinksRelaxed(ANALYZER, REGIONS)
+
+# Or something similar
+# Prune links that point to memory addresses lower than 0x1000000
+mg.pruneLinks(lambda link: link.targetAddr < 0x1000000)
+# alternatively
+mg.keepLinks(lambda link: link.targetAddr >= 0x1000000)
+
+# Or we can prune or keep nodes
+discardedNodes = mg.pruneNodes(lambda node: node.mrp.relativeRegionSize < 0x1000)
+
+# Advanced? psuedo creating structs and assigning a node that struct
+# Allows for easier accessing and interpreting of data related to that node
+# name is not needed.
+dataStruct = rmf.Struct.parseC("""
+struct {
+    int32_t testInteger;
+    char* string;
+    int16_t int16array[10];
+};
+""")
+
+# Get the desired node (returns a copy which we have to assign back.)
+nodeId, node = mg.nodes.filter(lambda node: ...)[0]
+
+# Assign a struct. CurrentValueName is to figure out the offset
+# incase we only captured a certain value within the struct
+# also would modify the node's mrp to now fit this struct. also returns
+# itself so it can be used within a map + lambda
+node.assignStruct(dataStruct, currentValueName="testInteger")
+mg.updateNode(nodeId, node)
+
+# Or we can do this on a set of nodes via python's map
+nodeIds, nodes = mg.nodes.filter(lambda node: ...)
+nodes.batchAssignStructs(dataStruct, currentValueName="testInteger")
+mg.batchUpdateNodes(nodeIds, nodes)
+
+
+# and so on
+
+# and then when happy with the results we can push it again.
+rmfg.pushMemoryGraph(mg, policy="override")
+# or (will prune duplicates)
+rmfg.pushMemoryGraph(mg, policy="combine")
+# or (will not prune duplicates)
+rmfg.pushMemoryGraph(mg, policy="add")
+# EXTRA: rmfg is just memorygraph, and all memory graphs allow pushing and pulling
+# with policies. This would allow and separation of graphs if need be.
 ```
