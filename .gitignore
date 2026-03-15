@@ -6,3 +6,5 @@ mem-anal
 imgui.ini
 relevant-books
 Simple.json
+__pycache__
+*.so

@@ -1,39 +1,40 @@
 #ifndef python_embed_hpp_INCLUDED
 #define python_embed_hpp_INCLUDED
+#include <pybind11/pytypes.h>
 #include <sstream>
 #include <pybind11/embed.h>
 
 // Only for embedding python modules, the rest should be
 // actual modules.
 
-namespace py = pybind11;
 
-struct stdoutRedirector
+namespace rmf::py
 {
-    static std::stringstream stdout;
+    namespace py = pybind11;
 
-    static void              write(py::object buffer)
+    class embedPythonScopedGuard
     {
-        stdout << buffer.cast<std::string>();
-    }
-    static void flush()
-    {
-        stdout << std::flush;
-    }
-};
+    private:
+        py::scoped_interpreter m_interpreterGuard;
+        std::stringstream m_stdoutBuffer;
+        std::stringstream m_stderrBuffer;
 
-struct stderrRedirector
-{
-    static std::stringstream stderr;
+        py::object m_oldStdout;
+        py::object m_oldStderr;
+        py::dict m_locals;
 
-    static void              write(py::object buffer)
-    {
-        stderr << buffer.cast<std::string>();
-    }
-    static void flush()
-    {
-        stderr << std::flush;
-    }
-};
+    public:
+        embedPythonScopedGuard();
+        ~embedPythonScopedGuard();
+        embedPythonScopedGuard(embedPythonScopedGuard&&) = delete;
+        embedPythonScopedGuard(const embedPythonScopedGuard&) = delete;
+        embedPythonScopedGuard& operator=(embedPythonScopedGuard&&) = delete;
+        embedPythonScopedGuard& operator=(const embedPythonScopedGuard&) = delete;
+
+        std::string getStdout() const;
+        std::string getStderr() const;
+    };
+}
+
 
 #endif // python_embed_hpp_INCLUDED

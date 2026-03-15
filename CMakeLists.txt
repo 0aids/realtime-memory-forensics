@@ -80,12 +80,23 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(pybind11)
 
-# pybind11_add_module(rmf_py bindings/rmf_py_bindings.cpp)
+pybind11_add_module(rmf_core_py bindings/rmf_py_bindings.cpp)
+target_include_directories(rmf_core_py PRIVATE include)
+target_link_libraries(rmf_core_py
+    PRIVATE memLib ImGuiSource SDL3::SDL3 OpenGL::GL magic_enum::magic_enum
+)
+set_target_properties(rmf_core_py PROPERTIES 
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/rmf_py/"
+)
 
-# target_include_directories(rmf_py PRIVATE include)
-# target_link_libraries(rmf_py
-#     PRIVATE memLib ImGuiSource SDL3::SDL3 OpenGL::GL magic_enum::magic_enum
-# )
+pybind11_add_module(rmf_test_py bindings/rmf_py_tests.cpp)
+target_include_directories(rmf_test_py PRIVATE include)
+target_link_libraries(rmf_test_py
+    PRIVATE memLib ImGuiSource SDL3::SDL3 OpenGL::GL magic_enum::magic_enum
+)
+set_target_properties(rmf_test_py PROPERTIES 
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/rmf_py/"
+)
 
 # ---------------- imnodes ----------------
 file(GLOB imnodes_cpp external/imnodes/*.cpp)

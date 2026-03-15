@@ -7,13 +7,10 @@ namespace py = pybind11;
 
 TEST(initialPythonTests, helloWorld)
 {
-    {
-        py::scoped_interpreter guard{};
-        py::module::import("IoRedirector").attr("hook_io")();
+    rmf::py::embedPythonScopedGuard guard{};
 
-        py::exec(R"(print("Hello world!"))");
+    py::exec(R"(print("Hello world!"))");
 
-        EXPECT_STREQ(stdoutRedirector::stdout.str().c_str(), "Hello world!\n");
-        std::cout << stdoutRedirector::stdout.str() << std::endl;
-    }
+    EXPECT_STREQ(guard.getStdout().c_str(), "Hello world!\n");
+    std::cout << guard.getStdout().c_str() << std::endl;
 }

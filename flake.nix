@@ -47,6 +47,7 @@
             libGLU
             libei
             python313
+            python313Packages.python-lsp-server
             vulkan-tools
             vulkan-headers
             gtest

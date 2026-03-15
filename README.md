@@ -15,13 +15,13 @@ via node-graph visualisation, all done without analysing executed assembly.
 - [x] feat: better testing and more coverage
 - [x] refac: Remove PIDs (should be user managed, idk why i'm storing it in the mrps)
 - [?] refac: Remove named values for now for simplification.
+- [-] feat: python interoperability / bindings
+- [ ] feat: integrated python shell
+- [ ] feat: integrated python scripting in gui and file saving
 - [ ] feat: Add link details on hover
 - [ ] feat: Add node details on hover
 - [ ] feat: Incorporate auto linking using an inputted analyzer.
 - [ ] feat: undo + redo
-- [ ] feat: python interoperability
-- [ ] feat: integrated python shell
-- [ ] feat: integrated python scripting in gui and file saving
 - [ ] feat: re-add named values?
 - [ ] feat: graph serialisation?
 - [ ] feat: lazy snapshots for reduced memory usage?
