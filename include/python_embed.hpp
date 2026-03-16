@@ -3,6 +3,7 @@
 #include <pybind11/pytypes.h>
 #include <sstream>
 #include <pybind11/embed.h>
+#include <string_view>
 
 // Only for embedding python modules, the rest should be
 // actual modules.
@@ -33,7 +34,13 @@ namespace rmf::py
 
         std::string getStdout() const;
         std::string getStderr() const;
+        void clearStderr();
+        void clearStdout();
         py::dict getGlobals();
+        py::dict getLocals();
+
+		// True for successful execution, false otherwise
+        bool execString(const std::string_view& view);
     };
 }
 

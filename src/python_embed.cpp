@@ -44,7 +44,7 @@ rmf::py::embedPythonScopedGuard::embedPythonScopedGuard()
 	try {
         py::exec(R"(
             import rmf_py as rmf
-        )");
+        )", py::globals(), m_locals);
     }
     catch (const py::error_already_set& e)
     {
@@ -54,6 +54,8 @@ rmf::py::embedPythonScopedGuard::embedPythonScopedGuard()
 
 rmf::py::embedPythonScopedGuard::~embedPythonScopedGuard()
 {
+    rmf_Log(rmf_Info, "stdout: " << m_stdoutBuffer.str());
+    rmf_Log(rmf_Warning, "stderr: " << m_stderrBuffer.str());
     py::module sys = py::module::import("sys");
     sys.attr("stderr") = m_oldStderr;
     sys.attr("stdout") = m_oldStdout;
@@ -72,4 +74,31 @@ std::string rmf::py::embedPythonScopedGuard::getStdout() const
 py::dict rmf::py::embedPythonScopedGuard::getGlobals()
 {
     return py::globals();
+}
+
+py::dict rmf::py::embedPythonScopedGuard::getLocals()
+{
+    return m_locals;
+}
+
+void rmf::py::embedPythonScopedGuard::clearStderr()
+{
+    m_stderrBuffer.clear();
+}
+void rmf::py::embedPythonScopedGuard::clearStdout()
+{
+    m_stdoutBuffer.clear();
+}
+
+bool rmf::py::embedPythonScopedGuard::execString(const std::string_view& view)
+{
+    try {
+        py::exec(view, py::globals(), m_locals);
+        return true;
+    } catch (const py::error_already_set& e)
+    {
+        rmf_Log(rmf_Error, "Failed to execute python, see interpreter's stderr");
+        m_stderrBuffer << e.what();
+        return false;
+    }
 }

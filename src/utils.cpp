@@ -302,4 +302,9 @@ FilterActiveRegions(const types::MemoryRegionPropertiesVec &mrpVec, pid_t pid)
     return regions;
 }
 
+	rmf::types::MemoryRegionPropertiesVec
+	getMapsFromPid(pid_t pid)
+	{
+    	return ParseMaps(PidToMapsString(pid));
+	}
 }

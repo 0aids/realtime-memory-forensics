@@ -154,6 +154,9 @@ namespace rmf::utils
     rmf::types::MemoryRegionPropertiesVec
     ParseMaps(const std::string fullPath);
 
+	rmf::types::MemoryRegionPropertiesVec
+	getMapsFromPid(pid_t pid);
+
     rmf::types::MemoryRegionPropertiesVec
     FilterMinSize(const rmf::types::MemoryRegionPropertiesVec& other,
                   const uintptr_t minSize);
