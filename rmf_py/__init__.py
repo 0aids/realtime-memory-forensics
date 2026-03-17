@@ -47,7 +47,7 @@ class Analyzer:
                     f"Arguments are not explicitly states as const or iterable"
                 )
         if (len(kargs) == 1 and isinstance(kargs[0], Const)):
-            listOfIterables = [kargs[0]]
+            listOfIterables = [[kargs[0].value]]
         print(f"Num Arguments passed: {len(listOfIterables)}")
         with TPool(processes=self.numThreads) as pool:
             result = pool.starmap(function, zip(*listOfIterables))
