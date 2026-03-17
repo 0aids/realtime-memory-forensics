@@ -248,6 +248,20 @@ namespace rmf::test
     template class SListComponent<uint32_t>;
     template class SListComponent<uint64_t>;
 
+    staticLargeEmptyComponent::staticLargeEmptyComponent(size_t size)
+    {
+        m_bufferSize = size;
+    }
+    staticLargeEmptyComponent::~staticLargeEmptyComponent()
+    {
+        if (m_buffer) std::free(m_buffer);
+    }
+    void staticLargeEmptyComponent::setup() {
+        m_buffer = std::malloc(m_bufferSize);
+        if (!m_buffer)
+            rmf_Log(rmf_Error, "Failed to malloc static large empty component!");
+    }
+
     // > so that we get a min priority queue
     bool
     testComponentComparator::operator()(const sptr<testComponent> lhs,

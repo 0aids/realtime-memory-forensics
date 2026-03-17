@@ -125,6 +125,22 @@ namespace rmf::test
         double    getStaticDouble() const;
     };
 
+    class staticLargeEmptyComponent : public testComponent
+    {
+      private:
+        void* m_buffer = nullptr;
+        size_t m_bufferSize = 0;
+
+      public:
+        // Defaults to size of 2gb to search
+        staticLargeEmptyComponent(size_t size = 2 << 30);
+        ~staticLargeEmptyComponent();
+        void setup() override;
+        using testComponent::execute;
+        using testComponent::reschedule;
+        using testComponent::getCurrentSchedule;
+    };
+
     template <typename T>
     class SListComponent : public testComponent
     {
