@@ -183,6 +183,10 @@ namespace rmf
              * and use it to create tasks such that we have a task using one element
              * of the vector, and then the rest.
              *
+             * To do so we use std::make_index_sequence to allow us to std::get
+             * all of the tuples, ensuring we can then double check types against
+             * each other.
+             *
              * The hardest part about this was ironing all the tiny ass errors with forgetting _t,
              * removing Const and reference, etc.
          * */

@@ -26,6 +26,10 @@ via node-graph visualisation, all done without analysing executed assembly.
 - [ ] feat: re-add named values?
 - [ ] feat: graph serialisation?
 - [ ] feat: lazy snapshots for reduced memory usage?
+           This honestly might have to be done now because
+           I'm struggling to get the binded analyzer working at a sufficient speed.
+           The only problem is delays between snapshot.
+
 - [ ] done for now?
 
 # memory graph structure/use

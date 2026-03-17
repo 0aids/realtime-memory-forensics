@@ -1,9 +1,11 @@
+#include "abbreviations.hpp"
 #include "logger.hpp"
 #include "multi_threading.hpp"
 #include "types.hpp"
 #include "utils.hpp"
 #include "rmf.hpp"
 #include "operations.hpp"
+#include <atomic>
 #include <pybind11/attr.h>
 #include <pybind11/cast.h>
 #include <pybind11/gil.h>
@@ -12,10 +14,15 @@
 #include <pybind11/stl_bind.h>
 #include <pybind11/pytypes.h>
 #include <pybind11/stl.h>
+#include <pybind11/native_enum.h>
 #include <thread>
+#include <cstdarg>
 
 namespace py = pybind11;
 PYBIND11_MAKE_OPAQUE(rmf::types::MemoryRegionPropertiesVec);
+using MemorySnapshotVec = std::vector<rmf::types::MemorySnapshot>;
+PYBIND11_MAKE_OPAQUE(MemorySnapshotVec);
+PYBIND11_MAKE_OPAQUE(rmf::types::MemorySnapshot);
 
 PYBIND11_MODULE(rmf_core_py, m, py::mod_gil_not_used())
 {
@@ -42,6 +49,21 @@ PYBIND11_MODULE(rmf_core_py, m, py::mod_gil_not_used())
              py::arg("charsPerLine") = 32, py::arg("numLines") = 100);
 
     m.def("MakeSnapshot", &rmf::types::MemorySnapshot::Make);
+
+    py::enum_<rmf_LogLevel>(m, "LogLevel")
+        .value("Error", rmf_Error)
+        .value("Warning", rmf_Warning)
+        .value("Info", rmf_Info)
+        .value("Verbose", rmf_Verbose)
+        .value("Debug", rmf_Debug)
+        .value("Reset", rmf_Reset);
+
+    m.def("SetLogLevel",
+          [](rmf_LogLevel level)
+          {
+              rmf::g_logLevel.store(level,
+                                    std::memory_order::release);
+          });
 
     py::bind_vector<rmf::types::MemoryRegionPropertiesVec>(
         m, "MemoryRegionPropertiesVec")
@@ -82,6 +104,24 @@ PYBIND11_MODULE(rmf_core_py, m, py::mod_gil_not_used())
                  if (i >= v.size())
                      throw py::index_error();
                  return v[i];
+             });
+    py::bind_vector<std::vector<rmf::types::MemorySnapshot>>(
+        m, "MemorySnapshotVec")
+        .def("__len__",
+             &std::vector<rmf::types::MemorySnapshot>::size)
+        .def("__iter__",
+             [](std::vector<rmf::types::MemorySnapshot>& self)
+             {
+                 return py::make_iterator(self.begin(), self.end(),
+                                          py::keep_alive<0, 1>());
+             })
+        .def("__getitem__",
+             [](std::vector<rmf::types::MemorySnapshot>& self,
+                size_t                                   i)
+             {
+                 if (i >= self.size())
+                     throw py::index_error();
+                 return self[i];
              });
 
     m.def("getMapsFromPid", &rmf::utils::getMapsFromPid);
@@ -209,11 +249,10 @@ PYBIND11_MODULE(rmf_core_py, m, py::mod_gil_not_used())
     m.def("findPointersToRegions", &rmf::op::findPointersToRegions,
           py::call_guard<py::gil_scoped_release>());
 
-    // Consider providing a proper wrapper for this class
-    // to be interfaced with via python
-    // py::class_<rmf::TaskThreadPool_t>(m, "TaskThreadPool")
-    // 	.def(py::init(&rmf::TaskThreadPool_t::makeThreadPool))
-    //    	.def("submitTask", &rmf::TaskThreadPool_t::SubmitTask<void>)
-    //    	.def("awaitTasks", &rmf::TaskThreadPool_t::AwaitTasks)
-    // ;
+    m.def(
+        "MakeMemorySnapshotVec",
+        [](const rmf::types::MemoryRegionPropertiesVec& mrpVec, pid_t pid, size_t numThreads) {
+            rmf::Analyzer a(numThreads);
+            return a.Execute(rmf::types::MemorySnapshot::Make, mrpVec, pid);
+        }, py::call_guard<py::gil_scoped_release>());
 }

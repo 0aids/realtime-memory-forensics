@@ -48,10 +48,12 @@
             libei
             python313
             python313Packages.python-lsp-server
+            python313Packages.scalene
             ruff
             vulkan-tools
             vulkan-headers
             gtest
+            jemalloc
           ];
 
           LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath [
@@ -65,6 +67,7 @@
           # UV_PYTHON = "${pythonEnv}/bin/python";
           # UV_PYTHON_PREFERENCE = "only-system";
           shellHook = ''
+            export LD_PRELOAD=${pkgs.jemalloc}/lib/libjemalloc.so
             export PYTHONWARNINGS="ignore"
           '';
         };

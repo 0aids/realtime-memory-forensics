@@ -22,15 +22,21 @@ class Iter:
         self.value = value
 
 
+# Way too fucking slow man.
 class Analyzer:
     def __init__(self, numThreads: int = int(cpu_count() / 2)):
         self.numThreads = numThreads
 
+    def __enter__(self):
+        return self;
+
+    def __exit__(self, *kargs):
+        pass
+ 
     def execute(self, function, *kargs):
         currLen: int = 0
         listOfIterables = []
         print(f"{function=}, {kargs=}")
-        # Just for error checking
         for arg in kargs:
             if isinstance(arg, Const):
                 listOfIterables.append(repeat(arg.value))
@@ -40,6 +46,8 @@ class Analyzer:
                 raise TypeError(
                     f"Arguments are not explicitly states as const or iterable"
                 )
+        if (len(kargs) == 1 and isinstance(kargs[0], Const)):
+            listOfIterables = [kargs[0]]
         print(f"Num Arguments passed: {len(listOfIterables)}")
         with TPool(processes=self.numThreads) as pool:
             result = pool.starmap(function, zip(*listOfIterables))
