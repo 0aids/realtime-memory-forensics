@@ -17,7 +17,8 @@ via node-graph visualisation, all done without analysing executed assembly.
 - [?] refac: Remove named values for now for simplification.
 - [x] feat: python interoperability / bindings
 - [x] feat: integrated python shell
-- [ ] feat: multi threading in python
+- [x] feat: multi threading in python
+- [ ] feat: implement memory graph algorithms.
 - [ ] feat: integrated python scripting in gui and file saving
 - [ ] feat: Add link details on hover
 - [ ] feat: Add node details on hover
@@ -28,7 +29,8 @@ via node-graph visualisation, all done without analysing executed assembly.
 - [ ] feat: lazy snapshots for reduced memory usage?
            This honestly might have to be done now because
            I'm struggling to get the binded analyzer working at a sufficient speed.
-           The only problem is delays between snapshot.
+           The only problem is delays between snapshots, which wouldnt work
+           as easily.
 
 - [ ] done for now?
 

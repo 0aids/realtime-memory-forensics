@@ -41,7 +41,7 @@ class Analyzer:
                 listOfIterables.append(arg.value)
             else:
                 raise TypeError(
-                    "Arguments are not explicitly states as const or iterable"
+                    "Arguments are not explicitly stated as const or iterable"
                 )
         if len(kargs) == 1 and isinstance(kargs[0], Const):
             listOfIterables = [[kargs[0].value]]
