@@ -1,0 +1,20 @@
+repos:
+  - repo: local
+    hooks:
+      - id: clang-format
+        name: "format c++"
+        entry: bash -c "find src include tests examples -iname '*.hpp' -o -iname '*.cpp' -o -iname '*.c' | xargs clang-format -i"
+        language: system
+        pass_filenames: false
+
+      - id: ruff-check
+        name: "ruff check"
+        entry: "ruff check --fix"
+        language: system
+        pass_filenames: false
+
+      - id: ruff-format
+        name: "ruff format"
+        entry: "ruff format"
+        language: system
+        pass_filenames: false
