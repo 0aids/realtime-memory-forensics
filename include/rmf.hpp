@@ -86,12 +86,12 @@ namespace rmf
                         std::tuple_element_t<Is, ActualArgsTuple_t>>;
                     using recvArg = std::remove_cvref_t<
                         std::tuple_element_t<Is, RecvArgsTuple_t>>;
-                    if constexpr (std::is_same_v<actualArg, recvArg>)
+                    if constexpr (std::is_convertible_v<recvArg, actualArg>)
                     {
                     }
                     else if constexpr (
                         utils::IsContainer<recvArg> &&
-                        std::is_same_v<typename recvArg::value_type,
+                        std::is_convertible_v<typename recvArg::value_type,
                                        actualArg>)
                     {
                         if (vecSize !=
@@ -136,12 +136,12 @@ namespace rmf
                         using recvArg =
                             std::remove_cvref_t<std::tuple_element_t<
                                 Is, RecvArgsTuple_t>>;
-                        if constexpr (std::is_same_v<actualArg,
-                                                     recvArg>)
+                        if constexpr (std::is_convertible_v<recvArg,
+                                                     actualArg>)
                             return std::get<Is>(argsRecv);
                         else if constexpr (
                             utils::IsContainer<recvArg> &&
-                            std::is_same_v<
+                            std::is_convertible_v<
                                 typename recvArg::value_type,
                                 actualArg>)
                             return std::get<Is>(argsRecv)[i];
