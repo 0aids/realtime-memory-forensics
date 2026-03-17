@@ -251,8 +251,23 @@ PYBIND11_MODULE(rmf_core_py, m, py::mod_gil_not_used())
 
     m.def(
         "MakeMemorySnapshotVec",
-        [](const rmf::types::MemoryRegionPropertiesVec& mrpVec, pid_t pid, size_t numThreads) {
+        [](const rmf::types::MemoryRegionPropertiesVec& mrpVec, pid_t pid, py::object analyzer) {
+            // Check that it is an analyzer and has the a valid attribute
+            size_t numThreads = 0;
+            try {
+                numThreads = analyzer.attr("numThreads").cast<size_t>();
+            }
+            catch (const py::error_already_set& e)
+            {
+                rmf_Log(rmf_Error, "object passed is not of type 'Analyzer':\n" << e.what());
+                numThreads = 1;
+                rmf::Analyzer a(numThreads);
+                return a.Execute(rmf::types::MemorySnapshot::Make, rmf::types::MemoryRegionPropertiesVec{}, pid);
+            }
+            // Free gil
+            pybind11::gil_scoped_release release;
             rmf::Analyzer a(numThreads);
             return a.Execute(rmf::types::MemorySnapshot::Make, mrpVec, pid);
-        }, py::call_guard<py::gil_scoped_release>());
+        } 
+    );
 }
