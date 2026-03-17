@@ -60,8 +60,8 @@ rmf::py::embedPythonScopedGuard::embedPythonScopedGuard(RedirectPolicy policy)
 
 rmf::py::embedPythonScopedGuard::~embedPythonScopedGuard()
 {
-    rmf_Log(rmf_Info, "stdout: " << m_stdoutBuffer.str());
-    rmf_Log(rmf_Warning, "stderr: " << m_stderrBuffer.str());
+    rmf_Log(rmf_Info, "stdout: \n" << m_stdoutBuffer.str());
+    rmf_Log(rmf_Warning, "stderr: \n" << m_stderrBuffer.str());
     py::module sys = py::module::import("sys");
     sys.attr("stderr") = m_oldStderr;
     sys.attr("stdout") = m_oldStdout;

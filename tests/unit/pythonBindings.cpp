@@ -594,3 +594,34 @@ region = readable.getRegionContainingAddress(addr)
 
     tp.stop();
 }
+
+TEST(PythonBindingsTest, analyzerInitialTest)
+{
+    using namespace rmf::test;
+
+    rmf::types::MemoryRegionPropertiesVec results{};
+    rmf::test::testProcess                tp;
+    tp.build<rmf::test::staticValueComponent>();
+    pid_t pid = tp.run();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    {
+        rmf::py::embedPythonScopedGuard guard{};
+
+        guard.execString(std::format(R"(
+pid = {}
+analyzer = rmf.Analyzer()
+maps = rmf.getMapsFromPid(pid).filterActiveRegions(pid).filterHasPerms('w')
+
+snapshots = analyzer.execute(rmf.MakeSnapshot, rmf.Iter(maps), rmf.Const(pid))
+numSnapshots = len(snapshots)
+    )",
+                                     pid));
+        int numSnapshots =
+            guard.getLocals()["numSnapshots"].cast<int>();
+        EXPECT_GT(numSnapshots, 0);
+    }
+
+    tp.stop();
+}

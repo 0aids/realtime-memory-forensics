@@ -15,8 +15,9 @@ via node-graph visualisation, all done without analysing executed assembly.
 - [x] feat: better testing and more coverage
 - [x] refac: Remove PIDs (should be user managed, idk why i'm storing it in the mrps)
 - [?] refac: Remove named values for now for simplification.
-- [-] feat: python interoperability / bindings
-- [ ] feat: integrated python shell
+- [x] feat: python interoperability / bindings
+- [x] feat: integrated python shell
+- [ ] feat: multi threading in python
 - [ ] feat: integrated python scripting in gui and file saving
 - [ ] feat: Add link details on hover
 - [ ] feat: Add node details on hover

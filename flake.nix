@@ -48,6 +48,7 @@
             libei
             python313
             python313Packages.python-lsp-server
+            ruff
             vulkan-tools
             vulkan-headers
             gtest

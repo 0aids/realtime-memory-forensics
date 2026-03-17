@@ -131,6 +131,12 @@ namespace rmf
             }
         }
 
+		// For the python constructor.
+        static TaskThreadPool_t makeThreadPool(size_t numThreads)
+        {
+            return TaskThreadPool_t(numThreads);
+        }
+
         TaskThreadPool_t(size_t numThreads) :
             m_queue(rmf::utils::d_defaultQueueSize), m_alive(true), m_numRunning(0)
         {

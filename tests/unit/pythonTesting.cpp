@@ -28,10 +28,11 @@ TEST(initialPythonTests, parseMaps)
     std::string stdoutBuffer;
     std::string stderrBuffer;
     {
-        rmf::py::embedPythonScopedGuard guard{};
+        rmf::py::embedPythonScopedGuard guard(
+            rmf::py::RedirectPolicy::All);
 
         if (guard.execString("maps = rmf.getMapsFromPid(" +
-                              std::to_string(pid) + ")"))
+                             std::to_string(pid) + ")"))
         {
             results =
                 guard.getLocals()["maps"]
