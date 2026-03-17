@@ -221,4 +221,12 @@ namespace rmf::types
     {
         return utils::FilterActiveRegions(*this, pid);
     }
+    MemoryRegionPropertiesVec::MemoryRegionPropertiesVec(std::vector<MemoryRegionProperties>&& other)
+    : std::vector<MemoryRegionProperties>(other)
+    {
+    }
+    MemoryRegionPropertiesVec::MemoryRegionPropertiesVec(const std::vector<MemoryRegionProperties>& other)
+    : std::vector<MemoryRegionProperties>(other)
+    {
+    }
 }

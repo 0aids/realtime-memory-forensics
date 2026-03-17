@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(FetchContent)
+add_compile_definitions("PYBIND11_DETAILED_ERROR_MESSAGES")
 
 # ---------------- Build type ----------------
 if(NOT CMAKE_BUILD_TYPE)
@@ -75,7 +76,7 @@ FetchContent_MakeAvailable(magic_enum)
 FetchContent_Declare(
     pybind11
     GIT_REPOSITORY https://github.com/pybind/pybind11.git
-    GIT_TAG v3.0.1
+    GIT_TAG v3.0.2
     GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(pybind11)
@@ -85,11 +86,13 @@ target_include_directories(rmf_core_py PRIVATE include)
 target_link_libraries(rmf_core_py
     PRIVATE memLib ImGuiSource SDL3::SDL3 OpenGL::GL magic_enum::magic_enum
 )
+target_compile_definitions(rmf_core_py PUBLIC "PYBIND11_DETAILED_ERROR_MESSAGES")
 set_target_properties(rmf_core_py PROPERTIES 
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/rmf_py/"
 )
 
 pybind11_add_module(rmf_test_py bindings/rmf_py_tests.cpp)
+target_compile_definitions(rmf_test_py PUBLIC "PYBIND11_DETAILED_ERROR_MESSAGES")
 target_include_directories(rmf_test_py PRIVATE include)
 target_link_libraries(rmf_test_py
     PRIVATE memLib ImGuiSource SDL3::SDL3 OpenGL::GL magic_enum::magic_enum

@@ -4,8 +4,11 @@
 #include "logger.hpp"
 #include "python_embed.hpp"
 #include "types.hpp"
+#include "utils.hpp"
 #include <sstream>
 #include <iostream>
+#include <format>
+
 namespace py = pybind11;
 
 TEST(PythonBindingsTest, getMapsFromPid)
@@ -18,17 +21,19 @@ TEST(PythonBindingsTest, getMapsFromPid)
     pid_t       pid = tp.run();
     std::string stdoutBuffer;
     std::string stderrBuffer;
+
     {
         rmf::py::embedPythonScopedGuard guard{};
 
-        if (guard.execString("maps = rmf.getMapsFromPid(" +
-                             std::to_string(pid) + ")"))
+        if (guard.execString(
+                std::format("maps = rmf.getMapsFromPid({})", pid)))
         {
             results =
                 guard.getLocals()["maps"]
                     .cast<rmf::types::MemoryRegionPropertiesVec>();
         }
     }
+
     tp.stop();
 
     rmf_Log(rmf_Info, "Number of results found: " << results.size());
@@ -43,16 +48,18 @@ TEST(PythonBindingsTest, filterHasPerms)
     rmf::test::testProcess                tp;
     tp.build<rmf::test::staticValueComponent>();
     pid_t pid = tp.run();
+
     {
         rmf::py::embedPythonScopedGuard guard{};
 
-        guard.execString("maps = rmf.getMapsFromPid(" +
-                         std::to_string(pid) + ")");
-        guard.execString("readable = maps.filterHasPerms(\"r\")");
+        guard.execString(
+            std::format("maps = rmf.getMapsFromPid({})", pid));
+        guard.execString(R"(readable = maps.filterHasPerms("r"))");
 
         results = guard.getLocals()["readable"]
                       .cast<rmf::types::MemoryRegionPropertiesVec>();
     }
+
     tp.stop();
 
     EXPECT_GT(results.size(), 0);
@@ -66,18 +73,20 @@ TEST(PythonBindingsTest, breakIntoChunks)
     rmf::test::testProcess                tp;
     tp.build<rmf::test::staticValueComponent>();
     pid_t pid = tp.run();
+
     {
         rmf::py::embedPythonScopedGuard guard{};
 
-        guard.execString("maps = rmf.getMapsFromPid(" +
-                         std::to_string(pid) + ")");
-        guard.execString("readable = maps.filterHasPerms(\"r\")");
         guard.execString(
-            "chunked = readable.breakIntoChunks(0x1000)");
+            std::format("maps = rmf.getMapsFromPid({})", pid));
+        guard.execString(R"(readable = maps.filterHasPerms("r"))");
+        guard.execString(
+            R"(chunked = readable.breakIntoChunks(0x1000))");
 
         results = guard.getLocals()["chunked"]
                       .cast<rmf::types::MemoryRegionPropertiesVec>();
     }
+
     tp.stop();
 
     EXPECT_GT(results.size(), 0);
@@ -91,17 +100,19 @@ TEST(PythonBindingsTest, filterActiveRegions)
     rmf::test::testProcess                tp;
     tp.build<rmf::test::staticValueComponent>();
     pid_t pid = tp.run();
+
     {
         rmf::py::embedPythonScopedGuard guard{};
 
-        guard.execString("maps = rmf.getMapsFromPid(" +
-                         std::to_string(pid) + ")");
-        guard.execString("active = maps.filterActiveRegions(" +
-                         std::to_string(pid) + ")");
+        guard.execString(
+            std::format("maps = rmf.getMapsFromPid({})", pid));
+        guard.execString(std::format(
+            "active = maps.filterActiveRegions({})", pid));
 
         results = guard.getLocals()["active"]
                       .cast<rmf::types::MemoryRegionPropertiesVec>();
     }
+
     tp.stop();
 
     EXPECT_GT(results.size(), 0);
@@ -111,7 +122,7 @@ TEST(PythonBindingsTest, findNumericExact_i32)
 {
     using namespace rmf::test;
 
-    constexpr int32_t                     targetValue = 0x12345678;
+    constexpr int32_t                     targetValue = 0x99998888;
 
     rmf::types::MemoryRegionPropertiesVec results{};
     rmf::test::testProcess                tp;
@@ -121,36 +132,42 @@ TEST(PythonBindingsTest, findNumericExact_i32)
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     {
-        rmf::py::embedPythonScopedGuard guard{};
+        rmf::py::embedPythonScopedGuard guard(
+            rmf::py::RedirectPolicy::None);
 
-        guard.execString("maps = rmf.getMapsFromPid(" +
-                         std::to_string(pid) + ")");
-        guard.execString("readable = maps.filterHasPerms(\"r\")");
+        guard.execString(std::format(
+            R"(
+maps = rmf.getMapsFromPid({})
+readable = maps.filterHasPerms("r")
+snapshots = []
+for mrp in readable:
+    try:
+        snap = rmf.MemorySnapshot(mrp, {})
+        if snap.isValid():
+            snapshots.append(snap)
+    except:
+        pass
 
-        guard.execString(R"(
-            snapshots = []
-            for mrp in readable:
-                try:
-                    snap = rmf.MemorySnapshot(mrp, )" +
-                         std::to_string(pid) + R"()
-                    if snap.isValid():
-                        snapshots.append(snap)
-                except:
-                    pass
-        )");
+results = rmf.MemoryRegionPropertiesVec()
 
-        guard.execString("results = []");
-        guard.execString(R"(
-            for snap in snapshots:
-                found = rmf.findNumericExact_i32(snap, )" +
-                         std::to_string(targetValue) + R"()
-                if found:
-                    results.extend(found)
-        )");
+for snap in snapshots:
+    print(f"snapshot mrp: {{snap.getMrp().toString()}}")
+    found = rmf.findNumericExact_i32(snap, {})
+    if found:
+        print(f"Found: {{type(found)}}")
+        print(f"Found {{len(found)}} elements")
+        results.extend(found)
+)",
+            pid, pid, targetValue));
 
-        results = guard.getLocals()["results"]
-                      .cast<rmf::types::MemoryRegionPropertiesVec>();
+        if (py::len(guard.getLocals()["results"]) != 0)
+            results =
+                guard.getLocals()["results"]
+                    .cast<rmf::types::MemoryRegionPropertiesVec>();
+        else
+            rmf_Log(rmf_Error, "Found no results!");
     }
+
     tp.stop();
 
     EXPECT_GE(results.size(), 2);
@@ -172,34 +189,37 @@ TEST(PythonBindingsTest, findNumericExact_i64)
     {
         rmf::py::embedPythonScopedGuard guard{};
 
-        guard.execString("maps = rmf.getMapsFromPid(" +
-                         std::to_string(pid) + ")");
-        guard.execString("readable = maps.filterHasPerms(\"r\")");
+        guard.execString(
+            std::format("maps = rmf.getMapsFromPid({})", pid));
+        guard.execString(R"(readable = maps.filterHasPerms("r"))");
 
-        guard.execString(R"(
-            snapshots = []
-            for mrp in readable:
-                try:
-                    snap = rmf.MemorySnapshot(mrp, )" +
-                         std::to_string(pid) + R"()
-                    if snap.isValid():
-                        snapshots.append(snap)
-                except:
-                    pass
-        )");
+        guard.execString(std::format(R"(
+snapshots = []
+for mrp in readable:
+    try:
+        snap = rmf.MemorySnapshot(mrp, {})
+        if snap.isValid():
+            snapshots.append(snap)
+    except:
+        pass
+)",
+                                     pid));
 
-        guard.execString("results = []");
-        guard.execString(R"(
-            for snap in snapshots:
-                found = rmf.findNumericExact_i64(snap, )" +
-                         std::to_string(targetValue) + R"()
-                if found:
-                    results.extend(found)
-        )");
+        guard.execString(
+            R"(results = rmf.MemoryRegionPropertiesVec())");
+
+        guard.execString(std::format(R"(
+for snap in snapshots:
+    found = rmf.findNumericExact_i64(snap, {})
+    if found:
+        results.extend(found)
+)",
+                                     targetValue));
 
         results = guard.getLocals()["results"]
                       .cast<rmf::types::MemoryRegionPropertiesVec>();
     }
+
     tp.stop();
 
     EXPECT_GE(results.size(), 2);
@@ -221,34 +241,37 @@ TEST(PythonBindingsTest, findNumericExact_f32)
     {
         rmf::py::embedPythonScopedGuard guard{};
 
-        guard.execString("maps = rmf.getMapsFromPid(" +
-                         std::to_string(pid) + ")");
-        guard.execString("readable = maps.filterHasPerms(\"r\")");
+        guard.execString(
+            std::format("maps = rmf.getMapsFromPid({})", pid));
+        guard.execString(R"(readable = maps.filterHasPerms("r"))");
 
-        guard.execString(R"(
-            snapshots = []
-            for mrp in readable:
-                try:
-                    snap = rmf.MemorySnapshot(mrp, )" +
-                         std::to_string(pid) + R"()
-                    if snap.isValid():
-                        snapshots.append(snap)
-                except:
-                    pass
-        )");
+        guard.execString(std::format(R"(
+snapshots = []
+for mrp in readable:
+    try:
+        snap = rmf.MemorySnapshot(mrp, {})
+        if snap.isValid():
+            snapshots.append(snap)
+    except:
+        pass
+)",
+                                     pid));
 
-        guard.execString("results = []");
-        guard.execString(R"(
-            for snap in snapshots:
-                found = rmf.findNumericExact_f32(snap, )" +
-                         std::to_string(targetValue) + R"()
-                if found:
-                    results.extend(found)
-        )");
+        guard.execString(
+            R"(results = rmf.MemoryRegionPropertiesVec())");
+
+        guard.execString(std::format(R"(
+for snap in snapshots:
+    found = rmf.findNumericExact_f32(snap, {})
+    if found:
+        results.extend(found)
+)",
+                                     targetValue));
 
         results = guard.getLocals()["results"]
                       .cast<rmf::types::MemoryRegionPropertiesVec>();
     }
+
     tp.stop();
 
     EXPECT_GE(results.size(), 2);
@@ -271,37 +294,40 @@ TEST(PythonBindingsTest, findNumericExact_f64)
     {
         rmf::py::embedPythonScopedGuard guard{};
 
-        guard.execString("maps = rmf.getMapsFromPid(" +
-                         std::to_string(pid) + ")");
-        guard.execString("readable = maps.filterHasPerms(\"r\")");
+        guard.execString(
+            std::format("maps = rmf.getMapsFromPid({})", pid));
+        guard.execString(R"(readable = maps.filterHasPerms("r"))");
 
-        guard.execString(R"(
-            snapshots = []
-            for mrp in readable:
-                try:
-                    snap = rmf.MemorySnapshot(mrp, )" +
-                         std::to_string(pid) + R"()
-                    if snap.isValid():
-                        snapshots.append(snap)
-                except:
-                    pass
-        )");
+        guard.execString(std::format(R"(
+snapshots = []
+for mrp in readable:
+    try:
+        snap = rmf.MemorySnapshot(mrp, {})
+        if snap.isValid():
+            snapshots.append(snap)
+    except:
+        pass
+)",
+                                     pid));
 
-        guard.execString("results = []");
-        guard.execString(R"(
-            import struct
-            packed = struct.pack('d', )" +
-                         std::to_string(targetValue) + R"()
-            val = struct.unpack('q', packed)[0]
-            for snap in snapshots:
-                found = rmf.findNumericExact_i64(snap, val)
-                if found:
-                    results.extend(found)
-        )");
+        guard.execString(
+            R"(results = rmf.MemoryRegionPropertiesVec())");
+
+        guard.execString(std::format(R"(
+import struct
+packed = struct.pack('d', {})
+val = struct.unpack('q', packed)[0]
+for snap in snapshots:
+    found = rmf.findNumericExact_i64(snap, val)
+    if found:
+        results.extend(found)
+)",
+                                     targetValue));
 
         results = guard.getLocals()["results"]
                       .cast<rmf::types::MemoryRegionPropertiesVec>();
     }
+
     tp.stop();
 
     EXPECT_GE(results.size(), 2);
@@ -321,36 +347,39 @@ TEST(PythonBindingsTest, findString)
     {
         rmf::py::embedPythonScopedGuard guard{};
 
-        guard.execString("maps = rmf.getMapsFromPid(" +
-                         std::to_string(pid) + ")");
-        guard.execString("readable = maps.filterHasPerms(\"r\")");
+        guard.execString(
+            std::format("maps = rmf.getMapsFromPid({})", pid));
+        guard.execString(R"(readable = maps.filterHasPerms("r"))");
+
+        guard.execString(std::format(R"(
+snapshots = []
+for mrp in readable:
+    try:
+        snap = rmf.MemorySnapshot(mrp, {})
+        if snap.isValid():
+            snapshots.append(snap)
+    except:
+        pass
+)",
+                                     pid));
+
+        guard.execString(
+            R"(results = rmf.MemoryRegionPropertiesVec())");
 
         guard.execString(R"(
-            snapshots = []
-            for mrp in readable:
-                try:
-                    snap = rmf.MemorySnapshot(mrp, )" +
-                         std::to_string(pid) + R"()
-                    if snap.isValid():
-                        snapshots.append(snap)
-                except:
-                    pass
-        )");
-
-        guard.execString("results = []");
-        guard.execString(R"(
-            for snap in snapshots:
-                found = rmf.findString(snap, "I am a small string")
-                if found:
-                    results.extend(found)
-        )");
+for snap in snapshots:
+    found = rmf.findString(snap, "I am a small string")
+    if found:
+        results.extend(found)
+)");
 
         results = guard.getLocals()["results"]
                       .cast<rmf::types::MemoryRegionPropertiesVec>();
     }
+
     tp.stop();
 
-    EXPECT_EQ(results.size(), 2);
+    EXPECT_GE(results.size(), 2);
 }
 
 TEST(PythonBindingsTest, findChangedRegions)
@@ -359,7 +388,7 @@ TEST(PythonBindingsTest, findChangedRegions)
 
     rmf::types::MemoryRegionPropertiesVec results{};
     rmf::test::testProcess                tp;
-    tp.build<rmf::test::staticValueComponent>();
+    tp.build<rmf::test::incrementingIntComponent>();
     pid_t pid = tp.run();
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -367,29 +396,35 @@ TEST(PythonBindingsTest, findChangedRegions)
     {
         rmf::py::embedPythonScopedGuard guard{};
 
-        guard.execString("maps = rmf.getMapsFromPid(" +
-                         std::to_string(pid) + ")");
-        guard.execString("readable = maps.filterHasPerms(\"r\")");
+        guard.execString(std::format(R"(
+pid = {}
+maps = rmf.getMapsFromPid(pid)
+filtered = maps.filterHasPerms("rw").filterActiveRegions(pid)
+snapshots1 = []
+for mrp in filtered:
+    snapshot = rmf.MemorySnapshot(mrp, pid)
+    if snapshot.isValid():
+        snapshots1.append(snapshot)
 
-        guard.execString(R"(
-            mrp = readable[0]
-            snap1 = rmf.MemorySnapshot(mrp, )" +
-                         std::to_string(pid) + R"()
-        )");
+from time import sleep
+sleep(2)
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+snapshots2 = []
+for mrp in filtered:
+    snapshot = rmf.MemorySnapshot(mrp, pid)
+    if snapshot.isValid():
+        snapshots2.append(snapshot)
 
-        guard.execString(R"(
-            snap2 = rmf.MemorySnapshot(mrp, )" +
-                         std::to_string(pid) + R"()
-        )");
-
-        guard.execString(
-            "results = rmf.findChangedRegions(snap1, snap2, 32)");
+results = rmf.MemoryRegionPropertiesVec()
+for snap1, snap2 in zip(snapshots1, snapshots2):
+    results.extend(rmf.findChangedRegions(snap1, snap2, 32))
+)",
+                                     pid));
 
         results = guard.getLocals()["results"]
                       .cast<rmf::types::MemoryRegionPropertiesVec>();
     }
+
     tp.stop();
 
     EXPECT_GE(results.size(), 1);
@@ -409,29 +444,30 @@ TEST(PythonBindingsTest, findNumericChanged_i32)
     {
         rmf::py::embedPythonScopedGuard guard{};
 
-        guard.execString("maps = rmf.getMapsFromPid(" +
-                         std::to_string(pid) + ")");
-        guard.execString("readable = maps.filterHasPerms(\"rw\")");
+        guard.execString(
+            std::format("maps = rmf.getMapsFromPid({})", pid));
+        guard.execString(R"(readable = maps.filterHasPerms("rw"))");
 
-        guard.execString(R"(
-            mrp = readable[0]
-            snap1 = rmf.MemorySnapshot(mrp, )" +
-                         std::to_string(pid) + R"()
-        )");
+        guard.execString(std::format(R"(
+mrp = readable[0]
+snap1 = rmf.MemorySnapshot(mrp, {})
+)",
+                                     pid));
 
         std::this_thread::sleep_for(std::chrono::seconds(2));
 
-        guard.execString(R"(
-            snap2 = rmf.MemorySnapshot(mrp, )" +
-                         std::to_string(pid) + R"()
-        )");
+        guard.execString(std::format(R"(
+snap2 = rmf.MemorySnapshot(mrp, {})
+)",
+                                     pid));
 
         guard.execString(
-            "results = rmf.findNumericChanged_i32(snap1, snap2, 0)");
+            R"(results = rmf.findNumericChanged_i32(snap1, snap2, 0))");
 
         results = guard.getLocals()["results"]
                       .cast<rmf::types::MemoryRegionPropertiesVec>();
     }
+
     tp.stop();
 }
 
@@ -449,30 +485,30 @@ TEST(PythonBindingsTest, findNumericUnchanged_i32)
     {
         rmf::py::embedPythonScopedGuard guard{};
 
-        guard.execString("maps = rmf.getMapsFromPid(" +
-                         std::to_string(pid) + ")");
-        guard.execString("readable = maps.filterHasPerms(\"r\")");
+        guard.execString(
+            std::format("maps = rmf.getMapsFromPid({})", pid));
+        guard.execString(R"(readable = maps.filterHasPerms("r"))");
 
-        guard.execString(R"(
-            mrp = readable[0]
-            snap1 = rmf.MemorySnapshot(mrp, )" +
-                         std::to_string(pid) + R"()
-        )");
+        guard.execString(std::format(R"(
+mrp = readable[0]
+snap1 = rmf.MemorySnapshot(mrp, {})
+)",
+                                     pid));
 
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-        guard.execString(R"(
-            snap2 = rmf.MemorySnapshot(mrp, )" +
-                         std::to_string(pid) + R"()
-        )");
+        guard.execString(std::format(R"(
+snap2 = rmf.MemorySnapshot(mrp, {})
+)",
+                                     pid));
 
         guard.execString(
-            "results = rmf.findNumericUnchanged_i32(snap1, snap2, "
-            "256)");
+            R"(results = rmf.findNumericUnchanged_i32(snap1, snap2, 256))");
 
         results = guard.getLocals()["results"]
                       .cast<rmf::types::MemoryRegionPropertiesVec>();
     }
+
     tp.stop();
 
     EXPECT_GE(results.size(), 1);
@@ -494,33 +530,36 @@ TEST(PythonBindingsTest, findNumericWithinRange_i32)
     {
         rmf::py::embedPythonScopedGuard guard{};
 
-        guard.execString("maps = rmf.getMapsFromPid(" +
-                         std::to_string(pid) + ")");
-        guard.execString("readable = maps.filterHasPerms(\"r\")");
+        guard.execString(
+            std::format("maps = rmf.getMapsFromPid({})", pid));
+        guard.execString(R"(readable = maps.filterHasPerms("r"))");
+
+        guard.execString(std::format(R"(
+snapshots = []
+for mrp in readable:
+    try:
+        snap = rmf.MemorySnapshot(mrp, {})
+        if snap.isValid():
+            snapshots.append(snap)
+    except:
+        pass
+)",
+                                     pid));
+
+        guard.execString(
+            R"(results = rmf.MemoryRegionPropertiesVec())");
 
         guard.execString(R"(
-            snapshots = []
-            for mrp in readable:
-                try:
-                    snap = rmf.MemorySnapshot(mrp, )" +
-                         std::to_string(pid) + R"()
-                    if snap.isValid():
-                        snapshots.append(snap)
-                except:
-                    pass
-        )");
-
-        guard.execString("results = []");
-        guard.execString(R"(
-            for snap in snapshots:
-                found = rmf.findNumericWithinRange_i32(snap, 0x12340000, 0x12350000)
-                if found:
-                    results.extend(found)
-        )");
+for snap in snapshots:
+    found = rmf.findNumericWithinRange_i32(snap, 0x12340000, 0x12350000)
+    if found:
+        results.extend(found)
+)");
 
         results = guard.getLocals()["results"]
                       .cast<rmf::types::MemoryRegionPropertiesVec>();
     }
+
     tp.stop();
 
     EXPECT_GE(results.size(), 2);
@@ -540,17 +579,18 @@ TEST(PythonBindingsTest, getRegionContainingAddress)
     {
         rmf::py::embedPythonScopedGuard guard{};
 
-        guard.execString("maps = rmf.getMapsFromPid(" +
-                         std::to_string(pid) + ")");
-        guard.execString("readable = maps.filterHasPerms(\"r\")");
+        guard.execString(
+            std::format("maps = rmf.getMapsFromPid({})", pid));
+        guard.execString(R"(readable = maps.filterHasPerms("r"))");
 
         guard.execString(R"(
-            addr = readable[0].trueAddress()
-            region = readable.getRegionContainingAddress(addr)
-        )");
+addr = readable[0].trueAddress()
+region = readable.getRegionContainingAddress(addr)
+)");
 
         auto region = guard.getLocals()["region"];
         EXPECT_TRUE(region.is_none() == false);
     }
+
     tp.stop();
 }

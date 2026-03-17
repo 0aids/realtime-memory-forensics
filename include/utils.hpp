@@ -1,6 +1,7 @@
 #ifndef utils_hpp_INCLUDED
 #define utils_hpp_INCLUDED
 #include <chrono>
+#include <ranges>
 #include "logger.hpp"
 #include <chrono>
 #include <optional>
@@ -11,6 +12,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <type_traits>
 #include "types.hpp"
 
 namespace rmf::utils
@@ -205,6 +207,16 @@ namespace rmf::utils
 	// Gets actively in memory regions only.
     rmf::types::MemoryRegionPropertiesVec
     FilterActiveRegions(const types::MemoryRegionPropertiesVec &mrpVec, pid_t pid);
+
+	template <std::ranges::range nestedArr>
+	requires std::ranges::input_range<std::ranges::range_value_t<nestedArr>>
+    auto flattenArray(const nestedArr& arr)
+    {
+        using InnerContainer = std::ranges::range_value_t<nestedArr>;
+
+        InnerContainer result = arr | std::views::join | std::ranges::to<InnerContainer>();
+        return result;
+    }
 }
 
 #endif // utils_hpp_INCLUDED

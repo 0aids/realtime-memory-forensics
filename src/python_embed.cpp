@@ -6,7 +6,7 @@
 
 namespace py = pybind11;
 
-rmf::py::embedPythonScopedGuard::embedPythonScopedGuard()
+rmf::py::embedPythonScopedGuard::embedPythonScopedGuard(RedirectPolicy policy)
     :m_interpreterGuard(), m_locals()
 {
     py::exec(R"(
@@ -32,18 +32,24 @@ rmf::py::embedPythonScopedGuard::embedPythonScopedGuard()
     py::object stderrRedir = Redirector(stderrWrite);
 
     py::module sys = py::module::import("sys");
-    m_oldStderr = sys.attr("stderr");
-    m_oldStdout = sys.attr("stdout");
-
-    sys.attr("stderr") = stderrRedir;
-    sys.attr("stdout") = stdoutRedir;
+    if (policy == RedirectPolicy::All || policy == RedirectPolicy::Stderr)
+    {
+        m_oldStderr = sys.attr("stderr");
+        sys.attr("stderr") = stderrRedir;
+    }
+    if (policy == RedirectPolicy::All || policy == RedirectPolicy::Stdout)
+    {
+        m_oldStdout = sys.attr("stdout");
+        sys.attr("stdout") = stdoutRedir;
+    }
 
     // Import our libraries.
     sys.attr("path").attr("append")("../rmf_py");
 
 	try {
         py::exec(R"(
-            import rmf_py as rmf
+        import rmf_py as rmf
+        import faulthandler; faulthandler.enable()
         )", py::globals(), m_locals);
     }
     catch (const py::error_already_set& e)
@@ -92,6 +98,7 @@ void rmf::py::embedPythonScopedGuard::clearStdout()
 
 bool rmf::py::embedPythonScopedGuard::execString(const std::string_view& view)
 {
+    rmf_Log(rmf_Info, "Executing the following python code: \n" << view);
     try {
         py::exec(view, py::globals(), m_locals);
         return true;

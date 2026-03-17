@@ -20,6 +20,10 @@ foreach(testFile_cpp ${testFiles_cpp})
 		PRIVATE pybind11::embed
 		PUBLIC GTest::gtest_main
 	)
-    gtest_discover_tests(${testName})
+	# Solve package discoverability issues when testing
+    gtest_discover_tests(${testName}
+        PROPERTIES 
+            ENVIRONMENT "PYTHONPATH=${CMAKE_SOURCE_DIR}"
+    )
 endforeach()
 

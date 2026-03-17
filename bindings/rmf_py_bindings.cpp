@@ -5,14 +5,17 @@
 #include "rmf.hpp"
 #include "operations.hpp"
 #include <pybind11/attr.h>
+#include <pybind11/cast.h>
 #include <pybind11/gil.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl_bind.h>
 #include <pybind11/pytypes.h>
+#include <pybind11/stl.h>
 #include <thread>
 
 namespace py = pybind11;
+PYBIND11_MAKE_OPAQUE(rmf::types::MemoryRegionPropertiesVec);
 
 PYBIND11_MODULE(rmf_core_py, m, py::mod_gil_not_used())
 {
@@ -28,9 +31,13 @@ PYBIND11_MODULE(rmf_core_py, m, py::mod_gil_not_used())
 
 	py::class_<rmf::types::MemorySnapshot>(m, "MemorySnapshot")
 		.def(py::init(&rmf::types::MemorySnapshot::Make))
+		.def("getMrp", &rmf::types::MemorySnapshot::getMrp)
+		.def("isValid", &rmf::types::MemorySnapshot::isValid)
+		.def("printHex", &rmf::types::MemorySnapshot::printHex,
+			py::arg("charsPerLine") = 32, py::arg("numLines") = 100)
 		;
 
-	py::class_<rmf::types::MemoryRegionPropertiesVec>(m, "MemoryRegionPropertiesVec")
+	py::bind_vector<rmf::types::MemoryRegionPropertiesVec>(m ,"MemoryRegionPropertiesVec")
 		.def("filterMaxSize", &rmf::types::MemoryRegionPropertiesVec::FilterMaxSize)
 		.def("filterMinSize", &rmf::types::MemoryRegionPropertiesVec::FilterMinSize)
 		.def("filterName", &rmf::types::MemoryRegionPropertiesVec::FilterName)
@@ -38,9 +45,19 @@ PYBIND11_MODULE(rmf_core_py, m, py::mod_gil_not_used())
 		.def("filterExactPerms", &rmf::types::MemoryRegionPropertiesVec::FilterExactPerms)
 		.def("filterHasPerms", &rmf::types::MemoryRegionPropertiesVec::FilterHasPerms)
 		.def("filterNotPerms", &rmf::types::MemoryRegionPropertiesVec::FilterNotPerms)
-		.def("breakIntoChunks", &rmf::types::MemoryRegionPropertiesVec::BreakIntoChunks)
+		.def("breakIntoChunks", &rmf::types::MemoryRegionPropertiesVec::BreakIntoChunks,
+			py::arg("chunkSize"), py::arg("overlap") = 0)
 		.def("filterActiveRegions", &rmf::types::MemoryRegionPropertiesVec::FilterActiveRegions)
 		.def("getRegionContainingAddress", &rmf::types::MemoryRegionPropertiesVec::GetRegionContainingAddress)
+		.def("__iter__", [](rmf::types::MemoryRegionPropertiesVec& self)
+		{
+    		return py::make_iterator(self.begin(), self.end(), py::keep_alive<0, 1>());
+		})
+		.def("__len__", &rmf::types::MemoryRegionPropertiesVec::size)
+		.def("__getitem__", [](rmf::types::MemoryRegionPropertiesVec &v, size_t i) {
+            if (i >= v.size()) throw py::index_error();
+                return v[i];
+        })
 		;
 
 	m.def("getMapsFromPid", &rmf::utils::getMapsFromPid);

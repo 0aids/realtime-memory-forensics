@@ -12,6 +12,13 @@
 namespace rmf::py
 {
     namespace py = pybind11;
+	enum class RedirectPolicy {
+		None,
+		Stdout,
+		Stderr,
+		Both,
+		All,
+	};
 
     class embedPythonScopedGuard
     {
@@ -25,7 +32,9 @@ namespace rmf::py
         py::dict m_locals;
 
     public:
-        embedPythonScopedGuard();
+
+
+        embedPythonScopedGuard(RedirectPolicy policy = RedirectPolicy::Stdout);
         ~embedPythonScopedGuard();
         embedPythonScopedGuard(embedPythonScopedGuard&&) = delete;
         embedPythonScopedGuard(const embedPythonScopedGuard&) = delete;
