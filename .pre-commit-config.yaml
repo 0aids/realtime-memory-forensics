@@ -13,6 +13,12 @@ repos:
         language: system
         pass_filenames: false
 
+      - id: nix-format
+        name: "Format flake.nix"
+        entry: "nixfmt flake.nix"
+        language: system
+        pass_filenames: false
+
       - id: ruff-format
         name: "ruff format"
         entry: "ruff format"

@@ -7,23 +7,27 @@
     inputs.systems.follows = "systems";
   };
 
-  outputs = {
-    nixpkgs,
-    flake-utils,
-    ...
-  }:
+  outputs =
+    {
+      nixpkgs,
+      flake-utils,
+      ...
+    }:
     flake-utils.lib.eachDefaultSystem (
-      system: let
+      system:
+      let
         pkgs = import nixpkgs {
           system = "x86_64-linux";
           config.allowUnfree = true;
           config.cudaSupport = true;
         };
-        pythonEnv = pkgs.python313.withPackages (ps:
-          with ps; [
-              numpy
-          ]);
-      in {
+        pythonEnv = pkgs.python313.withPackages (
+          ps: with ps; [
+            numpy
+          ]
+        );
+      in
+      {
         devShell = pkgs.mkShell {
           buildInputs = with pkgs; [
             gnumake
@@ -56,13 +60,15 @@
             pre-commit
           ];
 
-          LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath [
-            pkgs.stdenv.cc.cc.lib
-            pkgs.stdenv.cc.libc # For standard C library headers
-            pkgs.zlib
-            pkgs.glib.out
-            pkgs.fontconfig
-          ]}:$LD_LIBRARY_PATH";
+          LD_LIBRARY_PATH = "${
+            pkgs.lib.makeLibraryPath [
+              pkgs.stdenv.cc.cc.lib
+              pkgs.stdenv.cc.libc # For standard C library headers
+              pkgs.zlib
+              pkgs.glib.out
+              pkgs.fontconfig
+            ]
+          }:$LD_LIBRARY_PATH";
 
           # UV_PYTHON = "${pythonEnv}/bin/python";
           # UV_PYTHON_PREFERENCE = "only-system";
