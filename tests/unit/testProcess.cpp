@@ -8,7 +8,6 @@ TEST(testProcessTest, BasicAssertions)
     EXPECT_EQ(1 + 2, 3);
 
     testProcess tp;
-    tp.build<testComponent>()
-    .build<staticStringTestComponent>();
+    tp.build<testComponent>().build<staticStringTestComponent>();
     EXPECT_GE(tp.run(), 0);
 }

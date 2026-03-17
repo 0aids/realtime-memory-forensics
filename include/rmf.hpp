@@ -24,7 +24,7 @@ namespace rmf
         };
         std::shared_ptr<Impl> m_impl;
 
-		// template struct declaration to figure out types about functions
+        // template struct declaration to figure out types about functions
         template <typename T>
         struct functionTraits
             : functionTraits<decltype(&T::operator())>
@@ -67,13 +67,13 @@ namespace rmf
         {
         };
 
-		// See Analyzer::Execute to get a brief overview of how it works
+        // See Analyzer::Execute to get a brief overview of how it works
         template <typename func_t, typename RecvArgsTuple_t,
                   size_t... Is>
         auto ExecuteImpl(func_t&& func, RecvArgsTuple_t&& argsRecv,
                          std::index_sequence<Is...>)
         {
-            using traits                = functionTraits<std::decay_t<func_t>>;
+            using traits = functionTraits<std::decay_t<func_t>>;
             using ActualArgsTuple_t     = traits::argsTuple;
             using Return_t              = typename traits::returnType;
             bool                  error = false;
@@ -86,13 +86,14 @@ namespace rmf
                         std::tuple_element_t<Is, ActualArgsTuple_t>>;
                     using recvArg = std::remove_cvref_t<
                         std::tuple_element_t<Is, RecvArgsTuple_t>>;
-                    if constexpr (std::is_convertible_v<recvArg, actualArg>)
+                    if constexpr (std::is_convertible_v<recvArg,
+                                                        actualArg>)
                     {
                     }
                     else if constexpr (
                         utils::IsContainer<recvArg> &&
-                        std::is_convertible_v<typename recvArg::value_type,
-                                       actualArg>)
+                        std::is_convertible_v<
+                            typename recvArg::value_type, actualArg>)
                     {
                         if (vecSize !=
                                 std::get<Is>(argsRecv).size() &&
@@ -112,7 +113,8 @@ namespace rmf
                     }
                     else
                     {
-                        utils::typePrinter<RecvArgsTuple_t, actualArg, recvArg>();
+                        utils::typePrinter<RecvArgsTuple_t, actualArg,
+                                           recvArg>();
                         static_assert(false,
                                       "invalid inputs to function in "
                                       "Analyzer::Execute!");
@@ -136,8 +138,8 @@ namespace rmf
                         using recvArg =
                             std::remove_cvref_t<std::tuple_element_t<
                                 Is, RecvArgsTuple_t>>;
-                        if constexpr (std::is_convertible_v<recvArg,
-                                                     actualArg>)
+                        if constexpr (std::is_convertible_v<
+                                          recvArg, actualArg>)
                             return std::get<Is>(argsRecv);
                         else if constexpr (
                             utils::IsContainer<recvArg> &&
@@ -172,7 +174,7 @@ namespace rmf
         // Given a function, that takes some arguments A...,
         // apply those argument s.t. if some "a" is a container,
         // it creates tasks func(a1, b, c), func(a2, b, c) and so on.
-		/* Basic overview of how it works:
+        /* Basic overview of how it works:
              * Using compile time intrinsics, we convert variadic templates
              * into a tuple of types.
              * For each of the types, we compare it against the function argument, and

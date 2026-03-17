@@ -2,7 +2,6 @@
 #include <memory>
 #include "test_helpers.hpp"
 
-
 TEST(componentTest, incrementingIntComponentBasic)
 {
     using namespace rmf::test;

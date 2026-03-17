@@ -235,7 +235,8 @@ namespace rmf::graph
     }
 
     void MemoryGraph::RegionsAddMrpVec(
-        const types::MemoryRegionPropertiesVec& mrpVec, std::string name)
+        const types::MemoryRegionPropertiesVec& mrpVec,
+        std::string                             name)
     {
         size_t i = 0;
         for (const auto& region : mrpVec)

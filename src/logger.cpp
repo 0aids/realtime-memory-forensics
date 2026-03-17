@@ -5,38 +5,45 @@
 #include <thread>
 #include <iomanip>
 
-rmf::_LogWrapper::_LogWrapper(const std::string_view &s) {
+rmf::_LogWrapper::_LogWrapper(const std::string_view& s)
+{
     m_ss << s;
 }
 
-rmf::_LogWrapper::~_LogWrapper() {
+rmf::_LogWrapper::~_LogWrapper()
+{
     char a;
-    if (!(m_ss >> a)) return;
+    if (!(m_ss >> a))
+        return;
     std::lock_guard<std::mutex> lock(logMutex);
-    std::cerr << m_ss.str() << rmf::StringColors.at(rmf_Reset) << "\n";
+    std::cerr << m_ss.str() << rmf::StringColors.at(rmf_Reset)
+              << "\n";
 }
 
-rmf::_LogWrapper rmf::Log(rmf_LogLevel level, 
-            const std::string_view file,
-            const std::string_view func,
-            const size_t line) 
+rmf::_LogWrapper rmf::Log(rmf_LogLevel           level,
+                          const std::string_view file,
+                          const std::string_view func,
+                          const size_t           line)
 {
     // Empty ones should be immediately optimized out.
-    if (rmf::g_logLevel < level) return {};
+    if (rmf::g_logLevel < level)
+        return {};
 
-    auto wrapper = std::stringstream();
+    auto wrapper  = std::stringstream();
     auto threadID = std::this_thread::get_id();
 
-    if (threadID != rmf::mainThreadId) {
+    if (threadID != rmf::mainThreadId)
+    {
         char name[20]{};
 
         pthread_getname_np(pthread_self(), name, sizeof(name));
         wrapper << "[T" << name << "]";
-    } else {
+    }
+    else
+    {
         wrapper << "[TM]";
     }
-    wrapper << LogLevelNames[level]
-        << "[" << file << ":" << line 
-        << " - " << func << "] ";
+    wrapper << LogLevelNames[level] << "[" << file << ":" << line
+            << " - " << func << "] ";
     return _LogWrapper(wrapper.str());
 }

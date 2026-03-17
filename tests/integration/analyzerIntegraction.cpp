@@ -36,7 +36,9 @@ TEST(analyzerIntegrationTest, findInt32)
 
     MemoryRegionPropertiesVec flattened;
     {
-        rmf_Log(rmf_Info, "Finding target value: " << std::hex << std::showbase << targetValue);
+        rmf_Log(rmf_Info,
+                "Finding target value: " << std::hex << std::showbase
+                                         << targetValue);
         auto snaps =
             analyzer.Execute(MemorySnapshot::Make, regions, childPid);
 
@@ -46,7 +48,9 @@ TEST(analyzerIntegrationTest, findInt32)
             std::views::join;
         std::move(result.begin(), result.end(),
                   std::back_inserter(flattened));
-        rmf_Log(rmf_Info, "Found target value " << flattened.size() << " times!");
+        rmf_Log(rmf_Info,
+                "Found target value " << flattened.size()
+                                      << " times!");
         EXPECT_TRUE(flattened.size() >= 2);
     }
 
@@ -66,8 +70,9 @@ TEST(analyzerIntegrationTest, findInt32AndPtrs)
 
     std::string mapsPath =
         "/proc/" + std::to_string(childPid) + "/maps";
-    auto          regions         = ParseMaps(mapsPath);
-    auto          readableRegions = regions.FilterHasPerms("r").FilterActiveRegions(childPid);
+    auto regions = ParseMaps(mapsPath);
+    auto readableRegions =
+        regions.FilterHasPerms("r").FilterActiveRegions(childPid);
     rmf::Analyzer analyzer(6);
 
     ASSERT_FALSE(readableRegions.empty());
@@ -76,14 +81,18 @@ TEST(analyzerIntegrationTest, findInt32AndPtrs)
         analyzer.Execute(MemorySnapshot::Make, regions, childPid);
     MemoryRegionPropertiesVec flattened;
     {
-        rmf_Log(rmf_Info, "Finding target value: " << std::hex << std::showbase << targetValue);
+        rmf_Log(rmf_Info,
+                "Finding target value: " << std::hex << std::showbase
+                                         << targetValue);
         // Should find itself and others
         auto result = analyzer.Execute(findNumeralExact<int32_t>,
                                        snaps, targetValue) |
             std::views::join;
         std::move(result.begin(), result.end(),
                   std::back_inserter(flattened));
-        rmf_Log(rmf_Info, "Found target value " << flattened.size() << " times!");
+        rmf_Log(rmf_Info,
+                "Found target value " << flattened.size()
+                                      << " times!");
         EXPECT_TRUE(flattened.size() >= 2);
     }
 
@@ -96,7 +105,8 @@ TEST(analyzerIntegrationTest, findInt32AndPtrs)
         flattened.clear();
         std::move(result.begin(), result.end(),
                   std::back_inserter(flattened));
-        rmf_Log(rmf_Info, "Found pointers " << flattened.size() << " times!");
+        rmf_Log(rmf_Info,
+                "Found pointers " << flattened.size() << " times!");
         EXPECT_TRUE(flattened.size() >= 2);
     }
 

@@ -254,12 +254,15 @@ namespace rmf::test
     }
     staticLargeEmptyComponent::~staticLargeEmptyComponent()
     {
-        if (m_buffer) std::free(m_buffer);
+        if (m_buffer)
+            std::free(m_buffer);
     }
-    void staticLargeEmptyComponent::setup() {
+    void staticLargeEmptyComponent::setup()
+    {
         m_buffer = std::malloc(m_bufferSize);
         if (!m_buffer)
-            rmf_Log(rmf_Error, "Failed to malloc static large empty component!");
+            rmf_Log(rmf_Error,
+                    "Failed to malloc static large empty component!");
     }
 
     // > so that we get a min priority queue

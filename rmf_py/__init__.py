@@ -1,8 +1,6 @@
 from .rmf_core_py import *
 from os import cpu_count
-from typing import get_type_hints
 from collections.abc import Iterable
-from operator import itemgetter
 from itertools import repeat
 from multiprocessing.pool import ThreadPool as TPool
 
@@ -28,13 +26,12 @@ class Analyzer:
         self.numThreads = numThreads
 
     def __enter__(self):
-        return self;
+        return self
 
     def __exit__(self, *kargs):
         pass
- 
+
     def execute(self, function, *kargs):
-        currLen: int = 0
         listOfIterables = []
         print(f"{function=}, {kargs=}")
         for arg in kargs:
@@ -44,13 +41,12 @@ class Analyzer:
                 listOfIterables.append(arg.value)
             else:
                 raise TypeError(
-                    f"Arguments are not explicitly states as const or iterable"
+                    "Arguments are not explicitly states as const or iterable"
                 )
-        if (len(kargs) == 1 and isinstance(kargs[0], Const)):
+        if len(kargs) == 1 and isinstance(kargs[0], Const):
             listOfIterables = [[kargs[0].value]]
         print(f"Num Arguments passed: {len(listOfIterables)}")
         with TPool(processes=self.numThreads) as pool:
             result = pool.starmap(function, zip(*listOfIterables))
             return result
         return []
-

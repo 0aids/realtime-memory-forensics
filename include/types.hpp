@@ -245,9 +245,11 @@ namespace rmf::types
         rmf::types::MemoryRegionPropertiesVec
         FilterActiveRegions(pid_t pid);
 
-		// Implicit conversion from vector to mrpvec
-        MemoryRegionPropertiesVec(std::vector<MemoryRegionProperties>&& other);
-        MemoryRegionPropertiesVec(const std::vector<MemoryRegionProperties>& other);
+        // Implicit conversion from vector to mrpvec
+        MemoryRegionPropertiesVec(
+            std::vector<MemoryRegionProperties>&& other);
+        MemoryRegionPropertiesVec(
+            const std::vector<MemoryRegionProperties>& other);
     };
 };
 

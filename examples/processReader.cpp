@@ -16,7 +16,7 @@ int main(int argc, const char** argv)
                 "argument AND string to match for as third"
              << endl;
     }
-    pid_t pid = std::stoul(argv[1]);
+    pid_t       pid         = std::stoul(argv[1]);
     std::string matchString = argv[2];
 
     rmf::g_logLevel = rmf_Warning;
@@ -29,9 +29,8 @@ int main(int argc, const char** argv)
         auto start     = chrono::steady_clock::now();
         auto snapshots = analyzer.Execute(
             rmf::types::MemorySnapshot::Make, maps, pid);
-        auto results = rmf::utils::flattenArray(
-            analyzer.Execute(rmf::op::findString, snapshots,
-                             matchString));
+        auto results = rmf::utils::flattenArray(analyzer.Execute(
+            rmf::op::findString, snapshots, matchString));
         cout << "Results length: " << results.size() << endl;
         return chrono::steady_clock::now() - start;
     };
@@ -45,4 +44,3 @@ int main(int argc, const char** argv)
     cout << "Time taken " << thread::hardware_concurrency() - 1
          << " threads: " << time1 << endl;
 }
-

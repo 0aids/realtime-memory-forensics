@@ -19,9 +19,9 @@ TEST(findNumericExactTest, findInt32InTestProcessDefault)
 {
     using namespace rmf::test;
 
-    volatile int32_t     targetValue = 0x99998888;
-    uint8_t     numFound    = 0;
-    testProcess tp;
+    volatile int32_t targetValue = 0x99998888;
+    uint8_t          numFound    = 0;
+    testProcess      tp;
     tp.build<staticValueComponent>();
     pid_t childPid = tp.run();
 
@@ -59,10 +59,10 @@ TEST(findNumericExactTest, findInt32InTestProcess)
 {
     using namespace rmf::test;
 
-    volatile int32_t     targetValue       = 0x12345678;
-    uint32_t    numFound          = 0;
-    uint32_t    defaultValueFound = 0;
-    testProcess tp;
+    volatile int32_t targetValue       = 0x12345678;
+    uint32_t         numFound          = 0;
+    uint32_t         defaultValueFound = 0;
+    testProcess      tp;
     tp.build<staticValueComponent>(targetValue);
     pid_t childPid = tp.run();
 

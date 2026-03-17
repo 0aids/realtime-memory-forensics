@@ -107,12 +107,15 @@ namespace rmf::op
                const std::string_view&      str)
     {
         types::MemoryRegionPropertiesVec results;
-        auto span = snap1.getData();
+        auto                             span = snap1.getData();
 
-        for (uintptr_t i = 0; i + str.length() < span.size(); i++) {
+        for (uintptr_t i = 0; i + str.length() < span.size(); i++)
+        {
             size_t count = 0;
-            for (uintptr_t j = 0; j < str.length(); j++) {
-                if (span[i + j] != str[j]) {
+            for (uintptr_t j = 0; j < str.length(); j++)
+            {
+                if (span[i + j] != str[j])
+                {
                     break;
                 }
                 count++;
@@ -128,21 +131,24 @@ namespace rmf::op
         return results;
     }
 
-    types::MemoryRegionPropertiesVec findPointersToRegion(
-        const types::MemorySnapshot &snap1,
-        const types::MemoryRegionProperties& mrp
-    ) {
-        return findNumeralWithinRange<uintptr_t>(snap1, mrp.TrueAddress(), mrp.TrueEnd());
+    types::MemoryRegionPropertiesVec
+    findPointersToRegion(const types::MemorySnapshot&         snap1,
+                         const types::MemoryRegionProperties& mrp)
+    {
+        return findNumeralWithinRange<uintptr_t>(
+            snap1, mrp.TrueAddress(), mrp.TrueEnd());
     }
 
     types::MemoryRegionPropertiesVec findPointersToRegions(
-        const types::MemorySnapshot &snap1,
-        const types::MemoryRegionPropertiesVec& mrps
-    ) {
+        const types::MemorySnapshot&            snap1,
+        const types::MemoryRegionPropertiesVec& mrps)
+    {
         types::MemoryRegionPropertiesVec results;
-        for (auto& mrp: mrps) {
+        for (auto& mrp : mrps)
+        {
             auto tempResults = findPointersToRegion(snap1, mrp);
-            std::move(tempResults.begin(), tempResults.end(), std::back_inserter(results));
+            std::move(tempResults.begin(), tempResults.end(),
+                      std::back_inserter(results));
         }
         return results;
     }

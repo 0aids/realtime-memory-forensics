@@ -345,20 +345,23 @@ namespace rmf::gui
 
         if (showScanWindow)
         {
-            scanManager->draw([this](){
-            // Handle "Add to Graph" from scan results
-            if (!scanManager->getScanResults().empty() &&
-                ImGui::Button("Add All to Graph"))
-            {
-                for (const auto& result :
-                     scanManager->getScanResults())
+            scanManager->draw(
+                [this]()
                 {
-                    graphManager->addRegionFromScan(
-                        result.mrp,
-                        std::format("Scan: {}", result.valueStr));
-                }
-            }
-            });
+                    // Handle "Add to Graph" from scan results
+                    if (!scanManager->getScanResults().empty() &&
+                        ImGui::Button("Add All to Graph"))
+                    {
+                        for (const auto& result :
+                             scanManager->getScanResults())
+                        {
+                            graphManager->addRegionFromScan(
+                                result.mrp,
+                                std::format("Scan: {}",
+                                            result.valueStr));
+                        }
+                    }
+                });
         }
 
         if (showNodeViewer)

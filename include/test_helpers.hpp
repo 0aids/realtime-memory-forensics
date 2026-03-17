@@ -128,7 +128,7 @@ namespace rmf::test
     class staticLargeEmptyComponent : public testComponent
     {
       private:
-        void* m_buffer = nullptr;
+        void*  m_buffer     = nullptr;
         size_t m_bufferSize = 0;
 
       public:

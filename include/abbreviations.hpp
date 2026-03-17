@@ -5,7 +5,8 @@
 
 // Abbreviations, I'm fucking sick of typing long ass
 // shared_ptr and unique_ptr and weak_ptr and shit like that.
-namespace rmf::abv {
+namespace rmf::abv
+{
     template <typename T>
     using sptr = std::shared_ptr<T>;
 

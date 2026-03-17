@@ -51,7 +51,7 @@ namespace rmf::utils
 
     // BUG: In the very off-chance that we get a shit tonne of tasks such that it wraps around the ring
     // buffer and catches the tail, there might be a chance that the data read by a task becomes
-    // rewritten. 
+    // rewritten.
     template <typename T>
     class SPMCQueue
     {
@@ -62,7 +62,8 @@ namespace rmf::utils
         alignas(64) std::atomic<uint64_t> m_consumeIndex =
             0; // represents the next fillable index.
         // The consume index is greater than the produce index by 1 when full.
-        std::counting_semaphore<rmf::utils::d_defaultQueueSize> m_semaphore{0};
+        std::counting_semaphore<rmf::utils::d_defaultQueueSize>
+            m_semaphore{0};
 
       public:
         const size_t size;
@@ -84,7 +85,8 @@ namespace rmf::utils
                 rmf_Log(rmf_Warning,
                         "Unable to enqueue, queue is full!");
                 rmf_Log(rmf_Warning,
-                        "Current size: " << produceIndex - consumeIndex - 2);
+                        "Current size: " << produceIndex -
+                                consumeIndex - 2);
                 return false;
             }
             m_data[produceIndex % size] = value;
@@ -98,7 +100,7 @@ namespace rmf::utils
             m_semaphore.release();
 
             return true;
-       }
+        }
 
         bool empty()
         {
@@ -119,8 +121,8 @@ namespace rmf::utils
                 return std::nullopt;
             }
 
-            uint64_t consumeIndex =
-                m_consumeIndex.fetch_add(1, std::memory_order_acquire);
+            uint64_t consumeIndex = m_consumeIndex.fetch_add(
+                1, std::memory_order_acquire);
 
             rmf_Log(rmf_Debug, "Successful dequeue.");
             rmf_Log(rmf_Debug,
@@ -129,8 +131,9 @@ namespace rmf::utils
             return m_data[consumeIndex % size];
         }
 
-        template< class Rep, class Period >
-        std::optional<T> tryDequeueFor(std::chrono::duration<Rep, Period> duration)
+        template <class Rep, class Period>
+        std::optional<T>
+        tryDequeueFor(std::chrono::duration<Rep, Period> duration)
         {
             if (!m_semaphore.try_acquire_for(duration))
             {
@@ -140,8 +143,8 @@ namespace rmf::utils
                 return std::nullopt;
             }
 
-            uint64_t consumeIndex =
-                m_consumeIndex.fetch_add(1, std::memory_order_acquire);
+            uint64_t consumeIndex = m_consumeIndex.fetch_add(
+                1, std::memory_order_acquire);
 
             rmf_Log(rmf_Debug, "Successful dequeue.");
             rmf_Log(rmf_Debug,
@@ -156,8 +159,7 @@ namespace rmf::utils
     rmf::types::MemoryRegionPropertiesVec
     ParseMaps(const std::string fullPath);
 
-	rmf::types::MemoryRegionPropertiesVec
-	getMapsFromPid(pid_t pid);
+    rmf::types::MemoryRegionPropertiesVec getMapsFromPid(pid_t pid);
 
     rmf::types::MemoryRegionPropertiesVec
     FilterMinSize(const rmf::types::MemoryRegionPropertiesVec& other,
@@ -177,9 +179,9 @@ namespace rmf::utils
         const std::string_view&                      string);
 
     // Exact match of perms
-    rmf::types::MemoryRegionPropertiesVec
-    FilterExactPerms(const rmf::types::MemoryRegionPropertiesVec& other,
-                const std::string_view&                      perms);
+    rmf::types::MemoryRegionPropertiesVec FilterExactPerms(
+        const rmf::types::MemoryRegionPropertiesVec& other,
+        const std::string_view&                      perms);
 
     // Has perm/s, but may also have other ones.
     rmf::types::MemoryRegionPropertiesVec
@@ -201,20 +203,23 @@ namespace rmf::utils
     BreakIntoChunks(const rmf::types::MemoryRegionProperties& other,
                     uintptr_t chunkSize, uintptr_t ovelapSize = 0);
 
-    rmf::types::MemoryRegionPropertiesVec
-    CompressNestedMrpVec(const std::vector<types::MemoryRegionPropertiesVec> &mrpvecVec);
+    rmf::types::MemoryRegionPropertiesVec CompressNestedMrpVec(
+        const std::vector<types::MemoryRegionPropertiesVec>&
+            mrpvecVec);
 
-	// Gets actively in memory regions only.
-    rmf::types::MemoryRegionPropertiesVec
-    FilterActiveRegions(const types::MemoryRegionPropertiesVec &mrpVec, pid_t pid);
+    // Gets actively in memory regions only.
+    rmf::types::MemoryRegionPropertiesVec FilterActiveRegions(
+        const types::MemoryRegionPropertiesVec& mrpVec, pid_t pid);
 
-	template <std::ranges::range nestedArr>
-	requires std::ranges::input_range<std::ranges::range_value_t<nestedArr>>
+    template <std::ranges::range nestedArr>
+        requires std::ranges::input_range<
+            std::ranges::range_value_t<nestedArr>>
     auto flattenArray(const nestedArr& arr)
     {
         using InnerContainer = std::ranges::range_value_t<nestedArr>;
 
-        InnerContainer result = arr | std::views::join | std::ranges::to<InnerContainer>();
+        InnerContainer result = arr | std::views::join |
+            std::ranges::to<InnerContainer>();
         return result;
     }
 }

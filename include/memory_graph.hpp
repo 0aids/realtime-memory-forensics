@@ -20,11 +20,10 @@ namespace rmf::graph
     using MemoryLinkID                 = uint64_t;
     class MemoryGraph;
 
-
     // All relevant data of a memory region link
     struct MemoryLinkData
     {
-        MemoryLinkPolicy policy      = MemoryLinkPolicy::Strict;
+        MemoryLinkPolicy policy = MemoryLinkPolicy::Strict;
 
         uintptr_t        sourceAddr = 0;
         uintptr_t        targetAddr = 0;
@@ -38,9 +37,9 @@ namespace rmf::graph
     struct MemoryLink
     {
         MemoryLinkData data;
-        MemoryGraph*     parentGraph = nullptr;
-        MemoryLinkID     id          = noID_ce;
-        std::string      toString() const;
+        MemoryGraph*   parentGraph = nullptr;
+        MemoryLinkID   id          = noID_ce;
+        std::string    toString() const;
     };
 
     // All relevant data of a memory region for use in node graphs.
@@ -63,19 +62,20 @@ namespace rmf::graph
     struct MemoryRegion
     {
         MemoryRegionData data;
-        MemoryGraph*                       parentGraph = nullptr;
-        MemoryRegionID                     id          = noID_ce;
-        std::string                        toString() const;
+        MemoryGraph*     parentGraph = nullptr;
+        MemoryRegionID   id          = noID_ce;
+        std::string      toString() const;
     };
 
-	// Desired workflow:
-	// 		Use in tandem with the analyzer to receive memory regions.
+    // Desired workflow:
+    // 		Use in tandem with the analyzer to receive memory regions.
     class MemoryGraph
     {
-        struct MemoryRegionRange {
+        struct MemoryRegionRange
+        {
             MemoryRegionID id;
-            uintptr_t startAddr;
-            uintptr_t endAddr;
+            uintptr_t      startAddr;
+            uintptr_t      endAddr;
         };
 
         MemoryLinkID m_nextValidLinkID   = 1;
@@ -104,8 +104,9 @@ namespace rmf::graph
         }
         MemoryRegionID RegionGetRegionIdAtAddress(uintptr_t addr);
         std::optional<MemoryRegion*>
-                     RegionGetRegionAtAddress(uintptr_t addr);
-        MemoryRegionID RegionGetRegionIdContainingAddress(uintptr_t addr);
+        RegionGetRegionAtAddress(uintptr_t addr);
+        MemoryRegionID
+        RegionGetRegionIdContainingAddress(uintptr_t addr);
         std::optional<MemoryRegion*>
                      RegionGetRegionContainingAddress(uintptr_t addr);
 
@@ -122,13 +123,14 @@ namespace rmf::graph
         std::vector<MemoryLinkID>
         UpdateLinks(MemoryLinkPolicy policy);
 
-		// Assigns floating mrps to their respective parent regions + offsets.
-        void RegionsAssignToMaps(const types::MemoryRegionPropertiesVec &OGMaps);
+        // Assigns floating mrps to their respective parent regions + offsets.
+        void RegionsAssignToMaps(
+            const types::MemoryRegionPropertiesVec& OGMaps);
 
         // Dump all mrps in here.
-        void RegionsAddMrpVec(const types::MemoryRegionPropertiesVec &mrpVec, std::string name = "");
-
-		
+        void RegionsAddMrpVec(
+            const types::MemoryRegionPropertiesVec& mrpVec,
+            std::string                             name = "");
     };
 }
 

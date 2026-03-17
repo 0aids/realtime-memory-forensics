@@ -50,8 +50,10 @@ TEST(findNumericChangedTest, detectChangedValue)
 
     std::this_thread::sleep_for(std::chrono::seconds(2));
 
-    auto snap1Updated = MemorySnapshot::Make(snap1->getMrp(), childPid);
-    auto snap2Updated = MemorySnapshot::Make(snap2->getMrp(), childPid);
+    auto snap1Updated =
+        MemorySnapshot::Make(snap1->getMrp(), childPid);
+    auto snap2Updated =
+        MemorySnapshot::Make(snap2->getMrp(), childPid);
 
     auto changedResults =
         findNumericChanged<int32_t>(snap1Updated, snap2Updated, 0);
