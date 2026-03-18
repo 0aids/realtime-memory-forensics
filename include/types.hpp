@@ -160,6 +160,7 @@ namespace rmf::types
 
     // DO NOT CONSTRUCT MANUALLY, call MemorySnapshot::Make static method!
     // This is for compatibility with threadpools, without having to create lambdas.
+    // Copies are light, implementation hidden with sharedptrs.
     class MemorySnapshot
     {
       private:
@@ -173,15 +174,19 @@ namespace rmf::types
         std::shared_ptr<Data> d;
 
       public:
-        std::span<const uint8_t> getDataSpan() const
+        MemorySnapshot() = delete;
+        // Generic copy and move stuff tho
+        MemorySnapshot(MemorySnapshot&&)                    = default;
+        MemorySnapshot(const MemorySnapshot&)               = default;
+        MemorySnapshot&    operator=(MemorySnapshot&&)      = default;
+        MemorySnapshot&    operator=(const MemorySnapshot&) = default;
+
+        std::span<uint8_t> getDataSpan() const
         {
             return d->mc_data; // implicit into std::span
         }
 
-        std::vector<uint8_t> getData() const
-        {
-            return d->mc_data;
-        }
+        // Removed getData as it copies the entire buffer, which is what we don't want.
 
         const MemoryRegionProperties& getMrp() const
         {

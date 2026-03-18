@@ -23,7 +23,7 @@ int main(int argc, const char** argv)
 
     auto maps = rmf::utils::getMapsFromPid(pid)
                     .FilterHasPerms("r")
-                    .FilterActiveRegions(pid);
+                    .BreakIntoChunks(0x10000);
     auto lambda = [&maps, &pid, &matchString](auto analyzer) mutable
     {
         auto start     = chrono::steady_clock::now();

@@ -26,8 +26,8 @@ namespace rmf::op
                        const types::MemorySnapshot& snap2,
                        const N&                     minDifference)
     {
-        auto                             span1 = snap1.getData();
-        auto                             span2 = snap2.getData();
+        auto                             span1 = snap1.getDataSpan();
+        auto                             span2 = snap2.getDataSpan();
         auto&                            mrp   = snap1.getMrp();
         types::MemoryRegionPropertiesVec results;
         const size_t                     alignment = alignof(N);
@@ -77,8 +77,8 @@ namespace rmf::op
                          const types::MemorySnapshot& snap2,
                          const N&                     maxDifference)
     {
-        auto                             span1 = snap1.getData();
-        auto                             span2 = snap2.getData();
+        auto                             span1 = snap1.getDataSpan();
+        auto                             span2 = snap2.getDataSpan();
         auto&                            mrp   = snap1.getMrp();
         types::MemoryRegionPropertiesVec results;
         const size_t                     alignment = alignof(N);
@@ -133,7 +133,7 @@ namespace rmf::op
     findNumeralExact(const types::MemorySnapshot& snap1,
                      const N                      number)
     {
-        auto                             span = snap1.getData();
+        auto                             span = snap1.getDataSpan();
         auto&                            mrp  = snap1.getMrp();
         types::MemoryRegionPropertiesVec results;
         const size_t                     alignment     = alignof(N);
@@ -172,7 +172,7 @@ namespace rmf::op
     findNumeralWithinRange(const types::MemorySnapshot& snap1,
                            const N& min, const N& max)
     {
-        auto                             span = snap1.getData();
+        auto                             span = snap1.getDataSpan();
         auto&                            mrp  = snap1.getMrp();
         types::MemoryRegionPropertiesVec results;
         const size_t                     alignment     = alignof(N);

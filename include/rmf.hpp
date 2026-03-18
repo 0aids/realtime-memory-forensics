@@ -12,6 +12,46 @@
 
 namespace rmf
 {
+    template <typename InnerResultType>
+    class AnalyzerResult : public std::vector<InnerResultType>
+    {
+      public:
+        using std::vector<InnerResultType>::vector;
+
+        // Only flattens at most 2d. If you somehow get 3d arrays then
+        // unlucky.
+        auto flatten()
+        {
+            if constexpr (std::ranges::input_range<
+                              std::ranges::range_value_t<
+                                  decltype(*this)>>)
+            {
+                using InnerContainer =
+                    std::ranges::range_value_t<decltype(*this)>;
+                // I don't know if this will cause large copies. I hope not because
+                // this is basically magic to me.
+                // I trust in RVO
+                return *this | std::views::join |
+                    std::ranges::to<InnerContainer>();
+            }
+            else
+            {
+                rmf_Log(rmf_Error,
+                        "Unable to flatten analyzer result, not "
+                        "nested containers, returning original");
+                return *this;
+            }
+        }
+
+        // Implicit conversion from vectors.
+        AnalyzerResult(std::vector<InnerResultType>&& other) :
+            std::vector<InnerResultType>(other) {};
+        // We don't want implicit copy as it could be slow??
+        explicit AnalyzerResult(
+            const std::vector<InnerResultType>& other) :
+            std::vector<InnerResultType>(other) {};
+    };
+
     // Abstraction over operations and threadpooling.
     class Analyzer
     {
@@ -74,11 +114,11 @@ namespace rmf
                          std::index_sequence<Is...>)
         {
             using traits = functionTraits<std::decay_t<func_t>>;
-            using ActualArgsTuple_t     = traits::argsTuple;
-            using Return_t              = typename traits::returnType;
-            bool                  error = false;
-            std::vector<Return_t> result;
-            size_t                vecSize = 1;
+            using ActualArgsTuple_t = traits::argsTuple;
+            using Return_t          = typename traits::returnType;
+            bool                     error = false;
+            AnalyzerResult<Return_t> result;
+            size_t                   vecSize = 1;
             (
                 [&]() mutable
                 {

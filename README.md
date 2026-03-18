@@ -48,14 +48,11 @@ int main() {
     auto readableRegions = REGIONS.FilterHasPerms("r").FilterActiveRegions(PID);
 
     auto snaps = ANALYZER.Execute(MemorySnapshot::Make, readableRegions);
-    MemoryRegionProperties result;
+    MemoryRegionPropertiesVec result;
     {
     	result.clear();
-        auto intermediate = ANALYZER.Execute(findNumeralExact<int32_t>,
-                                       snaps, targetValue) |
-            std::views::join;
-        std::move(intermediate.begin(), intermediate.end(),
-                  std::back_inserter(result));
+        result = ANALYZER.Execute(findNumeralExact<int32_t>,
+                                       snaps, targetValue).flatten();
     }
 }
 ```

@@ -6,8 +6,10 @@
 #include "rmf.hpp"
 #include "operations.hpp"
 #include <atomic>
+#include <iterator>
 #include <pybind11/attr.h>
 #include <pybind11/cast.h>
+#include <pybind11/detail/common.h>
 #include <pybind11/gil.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
@@ -41,12 +43,23 @@ PYBIND11_MODULE(rmf_core_py, m, py::mod_gil_not_used())
              &rmf::types::MemoryRegionProperties::
                  AssignNewParentRegion);
 
-    py::class_<rmf::types::MemorySnapshot>(m, "MemorySnapshot")
+    py::class_<rmf::types::MemorySnapshot>(m, "MemorySnapshot", py::buffer_protocol())
         .def(py::init(&rmf::types::MemorySnapshot::Make))
         .def("getMrp", &rmf::types::MemorySnapshot::getMrp)
         .def("isValid", &rmf::types::MemorySnapshot::isValid)
         .def("printHex", &rmf::types::MemorySnapshot::printHex,
-             py::arg("charsPerLine") = 32, py::arg("numLines") = 100);
+             py::arg("charsPerLine") = 32, py::arg("numLines") = 100)
+        // For numpy?
+        .def_buffer(
+            [](rmf::types::MemorySnapshot& snap) -> py::buffer_info
+            {
+                return py::buffer_info(
+                    snap.getDataSpan().data(), sizeof(uint8_t),
+                    py::format_descriptor<uint8_t>::format(), 1,
+                    {snap.getDataSpan().size()},
+                    {sizeof(uint8_t)}
+                );
+            });
 
     m.def("MakeSnapshot", &rmf::types::MemorySnapshot::Make);
 
@@ -105,6 +118,27 @@ PYBIND11_MODULE(rmf_core_py, m, py::mod_gil_not_used())
                      throw py::index_error();
                  return v[i];
              });
+
+    m.def("ConsolidateMrpVec",
+          [](std::vector<rmf::types::MemoryRegionPropertiesVec>
+                 MrpVecList) -> rmf::types::MemoryRegionPropertiesVec
+          {
+              rmf::types::MemoryRegionPropertiesVec result;
+              size_t                                totalSize = 0;
+              for (const auto& mrpVec : MrpVecList)
+              {
+                  totalSize += mrpVec.size();
+              }
+
+              result.reserve(totalSize);
+              for (const auto& mrpVec : MrpVecList)
+              {
+                  std::copy(mrpVec.begin(), mrpVec.end(),
+                            std::back_inserter(result));
+              }
+
+              return result;
+          });
     py::bind_vector<std::vector<rmf::types::MemorySnapshot>>(
         m, "MemorySnapshotVec")
         .def("__len__",
@@ -249,25 +283,32 @@ PYBIND11_MODULE(rmf_core_py, m, py::mod_gil_not_used())
     m.def("findPointersToRegions", &rmf::op::findPointersToRegions,
           py::call_guard<py::gil_scoped_release>());
 
-    m.def(
-        "MakeMemorySnapshotVec",
-        [](const rmf::types::MemoryRegionPropertiesVec& mrpVec, pid_t pid, py::object analyzer) {
-            // Check that it is an analyzer and has the a valid attribute
-            size_t numThreads = 0;
-            try {
-                numThreads = analyzer.attr("numThreads").cast<size_t>();
-            }
-            catch (const py::error_already_set& e)
-            {
-                rmf_Log(rmf_Error, "object passed is not of type 'Analyzer':\n" << e.what());
-                numThreads = 1;
-                rmf::Analyzer a(numThreads);
-                return a.Execute(rmf::types::MemorySnapshot::Make, rmf::types::MemoryRegionPropertiesVec{}, pid);
-            }
-            // Free gil
-            pybind11::gil_scoped_release release;
-            rmf::Analyzer a(numThreads);
-            return a.Execute(rmf::types::MemorySnapshot::Make, mrpVec, pid);
-        } 
-    );
+    m.def("MakeMemorySnapshotVec",
+          [](const rmf::types::MemoryRegionPropertiesVec& mrpVec,
+             pid_t pid, py::object analyzer) -> MemorySnapshotVec
+          {
+              // Check that it is an analyzer and has the a valid attribute
+              size_t numThreads = 0;
+              try
+              {
+                  numThreads =
+                      analyzer.attr("numThreads").cast<size_t>();
+              }
+              catch (const py::error_already_set& e)
+              {
+                  rmf_Log(rmf_Error,
+                          "object passed is not of type 'Analyzer':\n"
+                              << e.what());
+                  numThreads = 1;
+                  rmf::Analyzer a(numThreads);
+                  return a.Execute(
+                      rmf::types::MemorySnapshot::Make,
+                      rmf::types::MemoryRegionPropertiesVec{}, pid);
+              }
+              // Free gil
+              pybind11::gil_scoped_release release;
+              rmf::Analyzer                a(numThreads);
+              return a.Execute(rmf::types::MemorySnapshot::Make,
+                               mrpVec, pid);
+          });
 }

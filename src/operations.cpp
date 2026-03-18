@@ -16,8 +16,8 @@ namespace rmf::op
                        const types::MemorySnapshot& snap2,
                        const uintptr_t&             compareSize)
     {
-        auto                             span1 = snap1.getData();
-        auto                             span2 = snap2.getData();
+        auto                             span1 = snap1.getDataSpan();
+        auto                             span2 = snap2.getDataSpan();
         auto&                            mrp   = snap1.getMrp();
 
         types::MemoryRegionPropertiesVec results;
@@ -60,8 +60,8 @@ namespace rmf::op
                          const types::MemorySnapshot& snap2,
                          const uintptr_t&             compareSize)
     {
-        auto                             span1 = snap1.getData();
-        auto                             span2 = snap2.getData();
+        auto                             span1 = snap1.getDataSpan();
+        auto                             span2 = snap2.getDataSpan();
         auto&                            mrp   = snap1.getMrp();
 
         types::MemoryRegionPropertiesVec results;
@@ -107,7 +107,7 @@ namespace rmf::op
                const std::string_view&      str)
     {
         types::MemoryRegionPropertiesVec results;
-        auto                             span = snap1.getData();
+        auto                             span = snap1.getDataSpan();
 
         for (uintptr_t i = 0; i + str.length() < span.size(); i++)
         {
