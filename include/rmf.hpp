@@ -79,7 +79,8 @@ namespace rmf
     template <typename... Ts>
     struct TupleVectorize<std::tuple<Ts...>>
     {
-        using typeTuple = std::tuple<Vectorize_t<std::decay_t<Ts>>...>;
+        using typeTuple =
+            std::tuple<Vectorize_t<std::decay_t<Ts>>...>;
     };
 
     // Abstraction over operations and threadpooling.
@@ -278,7 +279,10 @@ namespace rmf
         static auto CreateExecution(func_t func)
         {
             return [func](rmf::Analyzer& self, Args... args)
-            { return self.Execute(func, std::forward<Args>(args)...); };
+            {
+                return self.Execute(func,
+                                    std::forward<Args>(args)...);
+            };
         }
 
         // Only requires the function as the argument
@@ -297,7 +301,9 @@ namespace rmf
             {
                 return Analyzer::CreateExecution<
                     func_t,
-                    std::remove_cvref_t<std::tuple_element_t<Is, newArgsTuple>>...>(func);
+                    std::remove_cvref_t<
+                        std::tuple_element_t<Is, newArgsTuple>>...>(
+                    func);
             };
             return indexHelper(std::make_index_sequence<
                                std::tuple_size_v<newArgsTuple>>{});

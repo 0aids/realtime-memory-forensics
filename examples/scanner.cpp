@@ -22,7 +22,8 @@ int main(int argc, const char** argv)
     rmf::g_logLevel = rmf_Warning;
 
     auto maps = rmf::utils::getMapsFromPid(pid)
-                    .FilterHasPerms("r").FilterActiveRegions(pid);
+                    .FilterHasPerms("r")
+                    .FilterActiveRegions(pid);
     auto lambda = [&maps, &pid, &matchString](auto analyzer) mutable
     {
         auto start     = chrono::steady_clock::now();

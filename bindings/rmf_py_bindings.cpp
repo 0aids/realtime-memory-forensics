@@ -301,9 +301,6 @@ PYBIND11_MODULE(rmf_core_py, m, py::mod_gil_not_used())
     m.def("findPointersToRegions", &rmf::op::findPointersToRegions,
           py::call_guard<py::gil_scoped_release>());
 
-    auto func = rmf::Analyzer::CreateVectorisedExecution<
-        decltype(&rmf::op::findString)>(&rmf::op::findString);
-
     py::class_<rmf::Analyzer>(m, "Batcher")
         .def(py::init([](size_t numThreads)
                       { return rmf::Analyzer(numThreads); }))
