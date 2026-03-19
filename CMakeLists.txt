@@ -93,6 +93,7 @@ set_target_properties(rmf_core_py PROPERTIES
 target_compile_options(rmf_core_py PRIVATE ${GLOBAL_WARNINGS})
 target_compile_options(rmf_core_py PRIVATE $<$<CONFIG:Debug>:-O0> $<$<CONFIG:Release>:-O2>)
 target_compile_options(rmf_core_py PRIVATE ${SAN_FLAGS})
+target_compile_options(rmf_core_py PUBLIC -fdiagnostics-show-template-tree)
 target_link_options(rmf_core_py PRIVATE ${SAN_FLAGS})
 
 pybind11_add_module(rmf_test_py bindings/rmf_py_tests.cpp)

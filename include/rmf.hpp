@@ -52,6 +52,36 @@ namespace rmf
             std::vector<InnerResultType>(other) {};
     };
 
+    template <typename T>
+    struct Vectorize
+    {
+        using type = T;
+    };
+
+    template <>
+    struct Vectorize<types::MemoryRegionProperties>
+    {
+        using type = types::MemoryRegionPropertiesVec;
+    };
+
+    template <>
+    struct Vectorize<types::MemorySnapshot>
+    {
+        using type = types::MemorySnapshotVec;
+    };
+
+    template <typename T>
+    using Vectorize_t = typename Vectorize<T>::type;
+
+    template <typename Tuple>
+    struct TupleVectorize;
+
+    template <typename... Ts>
+    struct TupleVectorize<std::tuple<Ts...>>
+    {
+        using typeTuple = std::tuple<Vectorize_t<std::decay_t<Ts>>...>;
+    };
+
     // Abstraction over operations and threadpooling.
     class Analyzer
     {
@@ -235,14 +265,42 @@ namespace rmf
         template <typename func_t, typename... Args>
         auto Execute(func_t&& func, Args&&... args)
         {
-            // Integer sequence...
 
             // for each type, check if it is a container, and also check that
             // it's a argument of the std::tuple.
             return ExecuteImpl(
                 std::forward<func_t>(func),
-                std::forward_as_tuple(args...),
+                std::forward_as_tuple(std::forward<Args>(args)...),
                 std::make_index_sequence<sizeof...(Args)>{});
+        }
+
+        template <typename func_t, typename... Args>
+        static auto CreateExecution(func_t func)
+        {
+            return [func](rmf::Analyzer& self, Args... args)
+            { return self.Execute(func, std::forward<Args>(args)...); };
+        }
+
+        // Only requires the function as the argument
+        // Of which it will convert the types
+        template <typename func_t>
+        static auto CreateVectorisedExecution(func_t func)
+        {
+            // get args of function
+            using traits = functionTraits<std::decay_t<func_t>>;
+            using actualArgsTuple = traits::argsTuple;
+            using newArgsTuple =
+                TupleVectorize<actualArgsTuple>::typeTuple;
+
+            auto indexHelper =
+                [func]<size_t... Is>(std::index_sequence<Is...>)
+            {
+                return Analyzer::CreateExecution<
+                    func_t,
+                    std::remove_cvref_t<std::tuple_element_t<Is, newArgsTuple>>...>(func);
+            };
+            return indexHelper(std::make_index_sequence<
+                               std::tuple_size_v<newArgsTuple>>{});
         }
     };
 }

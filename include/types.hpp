@@ -209,6 +209,7 @@ namespace rmf::types
             return d;
         }
     };
+    using MemorySnapshotVec = std::vector<rmf::types::MemorySnapshot>;
 
     class RefreshableSnapshot
     {

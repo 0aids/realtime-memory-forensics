@@ -23,15 +23,13 @@ rmf.SetLogLevel(rmf.LogLevel.Error)
 maps = rmf.getMapsFromPid(pid).filterHasPerms("r").filterActiveRegions(pid)
 
 
-def processStuff(analyzer):
+def processStuff(batcher):
     global time
     global rmf
     global MATCHSTRING
     start = time.perf_counter()
-    snapshots = rmf.MakeMemorySnapshotVec(maps, pid, analyzer)
-    results = analyzer.execute(
-        rmf.findString, rmf.Iter(snapshots), rmf.Const(MATCHSTRING)
-    ).flatten()
+    snapshots = batcher.makeSnapshot(maps, pid)
+    results = batcher.findString(snapshots, MATCHSTRING).flatten()
     print(f"Num snapshots: {len(snapshots)}")
     print(f"Num results: {len(results)}")
     if len(results):
@@ -41,5 +39,5 @@ def processStuff(analyzer):
     return time.perf_counter() - start
 
 
-with rmf.Analyzer(12) as analyzer:
-    print(f"Time taken: {processStuff(analyzer):.5f}s")
+batcher = rmf.Batcher(11)
+print(f"time taken {processStuff(batcher):.5f}")

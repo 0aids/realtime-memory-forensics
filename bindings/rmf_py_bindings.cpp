@@ -22,9 +22,34 @@
 
 namespace py = pybind11;
 PYBIND11_MAKE_OPAQUE(rmf::types::MemoryRegionPropertiesVec);
-using MemorySnapshotVec = std::vector<rmf::types::MemorySnapshot>;
-PYBIND11_MAKE_OPAQUE(MemorySnapshotVec);
+PYBIND11_MAKE_OPAQUE(rmf::types::MemorySnapshotVec);
 PYBIND11_MAKE_OPAQUE(rmf::types::MemorySnapshot);
+PYBIND11_MAKE_OPAQUE(
+    rmf::AnalyzerResult<rmf::types::MemoryRegionPropertiesVec>);
+PYBIND11_MAKE_OPAQUE(
+    rmf::AnalyzerResult<rmf::types::MemorySnapshotVec>);
+PYBIND11_MAKE_OPAQUE(rmf::AnalyzerResult<rmf::types::MemorySnapshot>);
+PYBIND11_MAKE_OPAQUE(
+    rmf::AnalyzerResult<rmf::types::MemoryRegionProperties>);
+
+template <typename InnerType>
+void bindAnalyzerResults(py::module_& m, const std::string& base_name,
+                         const std::string& derived_name)
+{
+    using BaseVectorType    = std::vector<InnerType>;
+    using DerivedResultType = rmf::AnalyzerResult<InnerType>;
+
+    // 1. Bind the base std::vector using py::bind_vector
+    // This gives it all the Python list magic.
+    py::bind_vector<BaseVectorType>(m, base_name);
+
+    // 2. Bind the AnalyzerResult using py::class_, explicitly declaring BaseVectorType as its base!
+    py::class_<DerivedResultType, BaseVectorType>(m, derived_name.c_str())
+        .def(py::init<>()) // Allow Python to instantiate it if needed
+        .def("flatten", &DerivedResultType::flatten,
+             "Flattens 2D analyzer results into 1D. Returns the "
+             "original array if already 1D.");
+}
 
 PYBIND11_MODULE(rmf_core_py, m, py::mod_gil_not_used())
 {
@@ -43,7 +68,8 @@ PYBIND11_MODULE(rmf_core_py, m, py::mod_gil_not_used())
              &rmf::types::MemoryRegionProperties::
                  AssignNewParentRegion);
 
-    py::class_<rmf::types::MemorySnapshot>(m, "MemorySnapshot", py::buffer_protocol())
+    py::class_<rmf::types::MemorySnapshot>(m, "MemorySnapshot",
+                                           py::buffer_protocol())
         .def(py::init(&rmf::types::MemorySnapshot::Make))
         .def("getMrp", &rmf::types::MemorySnapshot::getMrp)
         .def("isValid", &rmf::types::MemorySnapshot::isValid)
@@ -56,12 +82,22 @@ PYBIND11_MODULE(rmf_core_py, m, py::mod_gil_not_used())
                 return py::buffer_info(
                     snap.getDataSpan().data(), sizeof(uint8_t),
                     py::format_descriptor<uint8_t>::format(), 1,
-                    {snap.getDataSpan().size()},
-                    {sizeof(uint8_t)}
-                );
+                    {snap.getDataSpan().size()}, {sizeof(uint8_t)});
             });
 
     m.def("MakeSnapshot", &rmf::types::MemorySnapshot::Make);
+
+    bindAnalyzerResults<rmf::types::MemoryRegionPropertiesVec>(
+        m, "MemoryRegionPropertiesVec_stdVec",
+        "AnalyzerResult_MemoryRegionPropertiesVec");
+    bindAnalyzerResults<rmf::types::MemorySnapshotVec>(
+        m, "MemorySnapshotVec_stdVec",
+        "AnalyzerResult_MemorySnapshotVec");
+    bindAnalyzerResults<rmf::types::MemorySnapshot>(
+        m, "MemorySnapshot_stdVec", "AnalyzerResult_MemorySnapshot");
+    bindAnalyzerResults<rmf::types::MemoryRegionProperties>(
+        m, "MemoryRegionProperties_stdVec",
+        "AnalyzerResult_MemoryRegionProperties");
 
     py::enum_<rmf_LogLevel>(m, "LogLevel")
         .value("Error", rmf_Error)
@@ -139,24 +175,6 @@ PYBIND11_MODULE(rmf_core_py, m, py::mod_gil_not_used())
 
               return result;
           });
-    py::bind_vector<std::vector<rmf::types::MemorySnapshot>>(
-        m, "MemorySnapshotVec")
-        .def("__len__",
-             &std::vector<rmf::types::MemorySnapshot>::size)
-        .def("__iter__",
-             [](std::vector<rmf::types::MemorySnapshot>& self)
-             {
-                 return py::make_iterator(self.begin(), self.end(),
-                                          py::keep_alive<0, 1>());
-             })
-        .def("__getitem__",
-             [](std::vector<rmf::types::MemorySnapshot>& self,
-                size_t                                   i)
-             {
-                 if (i >= self.size())
-                     throw py::index_error();
-                 return self[i];
-             });
 
     m.def("getMapsFromPid", &rmf::utils::getMapsFromPid);
     m.def("findChangedRegions", &rmf::op::findChangedRegions,
@@ -283,32 +301,253 @@ PYBIND11_MODULE(rmf_core_py, m, py::mod_gil_not_used())
     m.def("findPointersToRegions", &rmf::op::findPointersToRegions,
           py::call_guard<py::gil_scoped_release>());
 
-    m.def("MakeMemorySnapshotVec",
-          [](const rmf::types::MemoryRegionPropertiesVec& mrpVec,
-             pid_t pid, py::object analyzer) -> MemorySnapshotVec
-          {
-              // Check that it is an analyzer and has the a valid attribute
-              size_t numThreads = 0;
-              try
-              {
-                  numThreads =
-                      analyzer.attr("numThreads").cast<size_t>();
-              }
-              catch (const py::error_already_set& e)
-              {
-                  rmf_Log(rmf_Error,
-                          "object passed is not of type 'Analyzer':\n"
-                              << e.what());
-                  numThreads = 1;
-                  rmf::Analyzer a(numThreads);
-                  return a.Execute(
-                      rmf::types::MemorySnapshot::Make,
-                      rmf::types::MemoryRegionPropertiesVec{}, pid);
-              }
-              // Free gil
-              pybind11::gil_scoped_release release;
-              rmf::Analyzer                a(numThreads);
-              return a.Execute(rmf::types::MemorySnapshot::Make,
-                               mrpVec, pid);
-          });
+    auto func = rmf::Analyzer::CreateVectorisedExecution<
+        decltype(&rmf::op::findString)>(&rmf::op::findString);
+
+    py::class_<rmf::Analyzer>(m, "Batcher")
+        .def(py::init([](size_t numThreads)
+                      { return rmf::Analyzer(numThreads); }))
+
+        // Snapshot
+        .def("makeSnapshot",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::types::MemorySnapshot::Make)>(
+                 &rmf::types::MemorySnapshot::Make),
+             py::call_guard<py::gil_scoped_release>())
+        // String
+        .def(
+            "findString",
+            rmf::Analyzer::CreateVectorisedExecution<
+                decltype(&rmf::op::findString)>(&rmf::op::findString),
+            py::call_guard<py::gil_scoped_release>())
+
+        // // Changed regions
+        .def("findChangedRegions",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findChangedRegions)>(
+                 &rmf::op::findChangedRegions),
+             py::call_guard<py::gil_scoped_release>())
+
+        // Numeric changed
+        .def("findNumericChanged_f64",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumericChanged<double>)>(
+                 &rmf::op::findNumericChanged<double>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericChanged_f32",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumericChanged<float>)>(
+                 &rmf::op::findNumericChanged<float>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericChanged_u64",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumericChanged<uint64_t>)>(
+                 &rmf::op::findNumericChanged<uint64_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericChanged_u32",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumericChanged<uint32_t>)>(
+                 &rmf::op::findNumericChanged<uint32_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericChanged_u16",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumericChanged<uint16_t>)>(
+                 &rmf::op::findNumericChanged<uint16_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericChanged_u8",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumericChanged<uint8_t>)>(
+                 &rmf::op::findNumericChanged<uint8_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericChanged_i64",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumericChanged<int64_t>)>(
+                 &rmf::op::findNumericChanged<int64_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericChanged_i32",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumericChanged<int32_t>)>(
+                 &rmf::op::findNumericChanged<int32_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericChanged_i16",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumericChanged<int16_t>)>(
+                 &rmf::op::findNumericChanged<int16_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericChanged_i8",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumericChanged<int8_t>)>(
+                 &rmf::op::findNumericChanged<int8_t>),
+             py::call_guard<py::gil_scoped_release>())
+
+        // Numeric unchanged
+        .def("findNumericUnchanged_f64",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumericUnchanged<double>)>(
+                 &rmf::op::findNumericUnchanged<double>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericUnchanged_f32",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumericUnchanged<float>)>(
+                 &rmf::op::findNumericUnchanged<float>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericUnchanged_u64",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumericUnchanged<uint64_t>)>(
+                 &rmf::op::findNumericUnchanged<uint64_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericUnchanged_u32",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumericUnchanged<uint32_t>)>(
+                 &rmf::op::findNumericUnchanged<uint32_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericUnchanged_u16",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumericUnchanged<uint16_t>)>(
+                 &rmf::op::findNumericUnchanged<uint16_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericUnchanged_u8",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumericUnchanged<uint8_t>)>(
+                 &rmf::op::findNumericUnchanged<uint8_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericUnchanged_i64",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumericUnchanged<int64_t>)>(
+                 &rmf::op::findNumericUnchanged<int64_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericUnchanged_i32",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumericUnchanged<int32_t>)>(
+                 &rmf::op::findNumericUnchanged<int32_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericUnchanged_i16",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumericUnchanged<int16_t>)>(
+                 &rmf::op::findNumericUnchanged<int16_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericUnchanged_i8",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumericUnchanged<int8_t>)>(
+                 &rmf::op::findNumericUnchanged<int8_t>),
+             py::call_guard<py::gil_scoped_release>())
+
+        // Numeric exact
+        .def("findNumericExact_f64",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumeralExact<double>)>(
+                 &rmf::op::findNumeralExact<double>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericExact_f32",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumeralExact<float>)>(
+                 &rmf::op::findNumeralExact<float>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericExact_u64",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumeralExact<uint64_t>)>(
+                 &rmf::op::findNumeralExact<uint64_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericExact_u32",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumeralExact<uint32_t>)>(
+                 &rmf::op::findNumeralExact<uint32_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericExact_u16",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumeralExact<uint16_t>)>(
+                 &rmf::op::findNumeralExact<uint16_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericExact_u8",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumeralExact<uint8_t>)>(
+                 &rmf::op::findNumeralExact<uint8_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericExact_i64",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumeralExact<int64_t>)>(
+                 &rmf::op::findNumeralExact<int64_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericExact_i32",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumeralExact<int32_t>)>(
+                 &rmf::op::findNumeralExact<int32_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericExact_i16",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumeralExact<int16_t>)>(
+                 &rmf::op::findNumeralExact<int16_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericExact_i8",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumeralExact<int8_t>)>(
+                 &rmf::op::findNumeralExact<int8_t>),
+             py::call_guard<py::gil_scoped_release>())
+
+        // Numeric within range
+        .def("findNumericWithinRange_f64",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumeralWithinRange<double>)>(
+                 &rmf::op::findNumeralWithinRange<double>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericWithinRange_f32",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumeralWithinRange<float>)>(
+                 &rmf::op::findNumeralWithinRange<float>),
+             py::call_guard<py::gil_scoped_release>())
+        .def(
+            "findNumericWithinRange_u64",
+            rmf::Analyzer::CreateVectorisedExecution<
+                decltype(&rmf::op::findNumeralWithinRange<uint64_t>)>(
+                &rmf::op::findNumeralWithinRange<uint64_t>),
+            py::call_guard<py::gil_scoped_release>())
+        .def(
+            "findNumericWithinRange_u32",
+            rmf::Analyzer::CreateVectorisedExecution<
+                decltype(&rmf::op::findNumeralWithinRange<uint32_t>)>(
+                &rmf::op::findNumeralWithinRange<uint32_t>),
+            py::call_guard<py::gil_scoped_release>())
+        .def(
+            "findNumericWithinRange_u16",
+            rmf::Analyzer::CreateVectorisedExecution<
+                decltype(&rmf::op::findNumeralWithinRange<uint16_t>)>(
+                &rmf::op::findNumeralWithinRange<uint16_t>),
+            py::call_guard<py::gil_scoped_release>())
+        .def("findNumericWithinRange_u8",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumeralWithinRange<uint8_t>)>(
+                 &rmf::op::findNumeralWithinRange<uint8_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericWithinRange_i64",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumeralWithinRange<int64_t>)>(
+                 &rmf::op::findNumeralWithinRange<int64_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericWithinRange_i32",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumeralWithinRange<int32_t>)>(
+                 &rmf::op::findNumeralWithinRange<int32_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericWithinRange_i16",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumeralWithinRange<int16_t>)>(
+                 &rmf::op::findNumeralWithinRange<int16_t>),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findNumericWithinRange_i8",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findNumeralWithinRange<int8_t>)>(
+                 &rmf::op::findNumeralWithinRange<int8_t>),
+             py::call_guard<py::gil_scoped_release>())
+
+        // Pointer search
+        .def("findPointersToRegion",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findPointersToRegion)>(
+                 &rmf::op::findPointersToRegion),
+             py::call_guard<py::gil_scoped_release>())
+        .def("findPointersToRegions",
+             rmf::Analyzer::CreateVectorisedExecution<
+                 decltype(&rmf::op::findPointersToRegions)>(
+                 &rmf::op::findPointersToRegions),
+             py::call_guard<py::gil_scoped_release>());
 }
