@@ -1,7 +1,9 @@
 #include "operations.hpp"
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <iterator>
+#include <unordered_map>
 #include "logger.hpp"
 #include "types.hpp"
 #include "utils.hpp"

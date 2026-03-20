@@ -19,13 +19,14 @@ via node-graph visualisation, all done without analysing executed assembly.
 - [x] feat: integrated python shell
 - [x] feat: multi threading in python
     - [x] feat: faster multithreading via Batcher.
-- [ ] feat: implement memory graph algorithms.
+- [-] feat: implement memory graph algorithms.
 - [ ] feat: integrated python scripting in gui and file saving
 - [ ] feat: Add link details on hover
 - [ ] feat: Add node details on hover
 - [ ] feat: Incorporate auto linking using an inputted ANALYZER.
 - [ ] feat: undo + redo
 - [ ] feat: graph serialisation?
+- [ ] fix: Find that stupid race condition
 - [ ] feat: lazy snapshots for reduced memory usage?
            The only problem is delays between snapshots, which wouldnt work
            as easily. The only way to get this to work is to have

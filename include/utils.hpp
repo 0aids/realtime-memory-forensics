@@ -66,6 +66,11 @@ namespace rmf::utils
             m_semaphore{0};
 
       public:
+        uint64_t getConsumeIndex() const
+        {
+            return m_consumeIndex.load();
+        }
+
         const size_t size;
         SPMCQueue(size_t _size) : size(_size)
         {

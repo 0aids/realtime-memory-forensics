@@ -5,6 +5,7 @@
 #include "multi_threading.hpp"
 #include "types.hpp"
 #include "utils.hpp"
+#include <chrono>
 #include <ranges>
 #include <tuple>
 #include <type_traits>
@@ -199,6 +200,9 @@ namespace rmf
             if (error)
                 return result;
             std::vector<Task_t<Return_t>> taskList;
+            using namespace std::chrono_literals;
+            auto nextTime = std::chrono::steady_clock::now() + 5s;
+            rmf_Log(rmf_Info, "numTasks: " << vecSize);
 
             for (size_t i = 0; i < vecSize; i++)
             {
@@ -243,11 +247,27 @@ namespace rmf
                     std::make_from_tuple<Task_t<Return_t>>(
                         std::move(tuple)));
                 m_impl->tp.SubmitTask(taskList.back());
+                if (std::chrono::steady_clock::now() > nextTime)
+                {
+                    rmf_Log(
+                        rmf_Info,
+                        "Tasks per second: "
+                            << m_impl->tp.getTasksPerSecond(500ms));
+                    nextTime = std::chrono::steady_clock::now() + 5s;
+                }
             }
 
             for (auto& task : taskList)
             {
                 result.push_back(task.getFuture().get());
+                if (std::chrono::steady_clock::now() > nextTime)
+                {
+                    rmf_Log(
+                        rmf_Info,
+                        "Tasks per second: "
+                            << m_impl->tp.getTasksPerSecond(500ms));
+                    nextTime = std::chrono::steady_clock::now() + 5s;
+                }
             }
             return result;
         }

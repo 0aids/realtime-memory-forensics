@@ -83,6 +83,17 @@ namespace rmf
                        std::atomic<uint32_t>& numRunning);
 
       public:
+        double getTasksPerSecond(std::chrono::milliseconds ms)
+        {
+            uint64_t initialIndex = m_queue.getConsumeIndex();
+            std::this_thread::sleep_for(ms);
+            uint64_t endIndex = m_queue.getConsumeIndex();
+            if (endIndex < initialIndex)
+                endIndex += m_queue.size;
+            uint64_t numCompleted = endIndex - initialIndex;
+            return numCompleted /
+                std::chrono::duration<double>(ms).count();
+        }
         // Tasks' data are held by a shared ptr, so they will not die, and are trivially copyable.
         template <typename T>
         void SubmitTask(Task_t<T> task)
