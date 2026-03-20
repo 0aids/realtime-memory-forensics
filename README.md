@@ -18,6 +18,7 @@ via node-graph visualisation, all done without analysing executed assembly.
 - [x] feat: python interoperability / bindings
 - [x] feat: integrated python shell
 - [x] feat: multi threading in python
+    - [x] feat: faster multithreading via Batcher.
 - [ ] feat: implement memory graph algorithms.
 - [ ] feat: integrated python scripting in gui and file saving
 - [ ] feat: Add link details on hover

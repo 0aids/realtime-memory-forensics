@@ -28,11 +28,13 @@ namespace rmf
             {
                 using InnerContainer =
                     std::ranges::range_value_t<decltype(*this)>;
+                using ElementType =
+                    std::ranges::range_value_t<InnerContainer>;
                 // I don't know if this will cause large copies. I hope not because
                 // this is basically magic to me.
                 // I trust in RVO
                 return *this | std::views::join |
-                    std::ranges::to<InnerContainer>();
+                    std::ranges::to<AnalyzerResult<ElementType>>();
             }
             else
             {
@@ -45,7 +47,7 @@ namespace rmf
 
         // Implicit conversion from vectors.
         AnalyzerResult(std::vector<InnerResultType>&& other) :
-            std::vector<InnerResultType>(other) {};
+            std::vector<InnerResultType>(std::move(other)) {};
         // We don't want implicit copy as it could be slow??
         explicit AnalyzerResult(
             const std::vector<InnerResultType>& other) :

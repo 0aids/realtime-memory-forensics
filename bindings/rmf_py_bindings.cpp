@@ -31,6 +31,9 @@ PYBIND11_MAKE_OPAQUE(
 PYBIND11_MAKE_OPAQUE(rmf::AnalyzerResult<rmf::types::MemorySnapshot>);
 PYBIND11_MAKE_OPAQUE(
     rmf::AnalyzerResult<rmf::types::MemoryRegionProperties>);
+PYBIND11_MAKE_OPAQUE(std::vector<rmf::types::MemoryRegionPropertiesVec>);
+PYBIND11_MAKE_OPAQUE(std::vector<rmf::types::MemoryRegionProperties>);
+PYBIND11_MAKE_OPAQUE(std::vector<rmf::types::MemorySnapshotVec>);
 
 template <typename InnerType>
 void bindAnalyzerResults(py::module_& m, const std::string& base_name,
@@ -39,16 +42,23 @@ void bindAnalyzerResults(py::module_& m, const std::string& base_name,
     using BaseVectorType    = std::vector<InnerType>;
     using DerivedResultType = rmf::AnalyzerResult<InnerType>;
 
-    // 1. Bind the base std::vector using py::bind_vector
-    // This gives it all the Python list magic.
     py::bind_vector<BaseVectorType>(m, base_name);
 
-    // 2. Bind the AnalyzerResult using py::class_, explicitly declaring BaseVectorType as its base!
-    py::class_<DerivedResultType, BaseVectorType>(m, derived_name.c_str())
+    py::class_<DerivedResultType, BaseVectorType>(
+        m, derived_name.c_str())
         .def(py::init<>()) // Allow Python to instantiate it if needed
         .def("flatten", &DerivedResultType::flatten,
              "Flattens 2D analyzer results into 1D. Returns the "
-             "original array if already 1D.");
+             "original array if already 1D.")
+        // Extras for better and easier scope management of large results.
+        .def("__enter__", [] (py::object self) { return self; })
+        .def("__exit__", [] (py::object self, py::object exc_type, py::object exc_value, py::object traceback) {
+            (void)self;
+            (void)exc_type;
+            (void)exc_value;
+            (void)traceback;
+            return py::none();
+        });
 }
 
 PYBIND11_MODULE(rmf_core_py, m, py::mod_gil_not_used())
@@ -304,6 +314,17 @@ PYBIND11_MODULE(rmf_core_py, m, py::mod_gil_not_used())
     py::class_<rmf::Analyzer>(m, "Batcher")
         .def(py::init([](size_t numThreads)
                       { return rmf::Analyzer(numThreads); }))
+
+        .def("__enter__", [](const py::object& self) {
+            return self;
+        })
+        .def("__exit__", [](const py::object& self, void *exc_type, void *exc_value, void *traceback) {
+            (void)self;
+            (void)exc_type;
+            (void)exc_value;
+            (void)traceback;
+            return;
+        })
 
         // Snapshot
         .def("makeSnapshot",

@@ -39,5 +39,5 @@ def processStuff(batcher):
     return time.perf_counter() - start
 
 
-batcher = rmf.Batcher(11)
-print(f"time taken {processStuff(batcher):.5f}")
+with rmf.Batcher(11) as batcher:
+    print(f"time taken {processStuff(batcher):.5f}")
