@@ -23,7 +23,7 @@ results = analyzer.execute(lambda x: x * 2, rmf.Const(5))
 result_value = results[0] if results else None
 )");
 
-    auto result = guard.getLocals()["result_value"];
+    auto result = guard.getGlobals()["result_value"];
     ASSERT_FALSE(result.is_none());
     EXPECT_EQ(result.cast<int>(), 10);
 }
@@ -38,7 +38,7 @@ input_list = [1, 2, 3, 4, 5]
 results = analyzer.execute(lambda x: x * 2, rmf.Iter(input_list))
 )");
 
-    auto results = guard.getLocals()["results"];
+    auto results = guard.getGlobals()["results"];
     auto py_list = results.cast<py::list>();
     ASSERT_EQ(py::len(py_list), 5);
     EXPECT_EQ(py_list[0].cast<int>(), 2);
@@ -58,7 +58,7 @@ input_list = [10, 20, 30]
 results = analyzer.execute(lambda x: x + x, rmf.Iter(input_list))
 )");
 
-    auto results = guard.getLocals()["results"];
+    auto results = guard.getGlobals()["results"];
     auto py_list = results.cast<py::list>();
     ASSERT_EQ(py::len(py_list), 3);
     EXPECT_EQ(py_list[0].cast<int>(), 20);
@@ -78,8 +78,8 @@ result1_value = results1[0] if results1 else None
 result2_value = results2[0] if results2 else None
 )");
 
-    auto result1 = guard.getLocals()["result1_value"].cast<int>();
-    auto result2 = guard.getLocals()["result2_value"].cast<int>();
+    auto result1 = guard.getGlobals()["result1_value"].cast<int>();
+    auto result2 = guard.getGlobals()["result2_value"].cast<int>();
     EXPECT_EQ(result1, 10);
     EXPECT_EQ(result2, 11);
 }
@@ -106,7 +106,7 @@ results = analyzer.execute(cpu_bound_work, rmf.Iter(input_list))
 had_results = len(results) == 10
 )");
 
-    auto had_results = guard.getLocals()["had_results"].cast<bool>();
+    auto had_results = guard.getGlobals()["had_results"].cast<bool>();
     EXPECT_TRUE(had_results);
 }
 
@@ -125,7 +125,7 @@ input_list = [1, 2, 3, 4, 5]
 results = analyzer.execute(add_multiple, rmf.Iter(input_list), rmf.Const(10))
 )");
 
-    auto results = guard.getLocals()["results"];
+    auto results = guard.getGlobals()["results"];
     auto py_list = results.cast<py::list>();
     ASSERT_EQ(py::len(py_list), 5);
     EXPECT_EQ(py_list[0].cast<int>(), 11);
@@ -149,9 +149,9 @@ int_result = int_results[0] if int_results else None
 double_result = double_results[0] if double_results else None
 )");
 
-    auto int_result = guard.getLocals()["int_result"].cast<int>();
+    auto int_result = guard.getGlobals()["int_result"].cast<int>();
     auto double_result =
-        guard.getLocals()["double_result"].cast<double>();
+        guard.getGlobals()["double_result"].cast<double>();
     EXPECT_EQ(int_result, 10);
     EXPECT_DOUBLE_EQ(double_result, 6.0);
 }
@@ -192,7 +192,7 @@ num_results = len(results)
                                      pid));
 
         int num_results =
-            guard.getLocals()["num_results"].cast<int>();
+            guard.getGlobals()["num_results"].cast<int>();
         EXPECT_GE(num_results, 1);
     }
 
@@ -235,7 +235,7 @@ num_results = len(results)
                                      pid, targetValue));
 
         int num_results =
-            guard.getLocals()["num_results"].cast<int>();
+            guard.getGlobals()["num_results"].cast<int>();
         EXPECT_GE(num_results, 1);
     }
 
@@ -284,7 +284,7 @@ num_results = len(results)
                                      pid));
 
         int num_results =
-            guard.getLocals()["num_results"].cast<int>();
+            guard.getGlobals()["num_results"].cast<int>();
         EXPECT_GE(num_results, 1);
     }
 
@@ -317,9 +317,9 @@ valid_snapshots = sum(1 for s in snapshots if s.isValid())
                                      pid));
 
         int num_snapshots =
-            guard.getLocals()["num_snapshots"].cast<int>();
+            guard.getGlobals()["num_snapshots"].cast<int>();
         int valid_snapshots =
-            guard.getLocals()["valid_snapshots"].cast<int>();
+            guard.getGlobals()["valid_snapshots"].cast<int>();
 
         EXPECT_GT(num_snapshots, 0);
         EXPECT_GT(valid_snapshots, 0);
@@ -382,10 +382,10 @@ valid_snapshots = sum(1 for s in snapshots if s.isValid())
 //                                      pid));
 
 //         double single_time_ms =
-//             guard.getLocals()["single_time_ms"].cast<double>();
+//             guard.getGlobals()["single_time_ms"].cast<double>();
 //         double pooled_time_ms =
-//             guard.getLocals()["pooled_time_ms"].cast<double>();
-//         double speedup = guard.getLocals()["speedup"].cast<double>();
+//             guard.getGlobals()["pooled_time_ms"].cast<double>();
+//         double speedup = guard.getGlobals()["speedup"].cast<double>();
 
 //         rmf_Log(rmf_Info,
 //                 "Snapshot performance: Single="
@@ -474,10 +474,10 @@ valid_snapshots = sum(1 for s in snapshots if s.isValid())
 //                                      pid));
 
 //         double single_time_ms =
-//             guard.getLocals()["single_time_ms"].cast<double>();
+//             guard.getGlobals()["single_time_ms"].cast<double>();
 //         double pooled_time_ms =
-//             guard.getLocals()["pooled_time_ms"].cast<double>();
-//         double speedup = guard.getLocals()["speedup"].cast<double>();
+//             guard.getGlobals()["pooled_time_ms"].cast<double>();
+//         double speedup = guard.getGlobals()["speedup"].cast<double>();
 
 //         rmf_Log(rmf_Info,
 //                 "String scan performance: Single="
@@ -568,10 +568,10 @@ valid_snapshots = sum(1 for s in snapshots if s.isValid())
 //                                      pid, targetValue, targetValue));
 
 //         double single_time_ms =
-//             guard.getLocals()["single_time_ms"].cast<double>();
+//             guard.getGlobals()["single_time_ms"].cast<double>();
 //         double pooled_time_ms =
-//             guard.getLocals()["pooled_time_ms"].cast<double>();
-//         double speedup = guard.getLocals()["speedup"].cast<double>();
+//             guard.getGlobals()["pooled_time_ms"].cast<double>();
+//         double speedup = guard.getGlobals()["speedup"].cast<double>();
 
 //         rmf_Log(rmf_Info,
 //                 "Numeric scan performance: Single="
@@ -628,9 +628,9 @@ speedup_4_vs_1 = times[1] / times[4] if times[4] > 0 else 0
                                      pid));
 
         double speedup_2_vs_1 =
-            guard.getLocals()["speedup_2_vs_1"].cast<double>();
+            guard.getGlobals()["speedup_2_vs_1"].cast<double>();
         double speedup_4_vs_1 =
-            guard.getLocals()["speedup_4_vs_1"].cast<double>();
+            guard.getGlobals()["speedup_4_vs_1"].cast<double>();
 
         rmf_Log(rmf_Info,
                 "Thread scaling: 2 vs 1: " << speedup_2_vs_1
@@ -701,7 +701,7 @@ speedup_4_vs_1 = (sum(timings1) / len(timings1)) / (sum(timings4) / len(timings4
                                      pid));
 
         double speedup_4_vs_1 =
-            guard.getLocals()["speedup_4_vs_1"].cast<double>();
+            guard.getGlobals()["speedup_4_vs_1"].cast<double>();
 
         rmf_Log(rmf_Info,
                 "Thread scaling: 4 vs 1: " << speedup_4_vs_1 << "x");

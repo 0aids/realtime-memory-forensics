@@ -29,7 +29,7 @@ TEST(PythonBindingsTest, getMapsFromPid)
                 std::format("maps = rmf.getMapsFromPid({})", pid)))
         {
             results =
-                guard.getLocals()["maps"]
+                guard.getGlobals()["maps"]
                     .cast<rmf::types::MemoryRegionPropertiesVec>();
         }
     }
@@ -56,7 +56,7 @@ TEST(PythonBindingsTest, filterHasPerms)
             std::format("maps = rmf.getMapsFromPid({})", pid));
         guard.execString(R"(readable = maps.filterHasPerms("r"))");
 
-        results = guard.getLocals()["readable"]
+        results = guard.getGlobals()["readable"]
                       .cast<rmf::types::MemoryRegionPropertiesVec>();
     }
 
@@ -83,7 +83,7 @@ TEST(PythonBindingsTest, breakIntoChunks)
         guard.execString(
             R"(chunked = readable.breakIntoChunks(0x1000))");
 
-        results = guard.getLocals()["chunked"]
+        results = guard.getGlobals()["chunked"]
                       .cast<rmf::types::MemoryRegionPropertiesVec>();
     }
 
@@ -109,7 +109,7 @@ TEST(PythonBindingsTest, filterActiveRegions)
         guard.execString(std::format(
             "active = maps.filterActiveRegions({})", pid));
 
-        results = guard.getLocals()["active"]
+        results = guard.getGlobals()["active"]
                       .cast<rmf::types::MemoryRegionPropertiesVec>();
     }
 
@@ -160,9 +160,9 @@ for snap in snapshots:
 )",
             pid, pid, targetValue));
 
-        if (py::len(guard.getLocals()["results"]) != 0)
+        if (py::len(guard.getGlobals()["results"]) != 0)
             results =
-                guard.getLocals()["results"]
+                guard.getGlobals()["results"]
                     .cast<rmf::types::MemoryRegionPropertiesVec>();
         else
             rmf_Log(rmf_Error, "Found no results!");
@@ -216,7 +216,7 @@ for snap in snapshots:
 )",
                                      targetValue));
 
-        results = guard.getLocals()["results"]
+        results = guard.getGlobals()["results"]
                       .cast<rmf::types::MemoryRegionPropertiesVec>();
     }
 
@@ -268,7 +268,7 @@ for snap in snapshots:
 )",
                                      targetValue));
 
-        results = guard.getLocals()["results"]
+        results = guard.getGlobals()["results"]
                       .cast<rmf::types::MemoryRegionPropertiesVec>();
     }
 
@@ -324,7 +324,7 @@ for snap in snapshots:
 )",
                                      targetValue));
 
-        results = guard.getLocals()["results"]
+        results = guard.getGlobals()["results"]
                       .cast<rmf::types::MemoryRegionPropertiesVec>();
     }
 
@@ -373,7 +373,7 @@ for snap in snapshots:
         results.extend(found)
 )");
 
-        results = guard.getLocals()["results"]
+        results = guard.getGlobals()["results"]
                       .cast<rmf::types::MemoryRegionPropertiesVec>();
     }
 
@@ -421,7 +421,7 @@ for snap1, snap2 in zip(snapshots1, snapshots2):
 )",
                                      pid));
 
-        results = guard.getLocals()["results"]
+        results = guard.getGlobals()["results"]
                       .cast<rmf::types::MemoryRegionPropertiesVec>();
     }
 
@@ -464,7 +464,7 @@ snap2 = rmf.MemorySnapshot(mrp, {})
         guard.execString(
             R"(results = rmf.findNumericChanged_i32(snap1, snap2, 0))");
 
-        results = guard.getLocals()["results"]
+        results = guard.getGlobals()["results"]
                       .cast<rmf::types::MemoryRegionPropertiesVec>();
     }
 
@@ -505,7 +505,7 @@ snap2 = rmf.MemorySnapshot(mrp, {})
         guard.execString(
             R"(results = rmf.findNumericUnchanged_i32(snap1, snap2, 256))");
 
-        results = guard.getLocals()["results"]
+        results = guard.getGlobals()["results"]
                       .cast<rmf::types::MemoryRegionPropertiesVec>();
     }
 
@@ -556,7 +556,7 @@ for snap in snapshots:
         results.extend(found)
 )");
 
-        results = guard.getLocals()["results"]
+        results = guard.getGlobals()["results"]
                       .cast<rmf::types::MemoryRegionPropertiesVec>();
     }
 
@@ -588,7 +588,7 @@ addr = readable[0].trueAddress()
 region = readable.getRegionContainingAddress(addr)
 )");
 
-        auto region = guard.getLocals()["region"];
+        auto region = guard.getGlobals()["region"];
         EXPECT_TRUE(region.is_none() == false);
     }
 
@@ -619,7 +619,7 @@ numSnapshots = len(snapshots)
     )",
                                      pid));
         int numSnapshots =
-            guard.getLocals()["numSnapshots"].cast<int>();
+            guard.getGlobals()["numSnapshots"].cast<int>();
         EXPECT_GT(numSnapshots, 0);
     }
 

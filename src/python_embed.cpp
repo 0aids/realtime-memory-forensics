@@ -7,7 +7,7 @@
 namespace py = pybind11;
 
 rmf::py::embedPythonScopedGuard::embedPythonScopedGuard(
-    RedirectPolicy policy) : m_interpreterGuard(), m_locals()
+    RedirectPolicy policy) : m_interpreterGuard()
 {
     py::exec(R"(
         class Redirector:
@@ -18,8 +18,8 @@ rmf::py::embedPythonScopedGuard::embedPythonScopedGuard(
             def flush(self):
                 pass
     )",
-             py::globals(), m_locals);
-    py::object       Redirector = m_locals["Redirector"];
+             py::globals());
+    py::object       Redirector = py::globals()["Redirector"];
     py::cpp_function stdoutWrite([this](const std::string& s)
                                  { m_stdoutBuffer << s; });
     py::cpp_function stderrWrite([this](const std::string& s)
@@ -51,7 +51,7 @@ rmf::py::embedPythonScopedGuard::embedPythonScopedGuard(
         import rmf_py as rmf
         import faulthandler; faulthandler.enable()
         )",
-                 py::globals(), m_locals);
+                 py::globals());
     }
     catch (const py::error_already_set& e)
     {
@@ -84,11 +84,6 @@ py::dict rmf::py::embedPythonScopedGuard::getGlobals()
     return py::globals();
 }
 
-py::dict rmf::py::embedPythonScopedGuard::getLocals()
-{
-    return m_locals;
-}
-
 void rmf::py::embedPythonScopedGuard::clearStderr()
 {
     m_stderrBuffer.clear();
@@ -106,7 +101,7 @@ bool rmf::py::embedPythonScopedGuard::execString(
                 << view);
     try
     {
-        py::exec(view, py::globals(), m_locals);
+        py::exec(view, py::globals());
         return true;
     }
     catch (const py::error_already_set& e)

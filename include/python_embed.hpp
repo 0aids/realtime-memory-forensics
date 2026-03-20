@@ -29,7 +29,6 @@ namespace rmf::py
 
         py::object             m_oldStdout;
         py::object             m_oldStderr;
-        py::dict               m_locals;
 
       public:
         embedPythonScopedGuard(
@@ -48,7 +47,6 @@ namespace rmf::py
         void        clearStderr();
         void        clearStdout();
         py::dict    getGlobals();
-        py::dict    getLocals();
 
         // True for successful execution, false otherwise
         bool execString(const std::string_view& view);
