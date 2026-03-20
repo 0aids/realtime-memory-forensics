@@ -110,6 +110,7 @@ namespace rmf
         {
             using returnType = R;
             using argsTuple  = std::tuple<Args...>;
+            using fullTuple  = std::tuple<R (*)(Args...), Args...>;
         };
 
         // For function pointers
@@ -201,32 +202,46 @@ namespace rmf
 
             for (size_t i = 0; i < vecSize; i++)
             {
-                auto tuple = std::make_tuple(
-                    func,
-                    [&]() mutable
+                auto tuple = std::forward_as_tuple(
+                    std::forward<func_t>(func),
+                    [&]() mutable -> decltype(auto)
                     {
+                        using originalArg =
+                            std::tuple_element_t<Is,
+                                                 ActualArgsTuple_t>;
                         using actualArg =
-                            std::remove_cvref_t<std::tuple_element_t<
-                                Is, ActualArgsTuple_t>>;
+                            std::remove_cvref_t<originalArg>;
                         using recvArg =
                             std::remove_cvref_t<std::tuple_element_t<
                                 Is, RecvArgsTuple_t>>;
                         if constexpr (std::is_convertible_v<
                                           recvArg, actualArg>)
+                        {
                             return std::get<Is>(argsRecv);
+                        }
                         else if constexpr (
                             utils::IsContainer<recvArg> &&
                             std::is_convertible_v<
                                 typename recvArg::value_type,
                                 actualArg>)
+                        {
+                            if constexpr (std::is_rvalue_reference_v<
+                                              recvArg>)
+                                return std::move(
+                                    std::get<Is>(argsRecv)[i]);
                             return std::get<Is>(argsRecv)[i];
+                        }
                         else
                         {
                             static_assert(false, "what?");
                         }
                     }()...);
+                // utils::typePrinter<typename traits::fullTuple>();
+                // utils::typePrinter<ActualArgsTuple_t>();
+                // utils::typePrinter<decltype(tuple)>();
                 taskList.push_back(
-                    std::make_from_tuple<Task_t<Return_t>>(tuple));
+                    std::make_from_tuple<Task_t<Return_t>>(
+                        std::move(tuple)));
                 m_impl->tp.SubmitTask(taskList.back());
             }
 

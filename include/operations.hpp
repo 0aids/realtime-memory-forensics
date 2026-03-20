@@ -2,6 +2,7 @@
 #define operations_hpp_INCLUDED
 #include "types.hpp"
 #include "logger.hpp"
+#include "memory_graph.hpp"
 #include <cstring>
 
 namespace rmf::op
@@ -126,7 +127,7 @@ namespace rmf::op
 
     types::MemoryRegionPropertiesVec
     findString(const types::MemorySnapshot& snap1,
-               const std::string_view&      str);
+               const std::string_view       str);
 
     template <types::Numeral N>
     types::MemoryRegionPropertiesVec
@@ -206,14 +207,25 @@ namespace rmf::op
     findPointersToRegion(const types::MemorySnapshot&         snap1,
                          const types::MemoryRegionProperties& mrp);
 
+    // This is actually kind of useless, because we don't know who's pointing to what.
     types::MemoryRegionPropertiesVec findPointersToRegions(
         const types::MemorySnapshot&            snap1,
         const types::MemoryRegionPropertiesVec& mrps);
-
     /*
      * Find struct using pointers.
      * Dunno how to implement this at the moment, but it's something to consider.
      * */
+
+    types::MemoryRegionPropertiesVec findPointersToRegionRestructured(
+        const types::MemorySnapshot&         snap1,
+        const types::MemoryRegionProperties& mrp,
+        const types::MrpRestructure&         restructure = {});
+    types::MemoryRegionPropertiesVec
+    findPointersToRegionsRestructured(
+        const types::MemorySnapshot&            snap1,
+        const types::MemoryRegionPropertiesVec& mrps,
+        const types::MrpRestructure&            restructure);
+
 }
 
 #endif

@@ -58,6 +58,9 @@
             vulkan-headers
             gtest
             pre-commit
+            valgrind
+            kdePackages.kcachegrind
+            heaptrack
           ];
 
           LD_LIBRARY_PATH = "${

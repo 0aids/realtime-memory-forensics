@@ -1,8 +1,10 @@
 #include "operations.hpp"
+#include <cstdint>
 #include <cstring>
 #include <iterator>
 #include "logger.hpp"
 #include "types.hpp"
+#include "utils.hpp"
 // For all the operations
 
 namespace rmf::op
@@ -104,7 +106,7 @@ namespace rmf::op
 
     types::MemoryRegionPropertiesVec
     findString(const types::MemorySnapshot& snap1,
-               const std::string_view&      str)
+               const std::string_view       str)
     {
         types::MemoryRegionPropertiesVec results;
         auto                             span = snap1.getDataSpan();
@@ -151,5 +153,31 @@ namespace rmf::op
                       std::back_inserter(results));
         }
         return results;
+    }
+
+    types::MemoryRegionPropertiesVec
+    findPointersToRegionsRestructured(
+        const types::MemorySnapshot&            snap1,
+        const types::MemoryRegionPropertiesVec& mrps,
+        const types::MrpRestructure&            restructure)
+    {
+        types::MemoryRegionPropertiesVec results;
+        for (auto& mrp : mrps)
+        {
+            auto tempResults = findPointersToRegion(
+                snap1, utils::RestructureMrp(mrp, restructure));
+            std::move(tempResults.begin(), tempResults.end(),
+                      std::back_inserter(results));
+        }
+        return results;
+    }
+
+    types::MemoryRegionPropertiesVec findPointersToRegionRestructured(
+        const types::MemorySnapshot&         snap1,
+        const types::MemoryRegionProperties& mrp,
+        const types::MrpRestructure&         restructure)
+    {
+        auto newMrp = utils::RestructureMrp(mrp, restructure);
+        return findPointersToRegion(snap1, newMrp);
     }
 }

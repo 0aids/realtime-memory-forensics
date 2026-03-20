@@ -61,8 +61,8 @@ namespace rmf
                           "type are different!");
             d = std::make_shared<Data>(
                 std::packaged_task<Return_t()>(
-                    [argsTuple = std::make_tuple(inputs...), func]()
-                    { return std::apply(func, argsTuple); }),
+                    [argsTuple = std::forward_as_tuple(inputs...),
+                     func]() { return std::apply(func, argsTuple); }),
                 std::future<Return_t>{});
             d->future = d->packagedTask.get_future();
         }

@@ -222,6 +222,9 @@ namespace rmf::utils
             std::ranges::to<InnerContainer>();
         return result;
     }
+    types::MemoryRegionProperties
+    RestructureMrp(const types::MemoryRegionProperties& mrp,
+                   const types::MrpRestructure&         restructure);
 }
 
 #endif // utils_hpp_INCLUDED

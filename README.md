@@ -25,22 +25,24 @@ via node-graph visualisation, all done without analysing executed assembly.
 - [ ] feat: Add node details on hover
 - [ ] feat: Incorporate auto linking using an inputted ANALYZER.
 - [ ] feat: undo + redo
-- [ ] feat: re-add named values?
 - [ ] feat: graph serialisation?
 - [ ] feat: lazy snapshots for reduced memory usage?
-           This honestly might have to be done now because
-           I'm struggling to get the binded analyzer working at a sufficient speed.
            The only problem is delays between snapshots, which wouldnt work
-           as easily.
+           as easily. The only way to get this to work is to have
+           some sort of global vector storing times at which each snapshot was
+           "Created"? Or just make this sort of snapshot not compatible with
+           searching for changed memory?
 
 - [ ] done for now?
 
 # memory graph structure/use
-```c++
+```cpp
 int main() {
-    MemoryGraph graph;
-    Analyzer ANALYZER(6 /*threads*/);
-    pid_t PID = /*PID here*/;
+    const pid_t PID = /*PID here*/;
+    Analyzer analyzer(6 /*threads*/);
+    MemoryGraph graph(PID, analyzer);
+    // you can substitute out the analyzer as well. via graph.setAnalyzer(...)
+    // Don't have to worry about copies here as well, analyzer is trivially copyable (sptr)
     int32_t targetValue = 0x98989898;
 
     std::string mapsPath =
@@ -48,13 +50,108 @@ int main() {
     auto REGIONS         = ParseMaps(mapsPath);
     auto readableRegions = REGIONS.FilterHasPerms("r").FilterActiveRegions(PID);
 
-    auto snaps = ANALYZER.Execute(MemorySnapshot::Make, readableRegions);
+    auto snaps = analyzer.Execute(MemorySnapshot::Make, readableRegions);
     MemoryRegionPropertiesVec result;
     {
     	result.clear();
-        result = ANALYZER.Execute(findNumeralExact<int32_t>,
+        result = analyzer.Execute(findNumeralExact<int32_t>,
                                        snaps, targetValue).flatten();
     }
+    auto newResult = result.batchResize(ResizeInstruction{
+    	.offset = -0xf;
+    	.sizeDelta = +0xf;
+    });
+    // Or inplace via result.batchResizeInPlace
+    // And whatever stuff to get the final desired result
+
+    MemoryRegionPropertiesVec desiredResult = ...;
+
+    // Dump this into a memory graph.
+
+    graph.pushMrpVec(desiredResult);
+
+    // From here we can "recursively" bfs to find sources that point to our desired results,
+    // within the range given by ResizeInstruction. Can find and detect cycles.
+    graph.findSourcesRecursiveLenient(PID, analyzer, ResizeInstruction{
+    	.offset = -0xf;
+    	.sizeDelta = 0xf;
+    }, 10/*max depth*/, FindSourcePolicy::MinimumSize);
+    // FindSourcePolicy::MinimumSize modifies the final mrp to be
+    // minimum size that still contains the pointed to region.
+    // FindSourcePolicy::MaximumSize modifies the final mrp to be the offsetted version.
+
+    // Alternatively we can make use of known structs to generate desired results.
+    // These known structs must have pointer members at defined offsets.
+    // This must be done to a "StructRegistry" so structs can refer to eachother.
+    StructRegistry sr;
+    sr.register( // Automatically calculates size.
+    	{
+        	.name = "IntLinkedList",
+        	.fields = {
+            	{
+            		.name = "next",
+            		.type = "IntLinkedList*", // can parse pointers
+            		.offset = 0, // For now, only manual specification of offsets.
+        		},
+        		{
+        			.name = "data",
+        			.type = "int32_t", // has a list of preregistered fundamental datatypes.
+        			.offset = sizeof(void*),
+        		},
+        	},
+    	}
+    );
+    sr.register( // Automatically calculates size.
+    	{
+        	.name = "IntVector",
+        	.fields = {
+            	{
+            		.name = "numElements",
+            		.type = "size_t", // can parse pointers
+            		.offset = 0, // For now, only manual specification of offsets.
+        		},
+        		{
+        			.name = "data",
+        			.type = "int32_t*", // has a list of preregistered fundamental datatypes.
+        			.offset = sizeof(size_t),
+        		},
+        	},
+    	}
+    );
+    sr.register( // Automatically calculates size.
+    	{
+        	.name = "flatString1",
+        	.fields = {
+        		{
+        			.name = "string",
+        			.type = "char[10]", // has a list of preregistered fundamental datatypes.
+        		},
+        	},
+    	}
+    );
+    // Or this
+    sr.registerTemplated<StructHere>("CustomNameOfStruct");
+    // We can ensure that we only get the structs we want from
+    // our struct registry by extracting it.
+    graph.findSourcesRecursiveStructs(sr.filterRegex("Int*"));
+
+    // Future? Find templates of structs, making use of some c++ api
+    // thing for deduction?
+    // graph.findSourcesRecursiveStructsTemplated(std::vector<TemplatedStructType>...)
+
+    // Now do whatever you want for visualising the graph
+    for (const auto& link : graph.linkIterator())
+    {
+        ...
+    }
+    for (const auto& node : graph.nodeIterator())
+    {
+        ...
+    }
+    // Or you can detect cycles.
+    // But i'm not exactly sure how to represent this.
+    auto cycles = graph.findCycles();
+    // Or extra stuff.
 }
 ```
 
@@ -73,16 +170,14 @@ Basic script
 import rmf_py as rmf # preinjected / run within the embedded interpreter before everything.
 import rmf_gui_py as rmfg # preinjected / run within the embedded interpreter before everything.
 PID = # pre injected / run within the embedded interpreter before everything.
-ANALYZER = rmf.Analyzer(6) # pre injected / run within the embedded interpreter before everything.
+BATCHER = rmf.Batcher(6) # pre injected / run within the embedded interpreter before everything.
 REGIONS = rmf.parseMaps(PID) # pre injected / run within the embedded interpreter before everything.
 
 # Filters for regions actively in memory, and then breaks them into chunks with sizes 0x1000
 chunkedRegions = REGIONS.filterActiveRegions().breakIntoChunks(0x10000, overlap=0)
-snapshots = ANALYZER(rmf.makeSnapshot, chunkedRegions)
+snapshots = BATCHER(rmf.makeSnapshot, chunkedRegions)
 
-# returns a list of lists of memory REGIONS. which is then flattened
-# Not really sure about this api.
-results = ANALYZER.execute(rmf.findString, snapshots, "hello world!").flatten()
+results = BATCHER.findString(snapshots, "hello world!").flatten()
 
 results.batchModify(sizeDiff=+0x100, addrDiff=-0x50)
 
@@ -94,7 +189,7 @@ mg.pushNodes(results)
 # Does this naively by analyzing 8 byte chunks within each
 # region and sees if it links into or inside another region
 # already in the graph.
-mg.findLinksStrict(ANALYZER)
+mg.findLinksStrict(BATCHER)
 
 rmfg.pushMemoryGraph(mg, policy="combine")
 ```
@@ -104,7 +199,7 @@ Finding changing regions (as an extension on what happened previously
 import rmf_py as rmf # preinjected / run within the embedded interpreter before everything.
 import rmf_gui_py as rmfg # preinjected / run within the embedded interpreter before everything.
 PID = # pre injected / run within the embedded interpreter before everything.
-ANALYZER = rmf.Analyzer(6) # pre injected / run within the embedded interpreter before everything.
+BATCHER = rmf.Batcher(6) # pre injected / run within the embedded interpreter before everything.
 REGIONS = rmf.parseMaps(PID) # pre injected / run within the embedded interpreter before everything.
 
 chunkedRegions = REGIONS.filterActiveRegions().filterHasPerms("rw").breakIntoChunks(0x10000, overlap=0)
@@ -115,11 +210,11 @@ results = deepcopy(chunkedRegions)
 from time import sleep
 
 while len(results) > 10:
-    snaps1 = ANALYZER.execute(rmf.makeSnapshot, results)
+    snaps1 = BATCHER.makeSnapshot(results)
     sleep(1) # wait 1s
-    snaps2 = ANALYZER.execute(rmf.makeSnapshot, results)
+    snaps2 = BATCHER.makeSnapshot(results)
 
-    results = ANALYZER.execute(rmf.findChangedRegions, snaps1, snaps2, 32) # using 32 byte chunks.
+    results = BATCHER.findChangedRegions(snaps1, snaps2, 32) # using 32 byte chunks.
 
 # Only modify relative parameters obviously
 results.batchModify(sizeDiff = +10, addrDiff = -10)
@@ -130,7 +225,7 @@ mg.pushNodes(results)
 
 # Relaxed, so creates nodes which point to existing nodes.
 # internally will update, but also will return a list of new mrps generated
-mg.findLinksRelaxed(ANALYZER, REGIONS)
+mg.findLinksRelaxed(BATCHER, REGIONS)
 
 # Or something similar
 # Prune links that point to memory addresses lower than 0x1000000
@@ -179,3 +274,22 @@ rmfg.pushMemoryGraph(mg, policy="add")
 # EXTRA: rmfg is just memorygraph, and all memory graphs allow pushing and pulling
 # with policies. This would allow and separation of graphs if need be.
 ```
+
+# Graph implementation
+
+The datastore is separate, under MemoryGraphData.
+You can add, delete and update to this, and other stuff.
+In fact you can combine multiple together, but no method operations
+can be applied to this.
+
+MemoryGraphData will have operations under rmf::op::*(const MemoryGraphData&, ...)
+These operations should be pure, at least to some degree.
+These return more MemoryGraphDatas that can be added together?
+The only problem is that we are constantly going to have to copy and combing
+graphs together, which is slow. There are some vector abstractions like
+std::ranges that could help with this, but I am not sure on how to ensure
+smooth operations. Also what would we do with links? We can't really add links together,
+as the ids will differ unless we use uuids.
+
+MemoryGraph is the actual API that users will use. It will contain `sptr<MemoryGraphData>`
+Has methods like the ones shown above on populating itself.

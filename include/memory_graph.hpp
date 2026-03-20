@@ -71,6 +71,7 @@ namespace rmf::graph
     // 		Use in tandem with the analyzer to receive memory regions.
     class MemoryGraph
     {
+      private:
         struct MemoryRegionRange
         {
             MemoryRegionID id;
@@ -110,7 +111,7 @@ namespace rmf::graph
         std::optional<MemoryRegion*>
                      RegionGetRegionContainingAddress(uintptr_t addr);
 
-        MemoryLinkID LinkNaiveAdd(MemoryLinkData data);
+        MemoryLinkID _LinkNaiveAdd(MemoryLinkData data);
         void         LinkDelete(MemoryLinkID id);
         auto         LinksGetViews()
         {
@@ -120,17 +121,13 @@ namespace rmf::graph
         // Will also generate nodes according to the policy.
         MemoryLinkID LinkSmartAdd(MemoryLinkData data);
 
-        std::vector<MemoryLinkID>
-        UpdateLinks(MemoryLinkPolicy policy);
-
         // Assigns floating mrps to their respective parent regions + offsets.
         void RegionsAssignToMaps(
             const types::MemoryRegionPropertiesVec& OGMaps);
 
         // Dump all mrps in here.
         void RegionsAddMrpVec(
-            const types::MemoryRegionPropertiesVec& mrpVec,
-            std::string                             name = "");
+            const types::MemoryRegionPropertiesVec& mrpVec);
     };
 }
 

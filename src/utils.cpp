@@ -1,6 +1,7 @@
 #include "utils.hpp"
 #include "logger.hpp"
 #include "types.hpp"
+#include <cstddef>
 #include <fstream>
 #include <cstring>
 #include <fcntl.h>
@@ -283,6 +284,7 @@ namespace rmf::utils
         }
         return res;
     }
+
     rmf::types::MemoryRegionPropertiesVec FilterActiveRegions(
         const types::MemoryRegionPropertiesVec& mrpVec, pid_t pid)
     {
@@ -344,5 +346,27 @@ namespace rmf::utils
     rmf::types::MemoryRegionPropertiesVec getMapsFromPid(pid_t pid)
     {
         return ParseMaps(PidToMapsString(pid));
+    }
+    types::MemoryRegionProperties
+    RestructureMrp(const types::MemoryRegionProperties& mrp,
+                   const types::MrpRestructure&         restructure)
+    {
+        auto newmrp = mrp;
+        newmrp.relativeRegionAddress += restructure.offset;
+        newmrp.relativeRegionSize += restructure.sizeDelta;
+        if (newmrp.relativeRegionAddress < 0)
+            newmrp.relativeRegionAddress = 0;
+        else if (newmrp.relativeRegionAddress >
+                 (ptrdiff_t)newmrp.parentRegionSize)
+            newmrp.relativeRegionAddress =
+                newmrp.parentRegionSize - 1;
+
+        if (newmrp.relativeEnd() > newmrp.parentRegionSize)
+            newmrp.relativeRegionSize =
+                newmrp.parentRegionSize - newmrp.relativeEnd();
+        else if (newmrp.relativeRegionSize < 0)
+            newmrp.relativeRegionSize = 1;
+
+        return newmrp;
     }
 }

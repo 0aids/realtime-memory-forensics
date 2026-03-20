@@ -51,7 +51,7 @@ namespace rmf::graph
         return std::optional<MemoryRegion*>{std::nullopt};
     }
 
-    MemoryLinkID MemoryGraph::LinkNaiveAdd(MemoryLinkData linkData)
+    MemoryLinkID MemoryGraph::_LinkNaiveAdd(MemoryLinkData linkData)
     {
         MemoryLinkID assignedID = m_nextValidLinkID++;
         m_links.emplace(assignedID,
@@ -211,7 +211,7 @@ namespace rmf::graph
         }
         data.sourceID = sourceID;
         data.targetID = targetID;
-        return LinkNaiveAdd(data);
+        return _LinkNaiveAdd(data);
     }
 
     void MemoryGraph::RegionsAssignToMaps(
@@ -235,16 +235,14 @@ namespace rmf::graph
     }
 
     void MemoryGraph::RegionsAddMrpVec(
-        const types::MemoryRegionPropertiesVec& mrpVec,
-        std::string                             name)
+        const types::MemoryRegionPropertiesVec& mrpVec)
     {
-        size_t i = 0;
         for (const auto& region : mrpVec)
         {
             RegionAdd({
                 .mrp         = region,
                 .namedValues = {},
-                .name        = name + std::to_string(i++),
+                .name        = "",
                 .comment     = "",
             });
         }

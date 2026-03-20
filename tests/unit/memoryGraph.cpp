@@ -148,7 +148,7 @@ TEST(memoryGraphTest, addLink)
     linkData.targetAddr = 0x2000;
     linkData.name       = "testLink";
 
-    auto linkId = graph.LinkNaiveAdd(linkData);
+    auto linkId = graph._LinkNaiveAdd(linkData);
 
     EXPECT_GT(linkId, 0);
 
@@ -213,7 +213,7 @@ TEST(memoryGraphTest, deleteLink)
     linkData.sourceAddr = 0x1000;
     linkData.targetAddr = 0x2000;
 
-    auto linkId = graph.LinkNaiveAdd(linkData);
+    auto linkId = graph._LinkNaiveAdd(linkData);
 
     graph.LinkDelete(linkId);
 

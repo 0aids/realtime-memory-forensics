@@ -85,13 +85,19 @@ namespace rmf::types
         return (haystack & needle) == needle;
     }
 
+    struct MrpRestructure
+    {
+        ptrdiff_t offset    = 0;
+        ptrdiff_t sizeDelta = 0;
+    };
+
     struct MemoryRegionProperties
     {
         // Default values for safety
         uintptr_t                          parentRegionAddress   = 0;
         uintptr_t                          parentRegionSize      = 0;
-        uintptr_t                          relativeRegionAddress = 0;
-        uintptr_t                          relativeRegionSize    = 0;
+        ptrdiff_t                          relativeRegionAddress = 0;
+        ptrdiff_t                          relativeRegionSize    = 0;
         std::shared_ptr<const std::string> regionName_sp =
             std::make_shared<const std::string>("");
         Perms            perms = Perms::None;
