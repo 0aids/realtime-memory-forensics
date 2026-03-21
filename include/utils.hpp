@@ -59,8 +59,10 @@ namespace rmf::utils
         alignas(64) std::vector<T> m_data;
         alignas(64) std::atomic<uint64_t> m_produceIndex =
             0; // Represents the next available index.
-        alignas(64) std::atomic<uint64_t> m_consumeIndex =
-            0; // represents the next fillable index.
+        alignas(64) std::atomic<uint64_t> m_consumeCommitIndex =
+            0; // represents the next index that is guaranteed to be done.
+        alignas(64) std::atomic<uint64_t> m_consumeClaimIndex =
+            0; // represents the next index that can be claimed.
         // The consume index is greater than the produce index by 1 when full.
         std::counting_semaphore<rmf::utils::d_defaultQueueSize>
             m_semaphore{0};
@@ -68,7 +70,7 @@ namespace rmf::utils
       public:
         uint64_t getConsumeIndex() const
         {
-            return m_consumeIndex.load();
+            return m_consumeCommitIndex.load();
         }
 
         const size_t size;
@@ -82,16 +84,15 @@ namespace rmf::utils
             uint64_t produceIndex =
                 m_produceIndex.load(std::memory_order_relaxed);
             uint64_t consumeIndex =
-                m_consumeIndex.load(std::memory_order_acquire);
-            // We are getting wrapped...
-            if (produceIndex - consumeIndex > size - 12)
+                m_consumeCommitIndex.load(std::memory_order_acquire);
+            // Queue is full (empty is 0s, full is -1)
+            if (produceIndex - consumeIndex > size - 1)
             {
-                // Queue is full
                 rmf_Log(rmf_Warning,
                         "Unable to enqueue, queue is full!");
                 rmf_Log(rmf_Warning,
                         "Current size: " << produceIndex -
-                                consumeIndex - 2);
+                                consumeIndex - 1);
                 return false;
             }
             m_data[produceIndex % size] = value;
@@ -112,7 +113,7 @@ namespace rmf::utils
             uint64_t produceIndex =
                 m_produceIndex.load(std::memory_order_acquire);
             uint64_t consumeIndex =
-                m_consumeIndex.load(std::memory_order_acquire);
+                m_consumeCommitIndex.load(std::memory_order_acquire);
             return produceIndex == consumeIndex;
         }
 
@@ -126,14 +127,17 @@ namespace rmf::utils
                 return std::nullopt;
             }
 
-            uint64_t consumeIndex = m_consumeIndex.fetch_add(
+            uint64_t consumeIndex = m_consumeClaimIndex.fetch_add(
                 1, std::memory_order_acquire);
 
+            auto data = m_data[consumeIndex % size];
+            m_consumeCommitIndex.fetch_add(1,
+                                           std::memory_order_release);
             rmf_Log(rmf_Debug, "Successful dequeue.");
             rmf_Log(rmf_Debug,
                     "Last indices were: Consumer - " << consumeIndex);
 
-            return m_data[consumeIndex % size];
+            return data;
         }
 
         template <class Rep, class Period>
@@ -148,14 +152,17 @@ namespace rmf::utils
                 return std::nullopt;
             }
 
-            uint64_t consumeIndex = m_consumeIndex.fetch_add(
+            uint64_t consumeIndex = m_consumeClaimIndex.fetch_add(
                 1, std::memory_order_acquire);
 
+            auto data = m_data[consumeIndex % size];
+            m_consumeCommitIndex.fetch_add(1,
+                                           std::memory_order_release);
             rmf_Log(rmf_Debug, "Successful dequeue.");
             rmf_Log(rmf_Debug,
                     "Last indices were: Consumer - " << consumeIndex);
 
-            return m_data[consumeIndex % size];
+            return data;
         }
     };
 
