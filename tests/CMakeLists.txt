@@ -12,12 +12,13 @@ foreach(testFile_cpp ${testFiles_cpp})
     target_compile_options(${testName} PRIVATE ${SAN_FLAGS})
     target_link_options(${testName} PRIVATE ${SAN_FLAGS})
 	target_link_libraries(${testName} 
-        PRIVATE memLib
-        PRIVATE ImGuiSource
+        PRIVATE librmf
         PRIVATE SDL3::SDL3
         PRIVATE OpenGL::GL
         PRIVATE magic_enum::magic_enum
 		PRIVATE pybind11::embed
+        "$<LINK_LIBRARY:WHOLE_ARCHIVE,librmf_pythonEmbed>"
+	
 		PUBLIC GTest::gtest_main
 	)
 	# Solve package discoverability issues when testing

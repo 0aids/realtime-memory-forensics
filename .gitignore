@@ -8,3 +8,5 @@ relevant-books
 Simple.json
 __pycache__
 *.so
+heaptrack.*
+callgrind.*
