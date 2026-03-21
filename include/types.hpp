@@ -158,8 +158,13 @@ namespace rmf::types
         AssignNewParentRegion(const MemoryRegionProperties& other);
 
         MemoryRegionPropertiesVec
-        BreakIntoChunks(uintptr_t chunkSize,
-                        uintptr_t overlapSize = 0);
+             BreakIntoChunks(uintptr_t chunkSize,
+                             uintptr_t overlapSize = 0);
+        bool operator==(const MemoryRegionProperties& other)
+        {
+            return TrueAddress() == other.TrueAddress() &&
+                TrueEnd() == other.TrueEnd();
+        }
     };
 
     using SnapshotDataBuffer = std::vector<uint8_t>;
