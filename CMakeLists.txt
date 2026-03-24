@@ -19,16 +19,18 @@ endif()
 set(GLOBAL_WARNINGS
     -Wall -Wextra -Wpedantic -Wno-cpp --warn-no-format-security
     -fdiagnostics-show-template-tree
-    -fmacro-prefix-map=${CMAKE_SOURCE_DIR}=. -g -O0
+    -fmacro-prefix-map=${CMAKE_SOURCE_DIR}=. -g
 )
 
 # ---------------- Sanitizers ----------------
-if(DEFINED asan_address)
-    message(WARNING "RMF: AddressSanitizer enabled (RAM heavy!)")
+option(asan_address "Enable AddressSanitizer" OFF)
+if(asan_address)
+    message(WARNING "RMF: AddressSanitizer enabled (Causes tests to fail spuriously!)")
     set(SAN_FLAGS -fsanitize=address)
 endif()
 
-if(DEFINED asan_undefined)
+option(asan_undefined "Enable Undefined santisizer" OFF)
+if(asan_undefined)
     message("RMF: UndefinedBehaviorSanitizer enabled")
     list(APPEND SAN_FLAGS -fsanitize=undefined)
 endif()
