@@ -122,69 +122,6 @@ namespace rmf::graph
         return m_links.replace(
             key, {newData, oldData.sourceNode, oldData.targetNode});
     }
-    // Retrieve adjacent links for a specific node
-    auto MemoryGraphData::getOutgoingLinks(NodeKey nodeKey)
-    {
-        buildTraversalCacheIfNeeded();
-        auto trueAddr =
-            m_nodes.at(nodeKey).nodeData.mrp.TrueAddress();
-        auto lowerBound =
-            std::lower_bound(m_sourceAddrToLink.begin(),
-                             m_sourceAddrToLink.end(), trueAddr);
-        auto upperBound =
-            std::upper_bound(m_sourceAddrToLink.begin(),
-                             m_sourceAddrToLink.end(), trueAddr);
-        return std::ranges::subrange(lowerBound, upperBound) |
-            std::views::transform(
-                   [](auto&& p) -> decltype(auto)
-                   {
-                       return (p.key); // or p.key
-                   });
-    }
-
-    auto MemoryGraphData::getIncomingLinks(NodeKey nodeKey)
-    {
-        buildTraversalCacheIfNeeded();
-        auto trueAddr =
-            m_nodes.at(nodeKey).nodeData.mrp.TrueAddress();
-        auto lowerBound =
-            std::lower_bound(m_targetAddrToLink.begin(),
-                             m_targetAddrToLink.end(), trueAddr);
-        auto upperBound =
-            std::upper_bound(m_targetAddrToLink.begin(),
-                             m_targetAddrToLink.end(), trueAddr);
-        return std::ranges::subrange(lowerBound, upperBound) |
-            std::views::transform(
-                   [](auto&& p) -> decltype(auto)
-                   {
-                       return (p.key); // or p.key
-                   });
-    }
-
-    // Helper to get connected nodes directly
-    auto MemoryGraphData::getChildren(NodeKey parentKey)
-    {
-        buildTraversalCacheIfNeeded();
-        auto outgoingLinks = getOutgoingLinks(parentKey);
-        return outgoingLinks |
-            std::views::transform(
-                   [this](auto&& p) -> decltype(auto)
-                   {
-                       return (m_nodes.at(p)); // or p.key
-                   });
-    }
-
-    auto MemoryGraphData::getParents(NodeKey childKey)
-    {
-        buildTraversalCacheIfNeeded();
-        auto incomingLinks = getIncomingLinks(childKey);
-        return incomingLinks |
-            std::views::transform(
-                   [this](auto&& p) -> decltype(auto)
-                   {
-                       return (m_nodes.at(p)); // or p.key
-                   });
-    }
 
     // Clears all nodes and links
     void MemoryGraphData::clear()
