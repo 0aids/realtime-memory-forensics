@@ -361,9 +361,9 @@ namespace rmf::utils
             newmrp.relativeRegionAddress =
                 newmrp.parentRegionSize - 1;
 
-        if (newmrp.relativeEnd() > newmrp.parentRegionSize)
-            newmrp.relativeRegionSize =
-                newmrp.parentRegionSize - newmrp.relativeEnd();
+        if (newmrp.relativeEnd() >= newmrp.parentRegionSize)
+            newmrp.relativeRegionSize = newmrp.parentRegionSize -
+                newmrp.relativeRegionAddress;
         else if (newmrp.relativeRegionSize < 0)
             newmrp.relativeRegionSize = 1;
 
