@@ -1,7 +1,5 @@
 #ifndef memory_graph_hpp_INCLUDED
 #define memory_graph_hpp_INCLUDED
-#include "types.hpp"
-#include "utils.hpp"
 #include <functional>
 #include <map>
 #include <ranges>
@@ -9,7 +7,10 @@
 #include <optional>
 #include <vector>
 #include <cstdint>
+#include "utils.hpp"
+#include "types.hpp"
 #include <stdexcept>
+#include <utility>
 
 namespace rmf::graph
 {
@@ -35,7 +36,31 @@ namespace rmf::graph
         StructMemberId targetMemberId;
         uintptr_t      sourceAddr;
         uintptr_t      targetAddr;
+        friend bool    operator==(const MemoryLinkData& a,
+                               const MemoryLinkData& b)
+        {
+            return a.sourceAddr == b.sourceAddr &&
+                a.targetAddr == b.targetAddr;
+        }
     };
+}
+
+template <>
+struct std::hash<rmf::graph::MemoryLinkData>
+{
+    size_t operator()(const rmf::graph::MemoryLinkData& ld) const
+    {
+        return std::hash<rmf::graph::StructMemberId>()(
+                   ld.sourceMemberId) ^
+            std::hash<rmf::graph::StructMemberId>()(
+                   ld.targetMemberId) ^
+            std::hash<uintptr_t>()(ld.sourceAddr) ^
+            std::hash<uintptr_t>()(ld.targetAddr);
+    }
+};
+
+namespace rmf::graph
+{
 
     struct MemoryLink
     {
@@ -64,65 +89,35 @@ namespace rmf::graph
 
     class MemoryGraphData
     {
-      public:
       private:
-        utils::SlotMap<MemoryNode> m_nodes;
-        utils::SlotMap<MemoryLink> m_links;
-        using SortedNodePair =
+        using NodePair =
             std::pair<utils::SlotKey,
                       std::reference_wrapper<MemoryNode>>;
+        using LinkPair =
+            std::pair<utils::SlotKey,
+                      std::reference_wrapper<MemoryLink>>;
+        utils::SlotMap<MemoryNode> m_nodes;
+        utils::SlotMap<MemoryLink> m_links;
+
+        // Do not use the reference wrappers unless the cache has been revalidated.
+        std::unordered_map<types::MemoryRegionProperties, NodePair>
+            m_nodeSearchCache;
+        std::unordered_map<MemoryLinkData, LinkPair>
+            m_linkSearchCache;
 
         // Cached stuff for traversal
         bool m_traversalCacheInvalidated = true;
 
         // Sorted arrays, sorted by node's TrueAddress.
-        std::vector<AddrToLink>     m_sourceAddrToLink;
-        std::vector<AddrToLink>     m_targetAddrToLink;
-        std::vector<SortedNodePair> m_sortedNodes;
+        std::vector<AddrToLink> m_sourceAddrToLink;
+        std::vector<AddrToLink> m_targetAddrToLink;
 
-        static bool sortNodePair(const SortedNodePair& a,
-                                 const SortedNodePair& b)
-        {
-            return a.second.get().nodeData.mrp.TrueAddress() <
-                b.second.get().nodeData.mrp.TrueAddress();
-        };
-        static bool sortNodePairLowerBound(const SortedNodePair& a,
-                                           uintptr_t             addr)
-        {
-            return a.second.get().nodeData.mrp.TrueAddress() < addr;
-        }
-
-        static bool sortNodePairUpperBound(uintptr_t             addr,
-                                           const SortedNodePair& a)
-        {
-            return a.second.get().nodeData.mrp.TrueAddress() > addr;
-        }
         // Rebuilds the m_sourceAddrToLink and m_targetAddrToLink arrays.
         // Sorts them by address for binary searching (std::lower_bound/std::equal_range).
         void buildTraversalCacheIfNeeded();
 
         // Marks the cache as dirty. To be called inside addNode, removeNode, etc.
         void invalidateCache();
-
-        std::vector<SortedNodePair>::const_iterator
-        getSortedLowerBound(uintptr_t addr)
-        {
-            buildTraversalCacheIfNeeded();
-            auto begin = std::lower_bound(m_sortedNodes.begin(),
-                                          m_sortedNodes.end(), addr,
-                                          sortNodePairLowerBound);
-            return begin;
-        }
-
-        std::vector<SortedNodePair>::const_iterator
-        getSortedUpperBound(uintptr_t addr)
-        {
-            buildTraversalCacheIfNeeded();
-            auto begin = std::upper_bound(m_sortedNodes.begin(),
-                                          m_sortedNodes.end(), addr,
-                                          sortNodePairUpperBound);
-            return begin;
-        }
 
       public:
         MemoryGraphData()                                  = default;
@@ -133,6 +128,7 @@ namespace rmf::graph
 
         ~MemoryGraphData() = default;
         // Default : Adds a node with no links whatsoever
+        // If the node already exists, returns a key to that node.
         NodeKey addNode(const MemoryNodeData& data);
 
         // Default: Adds a link between two nodes.
@@ -238,7 +234,17 @@ namespace rmf::graph
         std::optional<NodeKey>
         getNodeKeyContainingAddr(uintptr_t addr);
         std::optional<MemoryNodeData>
-        getNodeContainingAddr(uintptr_t addr);
+             getNodeContainingAddr(uintptr_t addr);
+
+        bool containsMrp(const types::MemoryRegionProperties& mrp);
+        bool containsLink(const MemoryLinkData& link);
+        std::optional<NodeKey>
+        getNodeKeyAtMrp(const types::MemoryRegionProperties& mrp);
+        std::optional<LinkKey>
+        getLinkKeyAtLinkData(const MemoryLinkData& link);
+        // Returns number of dead links.
+        size_t pruneDeadLinks();
+        size_t pruneDeadNodes();
     };
 }
 

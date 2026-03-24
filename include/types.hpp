@@ -270,4 +270,16 @@ namespace rmf::types
     };
 };
 
+template <>
+struct std::hash<rmf::types::MemoryRegionProperties>
+{
+    size_t
+    operator()(const rmf::types::MemoryRegionProperties& mrp) const
+    {
+        return std::hash<uintptr_t>()(mrp.TrueAddress()) ^
+            std::hash<uintptr_t>()(mrp.TrueEnd()) ^
+            std::hash<uint8_t>()(static_cast<uint8_t>(mrp.perms)) ^
+            std::hash<std::string>()(*mrp.regionName_sp);
+    }
+};
 #endif // types_hpp_INCLUDED

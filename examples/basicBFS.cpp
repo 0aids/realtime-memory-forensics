@@ -58,9 +58,9 @@ MapifiedSnap mapifySnap(const MemorySnapshot& snap)
 }
 
 MemoryRegionPropertiesVec
-findSourceRegionsFast(const MapifiedSnap&              mapsnap,
-                      const MemoryRegionPropertiesVec& regions,
-                      const MrpRestructure&            mrpRestructure)
+findSourceTargetRegionsFast(const MapifiedSnap&              mapsnap,
+                            const MemoryRegionPropertiesVec& regions,
+                            const MrpRestructure& mrpRestructure)
 {
     MemoryRegionPropertiesVec mrpVec;
     const auto&               flat_pointers = mapsnap.first;
@@ -140,8 +140,8 @@ int main(int argc, const char** argv)
     {
         result =
             analyzer
-                .Execute(findSourceRegionsFast, mapsSnaps, result,
-                         rmf::types::MrpRestructure{-8, 16})
+                .Execute(findSourceTargetRegionsFast, mapsSnaps,
+                         result, rmf::types::MrpRestructure{-8, 16})
                 .flatten();
         // Remove duplicats
         cout << format(

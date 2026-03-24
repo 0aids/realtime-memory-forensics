@@ -20,13 +20,6 @@ namespace rmf::graph
         // TODO: Incrementally add stuff to the cache.
         m_sourceAddrToLink.clear();
         m_targetAddrToLink.clear();
-        // m_sortedNodes = m_nodes |
-        //     std::ranges::to<std::vector<
-        //         std::pair<utils::SlotKey,
-        //                   std::reference_wrapper<MemoryNode>>>>();
-
-        // std::sort(m_sortedNodes.begin(), m_sortedNodes.end(),
-        //           sortNodePair);
 
         for (const auto& [key, node] : m_links)
         {
@@ -47,13 +40,28 @@ namespace rmf::graph
                   m_targetAddrToLink.end(),
                   [](const AddrToLink& a, const AddrToLink& b)
                   { return a.addr < b.addr; });
+        for (auto& [mrp, keyRefPair] : m_nodeSearchCache)
+        {
+            keyRefPair.second = m_nodes[keyRefPair.first];
+        }
+
+        for (auto& [mrp, keyRefPair] : m_linkSearchCache)
+        {
+            keyRefPair.second = m_links[keyRefPair.first];
+        }
         m_traversalCacheInvalidated = false;
     }
 
     NodeKey MemoryGraphData::addNode(const MemoryNodeData& data)
     {
         invalidateCache();
-        return m_nodes.insert({data});
+        if (containsMrp(data.mrp))
+            // Return the original key.
+            return m_nodeSearchCache.at(data.mrp).first;
+        auto key = m_nodes.insert({data});
+        m_nodeSearchCache.emplace(data.mrp,
+                                  NodePair{key, m_nodes[key]});
+        return key;
     }
 
     std::optional<LinkKey>
@@ -65,7 +73,10 @@ namespace rmf::graph
         {
             return std::nullopt;
         }
+        if (containsLink(data))
+            return m_linkSearchCache.at(data).first;
         LinkKey key = m_links.insert({data, source, target});
+        m_linkSearchCache.emplace(data, LinkPair{key, m_links[key]});
         return key;
     }
     bool MemoryGraphData::removeNode(NodeKey key)
@@ -73,6 +84,7 @@ namespace rmf::graph
         invalidateCache();
         if (!m_nodes.contains(key))
             return false;
+        m_nodeSearchCache.erase(m_nodes[key].nodeData.mrp);
         m_nodes.erase(key);
         return true;
     }
@@ -82,6 +94,7 @@ namespace rmf::graph
         invalidateCache();
         if (!m_links.contains(key))
             return false;
+        m_linkSearchCache.erase(m_links[key].data);
         m_links.erase(key);
         return true;
     }
@@ -110,7 +123,10 @@ namespace rmf::graph
     {
         if (!m_nodes.contains(key))
             return std::nullopt;
-        return m_nodes.replace(key, {newData});
+        m_nodeSearchCache.erase(m_nodes[key].nodeData.mrp);
+        auto newKey = m_nodes.replace(key, {newData});
+        m_nodeSearchCache.at(newData.mrp) = {newKey, m_nodes[newKey]};
+        return newKey;
     }
     std::optional<LinkKey>
     MemoryGraphData::updateLinkData(LinkKey               key,
@@ -119,8 +135,11 @@ namespace rmf::graph
         if (!m_links.contains(key))
             return std::nullopt;
         MemoryLink oldData = m_links.at(key);
-        return m_links.replace(
+        m_linkSearchCache.erase(oldData.data);
+        auto newKey = m_links.replace(
             key, {newData, oldData.sourceNode, oldData.targetNode});
+        m_linkSearchCache.at(newData) = {newKey, m_links[newKey]};
+        return newKey;
     }
 
     // Clears all nodes and links
@@ -130,6 +149,8 @@ namespace rmf::graph
         m_nodes.clear();
         m_sourceAddrToLink.clear();
         m_targetAddrToLink.clear();
+        m_linkSearchCache.clear();
+        m_nodeSearchCache.clear();
     }
 
     // Capacity and sizing
@@ -213,5 +234,62 @@ namespace rmf::graph
                 return node.nodeData;
         }
         return std::nullopt;
+    }
+    bool MemoryGraphData::containsMrp(
+        const types::MemoryRegionProperties& mrp)
+    {
+        return m_nodeSearchCache.contains(mrp);
+    }
+
+    bool MemoryGraphData::containsLink(const MemoryLinkData& link)
+    {
+        return m_linkSearchCache.contains(link);
+    }
+    std::optional<NodeKey> MemoryGraphData::getNodeKeyAtMrp(
+        const types::MemoryRegionProperties& mrp)
+    {
+        if (m_nodeSearchCache.contains(mrp))
+            return m_nodeSearchCache.at(mrp).first;
+        return std::nullopt;
+    }
+    std::optional<LinkKey>
+    MemoryGraphData::getLinkKeyAtLinkData(const MemoryLinkData& link)
+    {
+        if (m_linkSearchCache.contains(link))
+            return m_linkSearchCache.at(link).first;
+        return std::nullopt;
+    }
+
+    size_t MemoryGraphData::pruneDeadLinks()
+    {
+        std::vector<LinkKey> linksToPrune;
+        for (const auto& [key, link] : m_links)
+        {
+            if (!m_nodes.contains(link.sourceNode) ||
+                !m_nodes.contains(link.targetNode))
+            {
+                linksToPrune.push_back(key);
+            }
+        }
+        for (const auto& key : linksToPrune)
+        {
+            removeLink(key);
+        }
+        return linksToPrune.size();
+    }
+
+    size_t MemoryGraphData::pruneDeadNodes()
+    {
+        std::vector<NodeKey> nodesToPrune;
+        for (const auto& [key, node] : m_nodes)
+        {
+            if (getChildren(key).empty() && getParents(key).empty())
+                nodesToPrune.push_back(key);
+        }
+        for (const auto& key : nodesToPrune)
+        {
+            removeNode(key);
+        }
+        return nodesToPrune.size();
     }
 }
