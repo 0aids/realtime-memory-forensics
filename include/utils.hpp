@@ -85,7 +85,7 @@ namespace rmf::utils
             uint64_t consumeIndex =
                 m_consumeCommitIndex.load(std::memory_order_acquire);
             // Queue is full (empty is 0s, full is -1)
-            if (produceIndex - consumeIndex > size - 1)
+            if (produceIndex - consumeIndex >= size - 1)
             {
                 rmf_Log(rmf_Warning,
                         "Unable to enqueue, queue is full!");
@@ -239,8 +239,12 @@ namespace rmf::utils
 
     struct SlotKey
     {
-        uint32_t index;
-        uint32_t generation;
+        uint32_t    index;
+        uint32_t    generation;
+        friend bool operator==(const SlotKey& a, const SlotKey& b)
+        {
+            return a.index == b.index && a.generation == b.generation;
+        }
     };
 
     template <typename T>
