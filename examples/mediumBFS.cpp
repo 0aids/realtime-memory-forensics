@@ -120,7 +120,9 @@ bool operator==(const rmf::types::MemoryRegionProperties a,
         a.TrueEnd() == b.TrueEnd();
 }
 
-int main(int argc, const char** argv)
+#pragma GCC push_options
+#pragma GCC optimize("O0")
+int         main(int argc, const char** argv)
 {
     if (argc != 3)
     {
@@ -128,7 +130,7 @@ int main(int argc, const char** argv)
                 "argument AND string to match for as third"
              << endl;
     }
-    const MrpRestructure restructure{-128, 256};
+    const MrpRestructure restructure{-32, 64};
     const pid_t          pid         = std::stoul(argv[1]);
     std::string          matchString = argv[2];
 
@@ -169,7 +171,7 @@ int main(int argc, const char** argv)
         auto mapsSnaps = analyzer.Execute(mapifySnap, snaps);
         println("Running loop");
         size_t i = 0;
-        while (sources.size() > 0 && i < 1)
+        while (sources.size() > 0 && i < 5)
         {
             auto newResult =
                 analyzer
@@ -215,14 +217,11 @@ int main(int argc, const char** argv)
                     mg.getLinks().size() - numOldLinks);
             i++;
         }
-        // Prune non active nodes.
-        snaps = analyzer.Execute(rmf::types::MemorySnapshot::Make,
-                                 sources, pid);
         int numOldNodes = mg.getNodeCount();
         int numOldLinks = mg.getLinkCount();
         // Remove all keys and links that no longer exist.
         vector<graph::NodeKey> nodesToRemove;
-        for (const auto& [key, node] : mg.getNodes())
+        for (const auto [key, node] : mg.getNodes())
         {
             auto outgoingLinks = mg.getOutgoingLinks(key);
             auto snap = MemorySnapshot::Make(node.nodeData.mrp, pid);
@@ -248,7 +247,7 @@ int main(int argc, const char** argv)
         println("Pruned graph for dead nodes");
         println("Num Nodes: {}, Num links: {}", mg.getNodes().size(),
                 mg.getLinks().size());
-        println("diff Nodes: {}, Num links: {}\n",
+        println("diff Nodes: {}, diff Num links: {}\n",
                 (int)mg.getNodes().size() - numOldNodes,
                 (int)mg.getLinks().size() - numOldLinks);
         sources.clear();
@@ -256,6 +255,16 @@ int main(int argc, const char** argv)
         {
             sources.push_back(node.nodeData.mrp);
         }
-        this_thread::sleep_for(1s);
+        println("Continue? press q to stop");
+        char a;
+        cin >> a;
+        if (a == 'q')
+            break;
+        println("Continuing");
+    }
+    while (1)
+    {
+        this_thread::sleep_for(50ms);
     }
 }
+#pragma GCC pop_options
