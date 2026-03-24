@@ -1,13 +1,14 @@
 #include <gtest/gtest.h>
+#include <stdexcept>
 #include "memory_graph.hpp"
 
 using namespace rmf::graph;
 
-TEST(memoryGraphTest, addRegion)
+TEST(memoryGraphDataTest, addRegion)
 {
-    MemoryGraph      graph;
+    MemoryGraphData graph;
 
-    MemoryRegionData data;
+    MemoryNodeData  data;
     data.mrp = {
         0x1000,
         0x1000,
@@ -16,22 +17,59 @@ TEST(memoryGraphTest, addRegion)
         std::make_shared<const std::string>("test"),
         rmf::types::Perms::Read,
     };
-    data.name = "testRegion";
 
-    auto id = graph.RegionAdd(data);
+    auto key = graph.addNode(data);
 
-    EXPECT_GT(id, 0);
-
-    auto region = graph.RegionGetFromID(id);
+    auto region = graph.getNode(key);
     ASSERT_TRUE(region.has_value());
-    EXPECT_EQ((*region)->data.name, "testRegion");
+    EXPECT_EQ(region.value().nodeData.mrp, data.mrp);
 }
 
-TEST(memoryGraphTest, getRegionAtAddress)
+TEST(memoryGraphDataTest, iteratorTest)
 {
-    MemoryGraph      graph;
+    MemoryGraphData graph;
 
-    MemoryRegionData data1;
+    MemoryNodeData  data;
+    MemoryNodeData  data1;
+    data.mrp = {
+        0x1000,
+        0x1000,
+        0,
+        0x1000,
+        std::make_shared<const std::string>("test"),
+        rmf::types::Perms::Read,
+    };
+    data1.mrp = {
+        0x2000,
+        0x2000,
+        0,
+        0x2000,
+        std::make_shared<const std::string>("test2"),
+        rmf::types::Perms::Read,
+    };
+
+    auto key0 = graph.addNode(data);
+    auto key1 = graph.addNode(data1);
+    for (const auto& [key, node] : graph.getNodes())
+    {
+        bool found = false;
+        for (const auto& dat : {data, data1})
+        {
+            if (dat.mrp == node.nodeData.mrp)
+            {
+                found = true;
+                break;
+            }
+        }
+        ASSERT_TRUE(found);
+    }
+}
+
+TEST(memoryGraphDataTest, getRegionAtAddress)
+{
+    MemoryGraphData graph;
+
+    MemoryNodeData  data1;
     data1.mrp = {
         0x1000,
         0x1000,
@@ -40,10 +78,9 @@ TEST(memoryGraphTest, getRegionAtAddress)
         std::make_shared<const std::string>("region1"),
         rmf::types::Perms::Read,
     };
-    data1.name = "region1";
-    graph.RegionAdd(data1);
+    graph.addNode(data1);
 
-    MemoryRegionData data2;
+    MemoryNodeData data2;
     data2.mrp = {
         0x2000,
         0x1000,
@@ -52,29 +89,26 @@ TEST(memoryGraphTest, getRegionAtAddress)
         std::make_shared<const std::string>("region2"),
         rmf::types::Perms::Read,
     };
-    data2.name = "region2";
-    graph.RegionAdd(data2);
+    graph.addNode(data2);
 
-    auto region = graph.RegionGetRegionAtAddress(0x1500);
+    auto region = graph.getNodeAtAddr(0x1500);
     ASSERT_FALSE(region.has_value());
 
-    region = graph.RegionGetRegionAtAddress(0x2500);
+    region = graph.getNodeAtAddr(0x2500);
     ASSERT_FALSE(region.has_value());
 
-    region = graph.RegionGetRegionAtAddress(0x1000);
+    region = graph.getNodeAtAddr(0x1000);
     ASSERT_TRUE(region.has_value());
-    EXPECT_EQ(region.value()->data.name, "region1");
 
-    region = graph.RegionGetRegionAtAddress(0x2000);
+    region = graph.getNodeAtAddr(0x2000);
     ASSERT_TRUE(region.has_value());
-    EXPECT_EQ(region.value()->data.name, "region2");
 }
 
-TEST(memoryGraphTest, getRegionContainingAddress)
+TEST(memoryGraphDataTest, getRegionContainingAddress)
 {
-    MemoryGraph      graph;
+    MemoryGraphData graph;
 
-    MemoryRegionData data1;
+    MemoryNodeData  data1;
     data1.mrp = {
         0x1000,
         0x1000,
@@ -83,10 +117,9 @@ TEST(memoryGraphTest, getRegionContainingAddress)
         std::make_shared<const std::string>("region1"),
         rmf::types::Perms::Read,
     };
-    data1.name = "region1";
-    graph.RegionAdd(data1);
+    graph.addNode(data1);
 
-    MemoryRegionData data2;
+    MemoryNodeData data2;
     data2.mrp = {
         0x2000,
         0x1000,
@@ -95,29 +128,26 @@ TEST(memoryGraphTest, getRegionContainingAddress)
         std::make_shared<const std::string>("region2"),
         rmf::types::Perms::Read,
     };
-    data2.name = "region2";
-    graph.RegionAdd(data2);
+    graph.addNode(data2);
 
-    auto region = graph.RegionGetRegionContainingAddress(0x3000);
+    auto region = graph.getNodeContainingAddr(0x3000);
     ASSERT_FALSE(region.has_value());
 
-    region = graph.RegionGetRegionContainingAddress(0x0fff);
+    region = graph.getNodeContainingAddr(0x0fff);
     ASSERT_FALSE(region.has_value());
 
-    region = graph.RegionGetRegionContainingAddress(0x2fff);
+    region = graph.getNodeContainingAddr(0x2fff);
     ASSERT_TRUE(region.has_value());
-    EXPECT_EQ(region.value()->data.name, "region2");
 
-    region = graph.RegionGetRegionContainingAddress(0x1500);
+    region = graph.getNodeContainingAddr(0x1500);
     ASSERT_TRUE(region.has_value());
-    EXPECT_EQ(region.value()->data.name, "region1");
 }
 
-TEST(memoryGraphTest, addLink)
+TEST(memoryGraphDataTest, addLink)
 {
-    MemoryGraph      graph;
+    MemoryGraphData graph;
 
-    MemoryRegionData data1;
+    MemoryNodeData  data1;
     data1.mrp = {
         0x1000,
         0x1000,
@@ -126,10 +156,9 @@ TEST(memoryGraphTest, addLink)
         std::make_shared<const std::string>("source"),
         rmf::types::Perms::Read,
     };
-    data1.name           = "source";
-    auto             id1 = graph.RegionAdd(data1);
+    auto           id1 = graph.addNode(data1);
 
-    MemoryRegionData data2;
+    MemoryNodeData data2;
     data2.mrp = {
         0x2000,
         0x1000,
@@ -138,30 +167,24 @@ TEST(memoryGraphTest, addLink)
         std::make_shared<const std::string>("target"),
         rmf::types::Perms::Read,
     };
-    data2.name         = "target";
-    auto           id2 = graph.RegionAdd(data2);
+    auto           id2 = graph.addNode(data2);
 
     MemoryLinkData linkData;
-    linkData.sourceID   = id1;
-    linkData.targetID   = id2;
     linkData.sourceAddr = 0x1000;
     linkData.targetAddr = 0x2000;
-    linkData.name       = "testLink";
 
-    auto linkId = graph._LinkNaiveAdd(linkData);
+    auto linkId = graph.addLink(id1, id2, linkData);
+    EXPECT_TRUE(linkId.has_value());
 
-    EXPECT_GT(linkId, 0);
-
-    auto link = graph.LinkGetFromID(linkId);
+    auto link = graph.getLink(linkId.value());
     ASSERT_TRUE(link.has_value());
-    EXPECT_EQ((*link)->data.name, "testLink");
 }
 
-TEST(memoryGraphTest, deleteRegion)
+TEST(memoryGraphDataTest, removeRegion)
 {
-    MemoryGraph      graph;
+    MemoryGraphData graph;
 
-    MemoryRegionData data;
+    MemoryNodeData  data;
     data.mrp = {
         0x1000,
         0x1000,
@@ -170,22 +193,20 @@ TEST(memoryGraphTest, deleteRegion)
         std::make_shared<const std::string>("test"),
         rmf::types::Perms::Read,
     };
-    data.name = "testRegion";
 
-    auto id = graph.RegionAdd(data);
-    EXPECT_GT(id, 0);
+    auto id = graph.addNode(data);
 
-    graph.RegionDelete(id);
+    graph.removeNode(id);
 
-    auto region = graph.RegionGetFromID(id);
+    auto region = graph.getNode(id);
     ASSERT_FALSE(region.has_value());
 }
 
-TEST(memoryGraphTest, deleteLink)
+TEST(memoryGraphDataTest, removeLink)
 {
-    MemoryGraph      graph;
+    MemoryGraphData graph;
 
-    MemoryRegionData data1;
+    MemoryNodeData  data1;
     data1.mrp = {
         0x1000,
         0x1000,
@@ -194,58 +215,27 @@ TEST(memoryGraphTest, deleteLink)
         std::make_shared<const std::string>("source"),
         rmf::types::Perms::Read,
     };
-    data1.name           = "source";
-    auto             id1 = graph.RegionAdd(data1);
+    auto           id1 = graph.addNode(data1);
 
-    MemoryRegionData data2;
+    MemoryNodeData data2;
     data2.mrp          = {0x2000,
                           0x1000,
                           0,
                           0x1000,
                           std::make_shared<const std::string>("target"),
                           rmf::types::Perms::Read};
-    data2.name         = "target";
-    auto           id2 = graph.RegionAdd(data2);
+    auto           id2 = graph.addNode(data2);
 
     MemoryLinkData linkData;
-    linkData.sourceID   = id1;
-    linkData.targetID   = id2;
     linkData.sourceAddr = 0x1000;
     linkData.targetAddr = 0x2000;
 
-    auto linkId = graph._LinkNaiveAdd(linkData);
+    auto linkId = graph.addLink(id1, id2, linkData);
 
-    graph.LinkDelete(linkId);
+    ASSERT_TRUE(linkId.has_value());
 
-    auto link = graph.LinkGetFromID(linkId);
+    graph.removeLink(linkId.value());
+
+    auto link = graph.getLink(linkId.value());
     ASSERT_FALSE(link.has_value());
-}
-
-TEST(memoryGraphTest, getAllRegions)
-{
-    MemoryGraph graph;
-
-    for (uintptr_t i = 0; i < 5; i++)
-    {
-        MemoryRegionData data;
-        data.mrp  = {0x1000 * (i + 1),
-                     0x1000,
-                     0,
-                     0x1000,
-                     std::make_shared<const std::string>(
-                        "region" + std::to_string(i)),
-                     rmf::types::Perms::Read};
-        data.name = "region" + std::to_string(i);
-        graph.RegionAdd(data);
-    }
-
-    auto views = graph.RegionsGetViews();
-    int  count = 0;
-    for (auto& region : views)
-    {
-        (void)region;
-        count++;
-    }
-
-    EXPECT_EQ(count, 5);
 }

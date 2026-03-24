@@ -160,7 +160,7 @@ namespace rmf::types
         MemoryRegionPropertiesVec
              BreakIntoChunks(uintptr_t chunkSize,
                              uintptr_t overlapSize = 0);
-        bool operator==(const MemoryRegionProperties& other)
+        bool operator==(const MemoryRegionProperties& other) const
         {
             return TrueAddress() == other.TrueAddress() &&
                 TrueEnd() == other.TrueEnd();

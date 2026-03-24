@@ -1,250 +1,280 @@
 #include "memory_graph.hpp"
 #include "logger.hpp"
 #include "types.hpp"
+#include "utils.hpp"
+#include <algorithm>
 #include <optional>
+#include <ranges>
 
 namespace rmf::graph
 {
-
-    std::string MemoryLink::toString() const
+    void MemoryGraphData::invalidateCache()
     {
-        return std::format("id: {} policy: {} SourceAddress: "
-                           "{:#x} TargetAddress: {:#x} name: {}",
-                           id, magic_enum::enum_name(data.policy),
-                           data.sourceAddr, data.targetAddr,
-                           data.name);
+        m_traversalCacheInvalidated = true;
     }
-
-    std::string MemoryRegion::toString() const
+    void MemoryGraphData::buildTraversalCacheIfNeeded()
     {
-        std::string result =
-            std::format("name: {} id: {}\ncomment: {}", data.name, id,
-                        data.comment);
+        if (!m_traversalCacheInvalidated)
+            return;
+        // Refresh the cache
+        // TODO: Incrementally add stuff to the cache.
+        m_sourceAddrToLink.clear();
+        m_targetAddrToLink.clear();
+        // m_sortedNodes = m_nodes |
+        //     std::ranges::to<std::vector<
+        //         std::pair<utils::SlotKey,
+        //                   std::reference_wrapper<MemoryNode>>>>();
 
-        for (const auto& namedValue : data.namedValues)
+        // std::sort(m_sortedNodes.begin(), m_sortedNodes.end(),
+        //           sortNodePair);
+
+        for (const auto& [key, node] : m_links)
         {
-            result += std::format("\n\tNamed value: {} offset: "
-                                  "{:#x}\n\tcomment: {}",
-                                  namedValue.name, namedValue.offset,
-                                  namedValue.comment);
+            m_sourceAddrToLink.push_back(
+                {m_nodes.at(node.sourceNode)
+                     .nodeData.mrp.TrueAddress(),
+                 key});
+            m_targetAddrToLink.push_back(
+                {m_nodes.at(node.targetNode)
+                     .nodeData.mrp.TrueAddress(),
+                 key});
         }
-        return result;
-    }
-    MemoryRegionID MemoryGraph::RegionAdd(MemoryRegionData data)
-    {
-        MemoryRegionID assignedID = m_nextValidRegionID++;
-        m_regions.emplace(assignedID,
-                          MemoryRegion{data, this, assignedID});
-        return assignedID;
-    }
-
-    void MemoryGraph::RegionDelete(MemoryRegionID id)
-    {
-        m_regions.erase(id);
+        std::sort(m_sourceAddrToLink.begin(),
+                  m_sourceAddrToLink.end(),
+                  [](const AddrToLink& a, const AddrToLink& b)
+                  { return a.addr < b.addr; });
+        std::sort(m_targetAddrToLink.begin(),
+                  m_targetAddrToLink.end(),
+                  [](const AddrToLink& a, const AddrToLink& b)
+                  { return a.addr < b.addr; });
+        m_traversalCacheInvalidated = false;
     }
 
-    std::optional<MemoryRegion*>
-    MemoryGraph::RegionGetFromID(MemoryRegionID id)
+    NodeKey MemoryGraphData::addNode(const MemoryNodeData& data)
     {
-        if (m_regions.contains(id))
-            return std::optional<MemoryRegion*>{&m_regions.at(id)};
-        return std::optional<MemoryRegion*>{std::nullopt};
+        invalidateCache();
+        return m_nodes.insert({data});
     }
 
-    MemoryLinkID MemoryGraph::_LinkNaiveAdd(MemoryLinkData linkData)
+    std::optional<LinkKey>
+    MemoryGraphData::addLink(NodeKey source, NodeKey target,
+                             const MemoryLinkData& data)
     {
-        MemoryLinkID assignedID = m_nextValidLinkID++;
-        m_links.emplace(assignedID,
-                        MemoryLink{linkData, this, assignedID});
-        return assignedID;
-    }
-
-    void MemoryGraph::LinkDelete(MemoryLinkID id)
-    {
-        m_links.erase(id);
-    }
-
-    std::optional<MemoryLink*>
-    MemoryGraph::LinkGetFromID(MemoryLinkID id)
-    {
-        if (m_links.contains(id))
-            return std::optional<MemoryLink*>{&m_links.at(id)};
-        return std::optional<MemoryLink*>{std::nullopt};
-    }
-
-    MemoryRegionID
-    MemoryGraph::RegionGetRegionIdAtAddress(uintptr_t addr)
-    {
-        // Replace for binary search when using properly ordered region storage.
-        for (const auto& region : RegionsGetViews())
+        invalidateCache();
+        if (!m_nodes.contains(source) || !m_nodes.contains(target))
         {
-            if (region.data.mrp.TrueAddress() == addr)
-                return region.id;
+            return std::nullopt;
         }
-        return noID_ce;
+        LinkKey key = m_links.insert({data, source, target});
+        return key;
+    }
+    bool MemoryGraphData::removeNode(NodeKey key)
+    {
+        invalidateCache();
+        if (!m_nodes.contains(key))
+            return false;
+        m_nodes.erase(key);
+        return true;
     }
 
-    std::optional<MemoryRegion*>
-    MemoryGraph::RegionGetRegionAtAddress(uintptr_t addr)
+    bool MemoryGraphData::removeLink(LinkKey key)
     {
-        for (auto& region : RegionsGetViews())
-        {
-            if (region.data.mrp.TrueAddress() == addr)
-                return std::optional<MemoryRegion*>{&region};
-        }
-        return std::optional<MemoryRegion*>{std::nullopt};
+        invalidateCache();
+        if (!m_links.contains(key))
+            return false;
+        m_links.erase(key);
+        return true;
     }
 
-    MemoryRegionID
-    MemoryGraph::RegionGetRegionIdContainingAddress(uintptr_t addr)
+    // Getters for Node
+    std::optional<MemoryNode> MemoryGraphData::getNode(NodeKey key)
     {
-        for (const auto& region : RegionsGetViews())
-        {
-            if (region.data.mrp.TrueAddress() <= addr &&
-                region.data.mrp.TrueEnd() > addr)
-                return region.id;
-        }
-        return noID_ce;
+        if (!m_nodes.contains(key))
+            return std::nullopt;
+        return m_nodes.at(key);
     }
 
-    std::optional<MemoryRegion*>
-    MemoryGraph::RegionGetRegionContainingAddress(uintptr_t addr)
+    // Getters for Link
+    std::optional<MemoryLink> MemoryGraphData::getLink(LinkKey key)
     {
-        for (auto& region : RegionsGetViews())
-        {
-            if (region.data.mrp.TrueAddress() <= addr &&
-                region.data.mrp.TrueEnd() > addr)
-                return std::optional<MemoryRegion*>{&region};
-        }
-        return std::optional<MemoryRegion*>{std::nullopt};
+        if (!m_links.contains(key))
+            return std::nullopt;
+        return m_links.at(key);
     }
 
-    MemoryRegionID
-    MemoryGraph::_LinkCreateOrGetSource(uintptr_t sourceAddr)
+    // Optional: Methods to update underlying data without replacing the node
+    // Invalidates all links to the node.
+    std::optional<NodeKey>
+    MemoryGraphData::updateNodeData(NodeKey               key,
+                                    const MemoryNodeData& newData)
     {
-        MemoryRegionData::NamedValue linkingValue = {
-            .name    = "source ptr",
-            .type    = {types::typeName::_ptr},
-            .offset  = 0,
-            .comment = "",
-        };
-        auto region_o = RegionGetRegionContainingAddress(sourceAddr);
-        if (region_o.has_value())
-        {
-            auto region_p = region_o.value();
-            linkingValue.offset =
-                sourceAddr - region_p->data.mrp.TrueAddress();
-            region_p->data.namedValues.push_back(linkingValue);
-            return region_o.value()->id;
-        }
-        else
-            return RegionAdd({
-                .mrp =
-                    {
-                          .parentRegionAddress   = sourceAddr,
-                          .parentRegionSize      = 32,
-                          .relativeRegionAddress = 0,
-                          .relativeRegionSize    = 32,
-                          .perms                 = types::Perms::Read,
-                          },
-                .namedValues = {linkingValue},
-                .name        = "Source Region",
-                .comment     = "Created from linking policy",
-            });
+        if (!m_nodes.contains(key))
+            return std::nullopt;
+        return m_nodes.replace(key, {newData});
+    }
+    std::optional<LinkKey>
+    MemoryGraphData::updateLinkData(LinkKey               key,
+                                    const MemoryLinkData& newData)
+    {
+        if (!m_links.contains(key))
+            return std::nullopt;
+        MemoryLink oldData = m_links.at(key);
+        return m_links.replace(
+            key, {newData, oldData.sourceNode, oldData.targetNode});
+    }
+    // Retrieve adjacent links for a specific node
+    auto MemoryGraphData::getOutgoingLinks(NodeKey nodeKey)
+    {
+        buildTraversalCacheIfNeeded();
+        auto trueAddr =
+            m_nodes.at(nodeKey).nodeData.mrp.TrueAddress();
+        auto lowerBound =
+            std::lower_bound(m_sourceAddrToLink.begin(),
+                             m_sourceAddrToLink.end(), trueAddr);
+        auto upperBound =
+            std::upper_bound(m_sourceAddrToLink.begin(),
+                             m_sourceAddrToLink.end(), trueAddr);
+        return std::ranges::subrange(lowerBound, upperBound) |
+            std::views::transform(
+                   [](auto&& p) -> decltype(auto)
+                   {
+                       return (p.key); // or p.key
+                   });
     }
 
-    MemoryRegionID
-    MemoryGraph::_LinkCreateOrGetTarget(uintptr_t targetAddr)
+    auto MemoryGraphData::getIncomingLinks(NodeKey nodeKey)
     {
-        auto region_o = RegionGetRegionContainingAddress(targetAddr);
-        if (region_o.has_value())
-        {
-            return region_o.value()->id;
-        }
-        return RegionAdd({
-            .mrp =
-                {
-                      .parentRegionAddress   = targetAddr,
-                      .parentRegionSize      = 32,
-                      .relativeRegionAddress = 0,
-                      .relativeRegionSize    = 32,
-                      .perms                 = types::Perms::Read,
-                      },
-            .namedValues = {},
-            .name        = "Target Region",
-            .comment     = "Created from linking policy",
-        });
+        buildTraversalCacheIfNeeded();
+        auto trueAddr =
+            m_nodes.at(nodeKey).nodeData.mrp.TrueAddress();
+        auto lowerBound =
+            std::lower_bound(m_targetAddrToLink.begin(),
+                             m_targetAddrToLink.end(), trueAddr);
+        auto upperBound =
+            std::upper_bound(m_targetAddrToLink.begin(),
+                             m_targetAddrToLink.end(), trueAddr);
+        return std::ranges::subrange(lowerBound, upperBound) |
+            std::views::transform(
+                   [](auto&& p) -> decltype(auto)
+                   {
+                       return (p.key); // or p.key
+                   });
     }
 
-    MemoryLinkID MemoryGraph::LinkSmartAdd(MemoryLinkData data)
+    // Helper to get connected nodes directly
+    auto MemoryGraphData::getChildren(NodeKey parentKey)
     {
-        // Loop through the unordered map to figure out if our link
-        // lies anywhere.
-        MemoryRegionID sourceID = noID_ce;
-        MemoryRegionID targetID = noID_ce;
-        switch (data.policy)
-        {
-            case MemoryLinkPolicy::Strict:
-                sourceID = RegionGetRegionIdContainingAddress(
-                    data.sourceAddr);
-                targetID = RegionGetRegionIdContainingAddress(
-                    data.targetAddr);
-                break;
-            case MemoryLinkPolicy::CreateSource:
-                sourceID = _LinkCreateOrGetSource(data.sourceAddr);
-                targetID = RegionGetRegionIdContainingAddress(
-                    data.targetAddr);
-                break;
-            case MemoryLinkPolicy::CreateSourceTarget:
-                sourceID = _LinkCreateOrGetSource(data.sourceAddr);
-                targetID = _LinkCreateOrGetTarget(data.targetAddr);
-                break;
-            case MemoryLinkPolicy::CreateTarget:
-                sourceID = RegionGetRegionIdContainingAddress(
-                    data.sourceAddr);
-                targetID = _LinkCreateOrGetTarget(data.targetAddr);
-                break;
-            default:
-                rmf_Log(rmf_Error,
-                        "Invalid policy chosen for smart creation!");
-                break;
-        }
-        data.sourceID = sourceID;
-        data.targetID = targetID;
-        return _LinkNaiveAdd(data);
+        buildTraversalCacheIfNeeded();
+        auto outgoingLinks = getOutgoingLinks(parentKey);
+        return outgoingLinks |
+            std::views::transform(
+                   [this](auto&& p) -> decltype(auto)
+                   {
+                       return (m_nodes.at(p)); // or p.key
+                   });
     }
 
-    void MemoryGraph::RegionsAssignToMaps(
-        const types::MemoryRegionPropertiesVec& OGMaps)
+    auto MemoryGraphData::getParents(NodeKey childKey)
     {
-        for (auto& region : RegionsGetViews())
-        {
-            auto container_opt = OGMaps.GetRegionContainingAddress(
-                region.data.mrp.TrueAddress());
-            if (!container_opt.has_value())
-            {
-                rmf_Log(rmf_Warning,
-                        "Region: '"
-                            << region.toString()
-                            << "' does not have containing region!");
-                continue;
-            }
-            auto container = container_opt.value();
-            region.data.mrp.AssignNewParentRegion(container);
-        }
+        buildTraversalCacheIfNeeded();
+        auto incomingLinks = getIncomingLinks(childKey);
+        return incomingLinks |
+            std::views::transform(
+                   [this](auto&& p) -> decltype(auto)
+                   {
+                       return (m_nodes.at(p)); // or p.key
+                   });
     }
 
-    void MemoryGraph::RegionsAddMrpVec(
-        const types::MemoryRegionPropertiesVec& mrpVec)
+    // Clears all nodes and links
+    void MemoryGraphData::clear()
     {
-        for (const auto& region : mrpVec)
+        m_links.clear();
+        m_nodes.clear();
+        m_sourceAddrToLink.clear();
+        m_targetAddrToLink.clear();
+    }
+
+    // Capacity and sizing
+    size_t MemoryGraphData::getNodeCount() const
+    {
+        return m_nodes.size();
+    }
+    size_t MemoryGraphData::getLinkCount() const
+    {
+        return m_links.size();
+    }
+    bool MemoryGraphData::isEmpty() const
+    {
+        return m_nodes.empty();
+    }
+
+    // Checks if a key is currently MemoryGraphData::valid (hasn't been removed)
+    bool MemoryGraphData::isValidNode(NodeKey key) const
+    {
+        return m_nodes.contains(key);
+    }
+    bool MemoryGraphData::isValidLink(LinkKey key) const
+    {
+        return m_links.contains(key);
+    }
+
+    // Only const iterators.
+
+    const utils::SlotMap<MemoryNode>&
+    MemoryGraphData::getNodes() const
+    {
+        return m_nodes;
+    }
+    const utils::SlotMap<MemoryLink>&
+    MemoryGraphData::getLinks() const
+    {
+        return m_links;
+    }
+
+    std::optional<NodeKey>
+    MemoryGraphData::getNodeKeyContainingAddr(uintptr_t addr)
+    {
+        for (const auto& [key, node] : m_nodes)
         {
-            RegionAdd({
-                .mrp         = region,
-                .namedValues = {},
-                .name        = "",
-                .comment     = "",
-            });
+            if (node.nodeData.mrp.TrueAddress() <= addr &&
+                addr < node.nodeData.mrp.TrueEnd())
+                return key;
         }
+        return std::nullopt;
+    }
+
+    std::optional<MemoryNodeData>
+    MemoryGraphData::getNodeContainingAddr(uintptr_t addr)
+    {
+        for (const auto& [key, node] : m_nodes)
+        {
+            if (node.nodeData.mrp.TrueAddress() <= addr &&
+                addr < node.nodeData.mrp.TrueEnd())
+                return node.nodeData;
+        }
+        return std::nullopt;
+    }
+
+    std::optional<NodeKey>
+    MemoryGraphData::getNodeKeyAtAddr(uintptr_t addr)
+    {
+        for (const auto& [key, node] : m_nodes)
+        {
+            if (node.nodeData.mrp.TrueAddress() == addr)
+                return key;
+        }
+        return std::nullopt;
+    }
+
+    std::optional<MemoryNodeData>
+    MemoryGraphData::getNodeAtAddr(uintptr_t addr)
+    {
+        for (const auto& [key, node] : m_nodes)
+        {
+            if (node.nodeData.mrp.TrueAddress() == addr)
+                return node.nodeData;
+        }
+        return std::nullopt;
     }
 }

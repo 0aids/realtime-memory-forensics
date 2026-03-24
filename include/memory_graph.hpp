@@ -1,133 +1,190 @@
 #ifndef memory_graph_hpp_INCLUDED
 #define memory_graph_hpp_INCLUDED
 #include "types.hpp"
+#include "utils.hpp"
+#include <functional>
+#include <map>
 #include <ranges>
 #include <unordered_map>
 #include <optional>
+#include <vector>
+#include <cstdint>
+#include <stdexcept>
 
 namespace rmf::graph
 {
-    // Possible policies for construction of memory links
-    enum class MemoryLinkPolicy : uint8_t
-    {
-        Strict, // Will only create the links if both ends are memory regions.
-        CreateSource,
-        CreateTarget,
-        CreateSourceTarget,
-    };
-    using MemoryRegionID               = uint64_t;
-    static constexpr uintptr_t noID_ce = 0;
-    using MemoryLinkID                 = uint64_t;
-    class MemoryGraph;
+    // Temporary, will deal with those ter
+    using StructTypeId   = uint64_t;
+    using StructMemberId = uint64_t;
+    using NodeKey        = utils::SlotKey;
+    using LinkKey        = utils::SlotKey;
 
-    // All relevant data of a memory region link
+    struct MemoryNodeData
+    {
+        types::MemoryRegionProperties mrp;
+        StructTypeId                  structTypeId;
+    };
+    struct MemoryNode
+    {
+        MemoryNodeData nodeData;
+    };
+
     struct MemoryLinkData
     {
-        MemoryLinkPolicy policy = MemoryLinkPolicy::Strict;
-
-        uintptr_t        sourceAddr = 0;
-        uintptr_t        targetAddr = 0;
-        std::string      name       = "";
-        MemoryRegionID   sourceID   = noID_ce;
-        MemoryRegionID   targetID   = noID_ce;
+        StructMemberId sourceMemberId;
+        StructMemberId targetMemberId;
+        uintptr_t      sourceAddr;
+        uintptr_t      targetAddr;
     };
 
-    // The actual link itself. (edge in the graph).
-    // Do not create manually!!!
     struct MemoryLink
     {
         MemoryLinkData data;
-        MemoryGraph*   parentGraph = nullptr;
-        MemoryLinkID   id          = noID_ce;
-        std::string    toString() const;
+        NodeKey        sourceNode;
+        NodeKey        targetNode;
     };
-
-    // All relevant data of a memory region for use in node graphs.
-    struct MemoryRegionData
+    struct AddrToLink
     {
-        struct NamedValue
+        // Address of the node could be source or target depending on which it is.
+        uintptr_t addr;
+        LinkKey   key;
+        bool      operator<(const AddrToLink& other)
         {
-            std::string name;
-            types::type type;
-            ptrdiff_t   offset;
-            std::string comment;
-        };
-        rmf::types::MemoryRegionProperties mrp;
-        std::vector<NamedValue>            namedValues{};
-        std::string                        name    = "";
-        std::string                        comment = "";
+            return addr < other.addr;
+        }
+        bool operator<(const uintptr_t& other)
+        {
+            return addr < other;
+        }
+        friend bool operator<(const uintptr_t& a, const AddrToLink& b)
+        {
+            return a < b.addr;
+        }
     };
 
-    // Do not create manually!!!
-    struct MemoryRegion
+    class MemoryGraphData
     {
-        MemoryRegionData data;
-        MemoryGraph*     parentGraph = nullptr;
-        MemoryRegionID   id          = noID_ce;
-        std::string      toString() const;
-    };
-
-    // Desired workflow:
-    // 		Use in tandem with the analyzer to receive memory regions.
-    class MemoryGraph
-    {
+      public:
       private:
-        struct MemoryRegionRange
+        utils::SlotMap<MemoryNode> m_nodes;
+        utils::SlotMap<MemoryLink> m_links;
+        using SortedNodePair =
+            std::pair<utils::SlotKey,
+                      std::reference_wrapper<MemoryNode>>;
+
+        // Cached stuff for traversal
+        bool m_traversalCacheInvalidated = true;
+
+        // Sorted arrays, sorted by node's TrueAddress.
+        std::vector<AddrToLink>     m_sourceAddrToLink;
+        std::vector<AddrToLink>     m_targetAddrToLink;
+        std::vector<SortedNodePair> m_sortedNodes;
+
+        static bool sortNodePair(const SortedNodePair& a,
+                                 const SortedNodePair& b)
         {
-            MemoryRegionID id;
-            uintptr_t      startAddr;
-            uintptr_t      endAddr;
+            return a.second.get().nodeData.mrp.TrueAddress() <
+                b.second.get().nodeData.mrp.TrueAddress();
         };
+        static bool sortNodePairLowerBound(const SortedNodePair& a,
+                                           uintptr_t             addr)
+        {
+            return a.second.get().nodeData.mrp.TrueAddress() < addr;
+        }
 
-        MemoryLinkID m_nextValidLinkID   = 1;
-        MemoryLinkID m_nextValidRegionID = 1;
-        std::unordered_map<MemoryLinkID, MemoryLink>     m_links{};
-        std::unordered_map<MemoryRegionID, MemoryRegion> m_regions{};
-        // TODO: If it becomes too slow with a large amount of regions,
-        // Make use of this + MemoryRegionRanges to perform binary
-        // search.
-        std::vector<MemoryRegionRange> range;
+        static bool sortNodePairUpperBound(uintptr_t             addr,
+                                           const SortedNodePair& a)
+        {
+            return a.second.get().nodeData.mrp.TrueAddress() > addr;
+        }
+        // Rebuilds the m_sourceAddrToLink and m_targetAddrToLink arrays.
+        // Sorts them by address for binary searching (std::lower_bound/std::equal_range).
+        void buildTraversalCacheIfNeeded();
 
-        MemoryRegionID _LinkCreateOrGetSource(uintptr_t sourceAddr);
-        MemoryRegionID _LinkCreateOrGetTarget(uintptr_t targetAddr);
+        // Marks the cache as dirty. To be called inside addNode, removeNode, etc.
+        void invalidateCache();
+
+        std::vector<SortedNodePair>::const_iterator
+        getSortedLowerBound(uintptr_t addr)
+        {
+            buildTraversalCacheIfNeeded();
+            auto begin = std::lower_bound(m_sortedNodes.begin(),
+                                          m_sortedNodes.end(), addr,
+                                          sortNodePairLowerBound);
+            return begin;
+        }
+
+        std::vector<SortedNodePair>::const_iterator
+        getSortedUpperBound(uintptr_t addr)
+        {
+            buildTraversalCacheIfNeeded();
+            auto begin = std::upper_bound(m_sortedNodes.begin(),
+                                          m_sortedNodes.end(), addr,
+                                          sortNodePairUpperBound);
+            return begin;
+        }
 
       public:
-        // Makes a copy, but it's basically trivially copyable.
-        MemoryRegionID RegionAdd(MemoryRegionData mr);
-        void           RegionsRefreshAll();
-        void           RegionDelete(MemoryRegionID id);
-        // Returns nullopt if id doesn't exist.
-        std::optional<MemoryRegion*>
-             RegionGetFromID(MemoryRegionID id);
-        auto RegionsGetViews()
-        {
-            return std::views::values(m_regions);
-        }
-        MemoryRegionID RegionGetRegionIdAtAddress(uintptr_t addr);
-        std::optional<MemoryRegion*>
-        RegionGetRegionAtAddress(uintptr_t addr);
-        MemoryRegionID
-        RegionGetRegionIdContainingAddress(uintptr_t addr);
-        std::optional<MemoryRegion*>
-                     RegionGetRegionContainingAddress(uintptr_t addr);
+        MemoryGraphData()                                  = default;
+        MemoryGraphData(const MemoryGraphData&)            = default;
+        MemoryGraphData(MemoryGraphData&&)                 = default;
+        MemoryGraphData& operator=(const MemoryGraphData&) = default;
+        MemoryGraphData& operator=(MemoryGraphData&&)      = default;
 
-        MemoryLinkID _LinkNaiveAdd(MemoryLinkData data);
-        void         LinkDelete(MemoryLinkID id);
-        auto         LinksGetViews()
-        {
-            return std::views::values(m_links);
-        }
-        std::optional<MemoryLink*> LinkGetFromID(MemoryLinkID id);
-        // Will also generate nodes according to the policy.
-        MemoryLinkID LinkSmartAdd(MemoryLinkData data);
+        ~MemoryGraphData() = default;
+        // Default : Adds a node with no links whatsoever
+        NodeKey addNode(const MemoryNodeData& data);
 
-        // Assigns floating mrps to their respective parent regions + offsets.
-        void RegionsAssignToMaps(
-            const types::MemoryRegionPropertiesVec& OGMaps);
+        // Default: Adds a link between two nodes.
+        std::optional<LinkKey> addLink(NodeKey source, NodeKey target,
+                                       const MemoryLinkData& data);
+        bool                   removeNode(NodeKey key);
+        bool                   removeLink(LinkKey key);
 
-        // Dump all mrps in here.
-        void RegionsAddMrpVec(
-            const types::MemoryRegionPropertiesVec& mrpVec);
+        // Getters for Node
+        std::optional<MemoryNode> getNode(NodeKey key);
+
+        // Getters for Link
+        std::optional<MemoryLink> getLink(LinkKey key);
+
+        // Optional: Methods to update underlying data without replacing the node
+        // This will delete and create the node inplace, invalidating the links
+        // connected to it.
+        std::optional<NodeKey>
+        updateNodeData(NodeKey key, const MemoryNodeData& newData);
+        // Does not invalidate it?
+        std::optional<LinkKey>
+        updateLinkData(LinkKey key, const MemoryLinkData& newData);
+        // Retrieve adjacent links for a specific node
+        // Returns a view
+        auto getOutgoingLinks(NodeKey nodeKey);
+        auto getIncomingLinks(NodeKey nodeKey);
+
+        // Helper to get connected nodes directly
+        auto getChildren(NodeKey parentKey);
+        auto getParents(NodeKey childKey);
+
+        // Clears all nodes and links
+        void clear();
+
+        // Capacity and sizing
+        size_t getNodeCount() const;
+        size_t getLinkCount() const;
+        bool   isEmpty() const;
+
+        // Checks if a key is currently valid (hasn't been removed)
+        bool isValidNode(NodeKey key) const;
+        bool isValidLink(LinkKey key) const;
+
+        const utils::SlotMap<MemoryNode>& getNodes() const;
+        const utils::SlotMap<MemoryLink>& getLinks() const;
+
+        std::optional<NodeKey> getNodeKeyAtAddr(uintptr_t addr);
+        std::optional<MemoryNodeData> getNodeAtAddr(uintptr_t addr);
+        std::optional<NodeKey>
+        getNodeKeyContainingAddr(uintptr_t addr);
+        std::optional<MemoryNodeData>
+        getNodeContainingAddr(uintptr_t addr);
     };
 }
 

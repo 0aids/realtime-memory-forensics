@@ -182,7 +182,7 @@ namespace rmf::utils
                 startAddr,
                 endAddr - startAddr,
                 0,
-                endAddr - startAddr,
+                static_cast<ptrdiff_t>(endAddr - startAddr),
                 std::make_shared<const std::string>(name),
                 rmf::utils::ParsePerms(perms),
             };

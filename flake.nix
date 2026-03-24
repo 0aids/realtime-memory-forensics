@@ -32,7 +32,7 @@
           buildInputs = with pkgs; [
             gnumake
             ninja
-            #clang_20
+            # clang_20
             cmake
             xxd
             clang-tools
