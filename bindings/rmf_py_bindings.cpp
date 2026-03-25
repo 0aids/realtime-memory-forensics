@@ -76,7 +76,12 @@ PYBIND11_MODULE(rmf_core_py, m, py::mod_gil_not_used())
              &rmf::types::MemoryRegionProperties::toString)
         .def("assignNewParentRegion",
              &rmf::types::MemoryRegionProperties::
-                 AssignNewParentRegion);
+                 AssignNewParentRegion)
+        .def_readwrite("relativeRegionAddress", &rmf::types::MemoryRegionProperties::relativeRegionAddress)
+        .def_readwrite("relativeRegionSize", &rmf::types::MemoryRegionProperties::relativeRegionSize)
+        .def_readwrite("parentRegionAddress", &rmf::types::MemoryRegionProperties::parentRegionAddress)
+        .def_readwrite("parentRegionSize", &rmf::types::MemoryRegionProperties::parentRegionSize)
+        ;
 
     py::class_<rmf::types::MemorySnapshot>(m, "MemorySnapshot",
                                            py::buffer_protocol())
