@@ -160,6 +160,23 @@ target_compile_options(librmf PRIVATE $<$<CONFIG:Debug>:-O0> $<$<CONFIG:Release>
 target_compile_options(librmf PRIVATE ${SAN_FLAGS})
 target_link_options(librmf PRIVATE ${SAN_FLAGS})
 
+option(build_so "Build librmf as a shared object" OFF)
+if (build_so)
+    add_library(librmf_so SHARED ${librmf_src_cpp})
+    target_include_directories(librmf_so PUBLIC
+        include
+    )
+
+    target_link_libraries(librmf_so 
+    	PUBLIC magic_enum::magic_enum
+    	PUBLIC librmf_logger
+    )
+    target_compile_options(librmf_so PRIVATE ${GLOBAL_WARNINGS})
+    target_compile_options(librmf_so PRIVATE $<$<CONFIG:Debug>:-O0> $<$<CONFIG:Release>:-O3>)
+    target_compile_options(librmf_so PRIVATE ${SAN_FLAGS})
+    target_link_options(librmf_so PRIVATE ${SAN_FLAGS})
+endif()
+
 # ---------------- python embed ----------------
 
 file(GLOB_RECURSE librmf_pythonEmbed_src_cpp python_embed/*.cpp)
