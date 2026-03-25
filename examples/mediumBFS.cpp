@@ -220,6 +220,7 @@ int         main(int argc, const char** argv)
         int numOldNodes = mg.getNodeCount();
         int numOldLinks = mg.getLinkCount();
         // Remove all keys and links that no longer exist.
+        // This will be added to the MemoryGraph wrapper class.
         vector<graph::NodeKey> nodesToRemove;
         for (const auto [key, node] : mg.getNodes())
         {
@@ -262,9 +263,131 @@ int         main(int argc, const char** argv)
             break;
         println("Continuing");
     }
-    while (1)
+    // --- REPL Phase ---
+    println("\n=== Entering MRP Hex Inspector REPL ===");
+    println("Available Nodes:");
+    size_t                      ind = 0;
+    vector<rmf::utils::SlotKey> nodeKeys;
+    for (const auto& [key, node] : mg.getNodes())
     {
-        this_thread::sleep_for(50ms);
+        // Adjust the formatting below depending on the exact underlying type of graph::NodeKey
+        println("Option [{}] -  Node Key: ind - {}, gen - {}, "
+                "Address: 0x{:x}",
+                ind++, key.index, key.generation,
+                node.nodeData.mrp.TrueAddress());
+        nodeKeys.push_back(key);
     }
+
+    while (true)
+    {
+        size_t ind = 0;
+        for (const auto& [key, node] : mg.getNodes())
+        {
+            // Adjust the formatting below depending on the exact underlying type of graph::NodeKey
+            println("Option [{}] -  Node Key: ind - {}, gen - {}, "
+                    "Address: 0x{:x}",
+                    ind++, key.index, key.generation,
+                    node.nodeData.mrp.TrueAddress());
+        }
+        println("\nCommands: [q]uit, [r]estructure and dump");
+        std::string cmd;
+        cin >> cmd;
+        if (cmd == "q" || cmd == "quit")
+            break;
+
+        if (cmd == "r")
+        {
+            int64_t   index;
+            ptrdiff_t offset;
+            ptrdiff_t
+                size_delta; // Assuming MrpRestructure takes ptrdiff_t/size_t
+
+            cout << "Enter index: ";
+            if (!(cin >> index))
+                break;
+
+            // Attempt to fetch the node
+            if (index >= (int64_t)nodeKeys.size() || index < 0)
+            {
+                println("index not found. Try again.");
+                continue;
+            }
+            auto nodeOpt = mg.getNode(nodeKeys.at(index));
+            if (!nodeOpt.has_value())
+            {
+                println("Node key not found. Try again.");
+                continue;
+            }
+
+            cout << "Enter offset (e.g., -32, 0, 16): ";
+            cin >> offset;
+            cout << "Enter size delta (e.g., 64, 128): ";
+            cin >> size_delta;
+
+            // Restructure the MRP
+            auto newMrp = utils::RestructureMrp(
+                nodeOpt.value().nodeData.mrp,
+                MrpRestructure{offset, size_delta});
+
+            // Generate snapshot
+            auto      snap     = MemorySnapshot::Make(newMrp, pid);
+            auto      data     = snap.getDataSpan();
+            uintptr_t baseAddr = newMrp.TrueAddress();
+
+            if (data.empty())
+            {
+                println("Warning: Snapshot returned empty data.");
+                continue;
+            }
+
+            // Print Hex Dump
+            println("\nHex Dump for Address 0x{:x} (Size: {} bytes):",
+                    baseAddr, data.size());
+            for (size_t i = 0; i < data.size(); i += 16)
+            {
+                // Print Address
+                cout << std::hex << std::setfill('0')
+                     << std::setw(sizeof(uintptr_t) * 2)
+                     << baseAddr + i << ": ";
+
+                // Print Hex Bytes
+                for (size_t j = 0; j < 16; ++j)
+                {
+                    if (i + j < data.size())
+                    {
+                        cout << std::hex << std::setw(2)
+                             << std::setfill('0')
+                             << static_cast<unsigned int>(
+                                    static_cast<unsigned char>(
+                                        data[i + j]))
+                             << " ";
+                    }
+                    else
+                    {
+                        cout << "   "; // Pad missing bytes
+                    }
+                }
+
+                cout << " | ";
+
+                // Print ASCII Chars
+                for (size_t j = 0; j < 16; ++j)
+                {
+                    if (i + j < data.size())
+                    {
+                        unsigned char c = data[i + j];
+                        cout << (std::isprint(c) ?
+                                     static_cast<char>(c) :
+                                     '.');
+                    }
+                }
+                cout << " |\n";
+            }
+            // Reset cout formatting back to default (decimal)
+            cout << std::dec;
+        }
+    }
+
+    return 0;
 }
 #pragma GCC pop_options

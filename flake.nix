@@ -61,6 +61,7 @@
             valgrind
             kdePackages.kcachegrind
             heaptrack
+            cling
           ];
 
           LD_LIBRARY_PATH = "${

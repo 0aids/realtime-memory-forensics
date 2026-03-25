@@ -20,13 +20,16 @@ via node-graph visualisation, all done without analysing executed assembly.
 - [x] feat: multi threading in python
     - [x] feat: faster multithreading via Batcher.
 - [-] feat: implement memory graph algorithms.
+    - [ ] Get structs working.
+    - [ ] MemoryGraphData wrapper MemoryGraph.
+    - [x] Basic prototype of MemoryGraphData without structs
 - [ ] feat: integrated python scripting in gui and file saving
 - [ ] feat: Add link details on hover
 - [ ] feat: Add node details on hover
 - [ ] feat: Incorporate auto linking using an inputted ANALYZER.
 - [ ] feat: undo + redo
 - [ ] feat: graph serialisation?
-- [+] fix: Find that stupid race condition
+- [x] fix: Find that stupid race condition
 - [ ] feat: lazy snapshots for reduced memory usage?
            The only problem is delays between snapshots, which wouldnt work
            as easily. The only way to get this to work is to have
@@ -36,19 +39,26 @@ via node-graph visualisation, all done without analysing executed assembly.
 
 - [ ] done for now?
 
-# memory graph structure/use
+
+# Running tests
+Make sure that you have memory limits setup otherwise it will crash your computer on failing
+tests sometimes.
+```bash
+cmake -S . -B build -Dbuild_tests=ON && cmake --build build -j 12 && (ulimit -m 1000000 && ulimit -v 1000000 && cd build && ctest)
+```
+
+# planned memory graph structure/use
 ```cpp
+using namespace rmf;
+using namespace rmf::types;
+using namespace rmf::utils;
+using namespace rmf::op;
 int main() {
     const pid_t PID = /*PID here*/;
     Analyzer analyzer(6 /*threads*/);
-    MemoryGraph graph(PID, analyzer);
-    // you can substitute out the analyzer as well. via graph.setAnalyzer(...)
-    // Don't have to worry about copies here as well, analyzer is trivially copyable (sptr)
+    MemoryGraph graph(PID, analyzer, defaultStructRegistry);
     int32_t targetValue = 0x98989898;
-
-    std::string mapsPath =
-        "/proc/" + std::to_string(childPid) + "/maps";
-    auto REGIONS         = ParseMaps(mapsPath);
+    auto REGIONS         = getMapsFromPid(PID);
     auto readableRegions = REGIONS.FilterHasPerms("r").FilterActiveRegions(PID);
 
     auto snaps = analyzer.Execute(MemorySnapshot::Make, readableRegions);
@@ -58,28 +68,13 @@ int main() {
         result = analyzer.Execute(findNumeralExact<int32_t>,
                                        snaps, targetValue).flatten();
     }
-    auto newResult = result.batchResize(ResizeInstruction{
+    auto newResult = analyzer.Execute(RestructureMrp, MrpRestructure{
     	.offset = -0xf;
     	.sizeDelta = +0xf;
     });
-    // Or inplace via result.batchResizeInPlace
     // And whatever stuff to get the final desired result
 
     MemoryRegionPropertiesVec desiredResult = ...;
-
-    // Dump this into a memory graph.
-
-    graph.pushMrpVec(desiredResult);
-
-    // From here we can "recursively" bfs to find sources that point to our desired results,
-    // within the range given by ResizeInstruction. Can find and detect cycles.
-    graph.findSourcesRecursiveLenient(PID, analyzer, ResizeInstruction{
-    	.offset = -0xf;
-    	.sizeDelta = 0xf;
-    }, 10/*max depth*/, FindSourcePolicy::MinimumSize);
-    // FindSourcePolicy::MinimumSize modifies the final mrp to be
-    // minimum size that still contains the pointed to region.
-    // FindSourcePolicy::MaximumSize modifies the final mrp to be the offsetted version.
 
     // Alternatively we can make use of known structs to generate desired results.
     // These known structs must have pointer members at defined offsets.
@@ -132,36 +127,31 @@ int main() {
     );
     // Or this
     sr.registerTemplated<StructHere>("CustomNameOfStruct");
-    // We can ensure that we only get the structs we want from
-    // our struct registry by extracting it.
-    graph.findSourcesRecursiveStructs(sr.filterRegex("Int*"));
+    graph.structRegistry.combine(sr);
 
-    // Future? Find templates of structs, making use of some c++ api
-    // thing for deduction?
-    // graph.findSourcesRecursiveStructsTemplated(std::vector<TemplatedStructType>...)
+	// Adds nodes that assumes points to the top of an IntVector.
+    auto keys = graph.addNodes(desiredResult, "IntVector");
+    // Alternatively we can say it was part of the data field
+    // auto keys = graph.addNodes(desiredResult, "IntVector", "data");
+
+    // We can then find sources or anything that references it.
+    // By default these nodes will use a voidpointer struct
+    auto [newSourceKeys, newLinkKeys] = graph.findSources(keys);
+    println("{}", graph.structstructIdtoString(graph[newSourceKeys[0]].structId));
+    // prints "voidpointer"
+
+    // We can also prune the graph for stuff that's now out of date.
+    graph.pruneStale();
+    // Equivalent to
+    // auto [invalidLinks, invalidNodes] = graph.getStale();
+    // graph.removeLinks(invalidLinks);
+    // graph.removeNodes(invalidNodes);
 
     // Now do whatever you want for visualising the graph
-    for (const auto& link : graph.linkIterator())
-    {
-        ...
-    }
-    for (const auto& node : graph.nodeIterator())
-    {
-        ...
-    }
-    // Or you can detect cycles.
-    // But i'm not exactly sure how to represent this.
-    auto cycles = graph.findCycles();
-    // Or extra stuff.
+
+    // Unimplemented.
+    // graphToSvg(graph.getData());
 }
-```
-
-
-# Running tests
-Make sure that you have memory limits setup otherwise it will crash your computer on failing
-tests sometimes.
-```bash
-cmake -S . -B build -Dbuild_tests=ON && cmake --build build -j 12 && (ulimit -m 1000000 && ulimit -v 1000000 && cd build && ctest)
 ```
 
 
@@ -174,25 +164,48 @@ PID = # pre injected / run within the embedded interpreter before everything.
 BATCHER = rmf.Batcher(6) # pre injected / run within the embedded interpreter before everything.
 REGIONS = rmf.parseMaps(PID) # pre injected / run within the embedded interpreter before everything.
 
-# Filters for regions actively in memory, and then breaks them into chunks with sizes 0x1000
-chunkedRegions = REGIONS.filterActiveRegions().breakIntoChunks(0x10000, overlap=0)
+# Filters for regions actively in memory. This breaks the regions into chunks
+# of PAGESIZE.
+chunkedRegions = REGIONS.filterActiveRegions()
 snapshots = BATCHER(rmf.makeSnapshot, chunkedRegions)
 
 results = BATCHER.findString(snapshots, "hello world!").flatten()
 
-results.batchModify(sizeDiff=+0x100, addrDiff=-0x50)
-
 # Dump the results into a graph
-mg = rmf.MemoryGraph()
-mg.pushNodes(results)
+mg = rmf.MemoryGraph(BATCHER, PID, structRegistry=rmf.defaultStructRegistry)
+# the struct registry has defaults containing one for void* pointers.
+# This is called "unknownPointer"
+# If a node is not registered with a struct it will assume that it points to
+# something at it's origin (if pointer aligned).
+mg.structRegistry.register(
+	Struct("helloWorldStr")
+    	.field("chars", "char[13]")
+)
 
-# Create links between nodes that exist in the graph.
-# Does this naively by analyzing 8 byte chunks within each
-# region and sees if it links into or inside another region
-# already in the graph.
-mg.findLinksStrict(BATCHER)
+mg.structRegistry.register(
+	Struct("charstar")
+    	.field("c", "char*")
+)
 
+# Coerces the MRP to fit the given struct.
+keysToNodes = mg.addNodes(results, structName="helloWorldStr", field="chars")
+# Fields is optional, but if not specified it will choose the top of the struct.
+
+# Searches for char* pointing to our helloWorldStr
+# Filter means it can only search for those structs.
+newSourcesNodeKeys = mg.findSources(keysToNodes, structName="charstar", filter="helloWorldStr")
+mg.pruneStale()
+# equivalent to:
+# deadNodeKeys, deadLinkKeys = mg.getStale()
+# mg.removeNodes(deadNodeKeys)
+# mg.removeLinks(deadLinkKeys)
+# which removes nodes and links that have changed what they point to and no longer valid.
+# if you only want to remove links that are now stale
+mg.pruneStaleLinks()
+
+# Push the memorygraph into the gui for viewing.
 rmfg.pushMemoryGraph(mg, policy="combine")
+# Links will not be made between the graphs.
 ```
 
 Finding changing regions (as an extension on what happened previously
@@ -203,7 +216,8 @@ PID = # pre injected / run within the embedded interpreter before everything.
 BATCHER = rmf.Batcher(6) # pre injected / run within the embedded interpreter before everything.
 REGIONS = rmf.parseMaps(PID) # pre injected / run within the embedded interpreter before everything.
 
-chunkedRegions = REGIONS.filterActiveRegions().filterHasPerms("rw").breakIntoChunks(0x10000, overlap=0)
+mg = rmf.MemoryGraph(BATCHER, PID)
+chunkedRegions = REGIONS.filterActiveRegions().filterHasPerms("rw")
 
 from copy import deepcopy
 results = deepcopy(chunkedRegions)
@@ -212,68 +226,28 @@ from time import sleep
 
 while len(results) > 10:
     snaps1 = BATCHER.makeSnapshot(results)
-    sleep(1) # wait 1s
+    sleep(1)
     snaps2 = BATCHER.makeSnapshot(results)
 
     results = BATCHER.findChangedRegions(snaps1, snaps2, 32) # using 32 byte chunks.
 
-# Only modify relative parameters obviously
-results.batchModify(sizeDiff = +10, addrDiff = -10)
-# or we can set them to be batchStructified?
-
-mg = rmfg.pullMemoryGraph()
-mg.pushNodes(results)
-
-# Relaxed, so creates nodes which point to existing nodes.
-# internally will update, but also will return a list of new mrps generated
-mg.findLinksRelaxed(BATCHER, REGIONS)
-
-# Or something similar
-# Prune links that point to memory addresses lower than 0x1000000
-mg.pruneLinks(lambda link: link.targetAddr < 0x1000000)
-# alternatively
-mg.keepLinks(lambda link: link.targetAddr >= 0x1000000)
-
-# Or we can prune or keep nodes
-discardedNodes = mg.pruneNodes(lambda node: node.mrp.relativeRegionSize < 0x1000)
-
+results = BATCHER.mrpRestructure(sizeDiff = +10, addrDiff = -10)
 # Advanced? psuedo creating structs and assigning a node that struct
 # Allows for easier accessing and interpreting of data related to that node
 # name is not needed.
 dataStruct = rmf.Struct.parseC("""
-struct {
+struct testStruct {
     int32_t testInteger;
     char* string;
     int16_t int16array[10];
 };
 """)
+# this say that the root of results was testInteger
+results = nodify(results, "testStruct", "testInteger")
+mg.pushNodes(results)
 
-# Get the desired node (returns a copy which we have to assign back.)
-nodeId, node = mg.nodes.filter(lambda node: ...)[0]
-
-# Assign a struct. CurrentValueName is to figure out the offset
-# incase we only captured a certain value within the struct
-# also would modify the node's mrp to now fit this struct. also returns
-# itself so it can be used within a map + lambda
-node.assignStruct(dataStruct, currentValueName="testInteger")
-mg.updateNode(nodeId, node)
-
-# Or we can do this on a set of nodes via python's map
-nodeIds, nodes = mg.nodes.filter(lambda node: ...)
-nodes.batchAssignStructs(dataStruct, currentValueName="testInteger")
-mg.batchUpdateNodes(nodeIds, nodes)
-
-
-# and so on
-
-# and then when happy with the results we can push it again.
-rmfg.pushMemoryGraph(mg, policy="override")
-# or (will prune duplicates)
-rmfg.pushMemoryGraph(mg, policy="combine")
-# or (will not prune duplicates)
-rmfg.pushMemoryGraph(mg, policy="add")
-# EXTRA: rmfg is just memorygraph, and all memory graphs allow pushing and pulling
-# with policies. This would allow and separation of graphs if need be.
+# find from testStruct to other existing nodes
+mg.findLinks(source="testStruct", target="helloWorldStr")
 ```
 
 # Graph implementation
