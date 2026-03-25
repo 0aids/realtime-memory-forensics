@@ -125,7 +125,8 @@ namespace rmf::graph
             return std::nullopt;
         m_nodeSearchCache.erase(m_nodes[key].nodeData.mrp);
         auto newKey = m_nodes.replace(key, {newData});
-        m_nodeSearchCache.at(newData.mrp) = {newKey, m_nodes[newKey]};
+        m_nodeSearchCache.emplace(newData.mrp,
+                                  NodePair{newKey, m_nodes[newKey]});
         return newKey;
     }
     std::optional<LinkKey>
@@ -138,7 +139,8 @@ namespace rmf::graph
         m_linkSearchCache.erase(oldData.data);
         auto newKey = m_links.replace(
             key, {newData, oldData.sourceNode, oldData.targetNode});
-        m_linkSearchCache.at(newData) = {newKey, m_links[newKey]};
+        m_linkSearchCache.emplace(newData,
+                                  LinkPair{newKey, m_links[newKey]});
         return newKey;
     }
 
