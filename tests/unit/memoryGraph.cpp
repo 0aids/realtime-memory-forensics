@@ -428,24 +428,18 @@ TEST(memoryGraphDataTest, updateLinkData)
     auto           id2 = graph.addNode(data2);
 
     MemoryLinkData linkData;
-    linkData.sourceAddr     = 0x1000;
-    linkData.targetAddr     = 0x2000;
-    linkData.sourceMemberId = 1;
-    linkData.targetMemberId = 2;
+    linkData.sourceAddr = 0x1000;
+    linkData.targetAddr = 0x2000;
 
     auto linkId = graph.addLink(id1, id2, linkData);
     ASSERT_TRUE(linkId.has_value());
 
     auto link = graph.getLink(linkId.value());
     ASSERT_TRUE(link.has_value());
-    EXPECT_EQ(link.value().data.sourceMemberId, 1);
-    EXPECT_EQ(link.value().data.targetMemberId, 2);
 
     MemoryLinkData newLinkData;
-    newLinkData.sourceAddr     = 0x1000;
-    newLinkData.targetAddr     = 0x2000;
-    newLinkData.sourceMemberId = 10;
-    newLinkData.targetMemberId = 20;
+    newLinkData.sourceAddr = 0x1000;
+    newLinkData.targetAddr = 0x2000;
 
     auto newLinkId =
         graph.updateLinkData(linkId.value(), newLinkData);
@@ -453,8 +447,6 @@ TEST(memoryGraphDataTest, updateLinkData)
 
     link = graph.getLink(newLinkId.value());
     ASSERT_TRUE(link.has_value());
-    EXPECT_EQ(link.value().data.sourceMemberId, 10);
-    EXPECT_EQ(link.value().data.targetMemberId, 20);
 }
 
 TEST(memoryGraphDataTest, updateLinkDataInvalidKey)

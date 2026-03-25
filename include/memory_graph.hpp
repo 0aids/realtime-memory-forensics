@@ -1,8 +1,10 @@
 #ifndef memory_graph_hpp_INCLUDED
 #define memory_graph_hpp_INCLUDED
+#include <cstddef>
 #include <functional>
 #include <map>
 #include <ranges>
+#include <string_view>
 #include <unordered_map>
 #include <optional>
 #include <vector>
@@ -11,14 +13,19 @@
 #include "types.hpp"
 #include <stdexcept>
 #include <utility>
+#define register _structRegister
 
 namespace rmf::graph
 {
     // Temporary, will deal with those ter
-    using StructTypeId   = uint64_t;
-    using StructMemberId = uint64_t;
-    using NodeKey        = utils::SlotKey;
-    using LinkKey        = utils::SlotKey;
+    using StructTypeId = uint64_t;
+    struct StructMemberId
+    {
+        StructTypeId type;
+        uint32_t     index;
+    };
+    using NodeKey = utils::SlotKey;
+    using LinkKey = utils::SlotKey;
 
     struct MemoryNodeData
     {
@@ -44,6 +51,15 @@ namespace rmf::graph
         }
     };
 }
+template <>
+struct std::hash<rmf::graph::StructMemberId>
+{
+    size_t operator()(const rmf::graph::StructMemberId& ld) const
+    {
+        return std::hash<rmf::graph::StructTypeId>()(ld.type) ^
+            std::hash<uint32_t>()(ld.index);
+    }
+};
 
 template <>
 struct std::hash<rmf::graph::MemoryLinkData>
@@ -86,6 +102,103 @@ namespace rmf::graph
             return a < b.addr;
         }
     };
+    // Literally only for arguments?
+    struct Field
+    {
+        std::string name;
+        std::string type;
+    };
+
+    struct Struct
+    {
+        std::string        name;
+        std::vector<Field> fields;
+        std::vector<Field>::const_iterator
+        getFieldIter(std::string_view name) const
+        {
+            auto beg = fields.cbegin();
+            auto end = fields.cend();
+            for (; beg != end; beg++)
+            {
+                if (beg->name == name)
+                    break;
+            }
+            return beg;
+        }
+    };
+
+    class StructBuilder
+    {
+      private:
+        Struct m_struct;
+
+      public:
+        StructBuilder(const std::string_view str) :
+            m_struct(std::string(str))
+        {
+        }
+        StructBuilder& field(const std::string_view name,
+                             const std::string_view type)
+        {
+            m_struct.fields.emplace_back(std::string(name),
+                                         std::string(type));
+            return *this;
+        }
+        Struct build()
+        {
+            return m_struct;
+        }
+    };
+
+    struct RegisteredStruct
+    {
+        Struct _struct;
+        // Also contains details about offsets for each.
+        std::vector<ptrdiff_t> cumulativeOffsets;
+        uint32_t               size;
+        std::optional<size_t>
+        getFieldOffset(std::string_view name) const
+        {
+            auto fieldIter = _struct.getFieldIter(name);
+            if (fieldIter == _struct.fields.cend())
+                return std::nullopt;
+            return cumulativeOffsets[fieldIter -
+                                     _struct.fields.cbegin()];
+        }
+    };
+
+    // Very rudimentary prototype. I can't be bothered to think up of a good
+    // DS for this.
+    // Does not support square bracket arrays rn because can't be bothered.
+    class StructRegistry
+    {
+      private:
+        // Probably should change it to
+        std::unordered_map<StructTypeId, RegisteredStruct>
+            m_registeredStructs;
+        std::unordered_map<std::string, StructTypeId> m_nameToId;
+        StructTypeId                                  m_idGiver = 1;
+
+      public:
+        static constexpr StructTypeId BAD_ID = 0;
+        StructRegistry();
+        StructRegistry(const StructRegistry&)            = default;
+        StructRegistry(StructRegistry&&)                 = default;
+        StructRegistry& operator=(const StructRegistry&) = default;
+        StructRegistry& operator=(StructRegistry&&)      = default;
+
+        // keyword "register" hidden via #define. who tf even uses this keyword.
+        StructTypeId register(const Struct& _struct);
+        std::optional<StructTypeId>
+        getIdFromString(const std::string_view view);
+
+        std::optional<size_t> getStructSize(StructTypeId id) const;
+        std::optional<size_t>
+             getFieldOffset(StructTypeId           id,
+                            const std::string_view fieldName) const;
+
+        bool containsStructMember(StructMemberId id);
+    };
 
     class MemoryGraphData
     {
@@ -120,6 +233,8 @@ namespace rmf::graph
         void invalidateCache();
 
       public:
+        StructRegistry structRegistry;
+
         MemoryGraphData()                                  = default;
         MemoryGraphData(const MemoryGraphData&)            = default;
         MemoryGraphData(MemoryGraphData&&)                 = default;
@@ -131,11 +246,29 @@ namespace rmf::graph
         // If the node already exists, returns a key to that node.
         NodeKey addNode(const MemoryNodeData& data);
 
+        // Moves the root of the mrp to be the field, if given, and then
+        // resizes the mrp accordingly.
+        // If the structure doesn't exist, or th field is invalid, then we
+        // will fail to insert the node.
+        std::optional<NodeKey> addStructuredNode(
+            const types::MemoryRegionProperties&  mrp,
+            const std::string_view                structName,
+            const std::optional<std::string_view> field =
+                std::nullopt);
+
         // Default: Adds a link between two nodes.
         std::optional<LinkKey> addLink(NodeKey source, NodeKey target,
                                        const MemoryLinkData& data);
-        bool                   removeNode(NodeKey key);
-        bool                   removeLink(LinkKey key);
+
+        // I will definitely be asking myself later during testing on
+        // how tf to get struct member ids. This is a problem for future me.
+        std::optional<LinkKey>
+             addLinkStructured(NodeKey source, NodeKey target,
+                               StructMemberId sourceMember,
+                               StructMemberId targetMember,
+                               uintptr_t sourceAddr, uintptr_t targetAddr);
+        bool removeNode(NodeKey key);
+        bool removeLink(LinkKey key);
 
         // Getters for Node
         std::optional<MemoryNode> getNode(NodeKey key);

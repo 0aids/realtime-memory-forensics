@@ -3,11 +3,151 @@
 #include "types.hpp"
 #include "utils.hpp"
 #include <algorithm>
+#include <cstddef>
 #include <optional>
 #include <ranges>
+// List of fundamental types to sizes.
+#define BASIC_TYPE_LIST                                              \
+    X(bool)                                                          \
+    X(char)                                                          \
+    X(signed char)                                                   \
+    X(unsigned char)                                                 \
+    X(wchar_t)                                                       \
+    X(char8_t)                                                       \
+    X(char16_t)                                                      \
+    X(char32_t)                                                      \
+    X(short)                                                         \
+    X(int)                                                           \
+    X(long)                                                          \
+    X(float)                                                         \
+    X(double)                                                        \
+    X(int8_t)                                                        \
+    X(uint8_t)                                                       \
+    X(int16_t)                                                       \
+    X(uint16_t)                                                      \
+    X(int32_t)                                                       \
+    X(uint32_t)                                                      \
+    X(int64_t)                                                       \
+    X(uint64_t)                                                      \
+    X(size_t)                                                        \
+    X(ptrdiff_t)                                                     \
+    X(intptr_t)                                                      \
+    X(uintptr_t)
+
+const std::unordered_map<std::string, size_t> typesToSizes = []()
+{
+    std::unordered_map<std::string, size_t> map;
+#define X(type)                                                      \
+    map[#type]     = sizeof(type);                                   \
+    map[#type "*"] = sizeof(type*);
+
+    BASIC_TYPE_LIST
+#undef X
+    map["void*"] = sizeof(void*);
+    return map;
+}();
 
 namespace rmf::graph
 {
+    StructRegistry::StructRegistry()
+    {
+#define X(typename)                                                  \
+    register({                                                       \
+        .name   = #typename,                                         \
+        .fields = {{                                                 \
+            .name = "d",                                             \
+            .type = #typename,                                       \
+        }},                                                          \
+    });                                                              \
+    BASIC_TYPE_LIST
+#undef X
+        m_registeredStructs[m_idGiver++] = {
+            ._struct =
+                {
+                          .name   = "void*",
+                          .fields = {{
+                        .name = "d",
+                        .type = "void*",
+                    }},
+                          },
+            .cumulativeOffsets = {0, 8},
+            .size              = 8,
+        };
+    }
+
+    StructTypeId StructRegistry::register(const Struct& _struct)
+    {
+        const StructTypeId id      = m_idGiver++;
+        RegisteredStruct   rstruct = {_struct, {0}, {}};
+        if (m_nameToId.contains(_struct.name))
+            return BAD_ID;
+
+        // Parse the struct stuff
+        if (_struct.fields.empty())
+            return BAD_ID;
+
+        size_t currentOffset = 0;
+        for (const auto& field : _struct.fields)
+        {
+            size_t offset = 0;
+            // Unimplemented
+            std::string strippedField =
+                field.type.substr(0, field.type.find_first_of('['));
+            if (typesToSizes.contains(field.type))
+                offset = typesToSizes.at(field.type);
+            // Search ourself if it doesn't exist.
+            else if (m_nameToId.contains(field.type))
+                offset =
+                    m_registeredStructs.at(m_nameToId.at(field.type))
+                        .size;
+            // Otherwise we don't register it.
+            else
+                return BAD_ID;
+
+            rstruct.cumulativeOffsets.push_back(currentOffset);
+            currentOffset += offset;
+        }
+        rstruct.size                     = currentOffset;
+        m_registeredStructs[id]          = rstruct;
+        m_nameToId[rstruct._struct.name] = id;
+        // Register the pointer as well.
+
+        // Pointers are automatically registered as well.
+        const StructTypeId pointerId   = m_idGiver++;
+        Struct             copy        = _struct;
+        copy.name                      = copy.name + "*";
+        m_registeredStructs[pointerId] = {copy, {}, sizeof(void*)};
+        m_nameToId[copy.name]          = pointerId;
+        return id;
+    }
+
+    std::optional<size_t>
+    StructRegistry::getStructSize(StructTypeId id) const
+    {
+        if (!m_registeredStructs.contains(id))
+            return std::nullopt;
+        return m_registeredStructs.at(id).size;
+    }
+    std::optional<size_t> StructRegistry::getFieldOffset(
+        StructTypeId id, const std::string_view fieldName) const
+    {
+        if (!m_registeredStructs.contains(id))
+            return std::nullopt;
+        auto registered = m_registeredStructs.at(id);
+        return registered.getFieldOffset(fieldName);
+    }
+
+    bool StructRegistry::containsStructMember(StructMemberId id)
+    {
+        if (!m_registeredStructs.contains(id.type))
+            return false;
+
+        if (m_registeredStructs.at(id.type)._struct.fields.size() <=
+            id.index)
+            return false;
+        return true;
+    }
+
     void MemoryGraphData::invalidateCache()
     {
         m_traversalCacheInvalidated = true;
@@ -51,6 +191,14 @@ namespace rmf::graph
         }
         m_traversalCacheInvalidated = false;
     }
+    std::optional<StructTypeId>
+    StructRegistry::getIdFromString(const std::string_view view)
+    {
+        if (!m_nameToId.contains(std::string(view)))
+            return std::nullopt;
+
+        return m_nameToId.at(std::string(view));
+    }
 
     NodeKey MemoryGraphData::addNode(const MemoryNodeData& data)
     {
@@ -62,6 +210,36 @@ namespace rmf::graph
         m_nodeSearchCache.emplace(data.mrp,
                                   NodePair{key, m_nodes[key]});
         return key;
+    }
+
+    std::optional<NodeKey> MemoryGraphData::addStructuredNode(
+        const types::MemoryRegionProperties&  mrp,
+        const std::string_view                structName,
+        const std::optional<std::string_view> field)
+    {
+        auto idOpt = structRegistry.getIdFromString(structName);
+        if (!idOpt.has_value())
+            return std::nullopt;
+        auto structSizeOpt = structRegistry.getStructSize(*idOpt);
+        types::MrpRestructure res = {
+            .offset = 0,
+            .sizeDelta =
+                (ptrdiff_t)*structSizeOpt - mrp.relativeRegionSize,
+        };
+        if (field.has_value())
+        {
+            auto offsetOpt =
+                structRegistry.getFieldOffset(*idOpt, *field);
+            if (!offsetOpt.has_value())
+                return std::nullopt;
+            res = {
+                .offset = -(int)(*offsetOpt),
+                .sizeDelta =
+                    (int)*structSizeOpt - mrp.relativeRegionSize,
+            };
+        }
+        auto newMrp = utils::RestructureMrp(mrp, res);
+        return addNode({newMrp, *idOpt});
     }
 
     std::optional<LinkKey>
@@ -79,6 +257,22 @@ namespace rmf::graph
         m_linkSearchCache.emplace(data, LinkPair{key, m_links[key]});
         return key;
     }
+
+    std::optional<LinkKey> MemoryGraphData::addLinkStructured(
+        NodeKey source, NodeKey target, StructMemberId sourceMember,
+        StructMemberId targetMember, uintptr_t sourceAddr,
+        uintptr_t targetAddr)
+    {
+        if (!structRegistry.containsStructMember(sourceMember) ||
+            !structRegistry.containsStructMember(targetMember))
+            return std::nullopt;
+        return addLink(source, target,
+                       {.sourceMemberId = sourceMember,
+                        .targetMemberId = targetMember,
+                        .sourceAddr     = sourceAddr,
+                        .targetAddr     = targetAddr});
+    }
+
     bool MemoryGraphData::removeNode(NodeKey key)
     {
         invalidateCache();
