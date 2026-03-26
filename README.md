@@ -6,10 +6,6 @@ via node-graph visualisation, all done without analysing executed assembly.
 
 
 # TODO
-- [-] feat/testing: Setup an opencode agent that will create and run unit tests for all available functions and methods
-      Partially implemented.
-      Current tests are written by AI and tweaked by me.
-
 - [x] feat: Incorporate MrpVec capabilities (assigning and adding nodes)
 - [x] refac: fix build script for better incorporation of testing
 - [x] feat: better testing and more coverage
@@ -20,7 +16,7 @@ via node-graph visualisation, all done without analysing executed assembly.
 - [x] feat: multi threading in python
     - [x] feat: faster multithreading via Batcher.
 - [-] feat: implement memory graph algorithms.
-    - [ ] Get structs working.
+    - [x] Get structs working.
     - [ ] MemoryGraphData wrapper MemoryGraph.
     - [x] Basic prototype of MemoryGraphData without structs
 - [ ] feat: integrated python scripting in gui and file saving
@@ -122,7 +118,7 @@ int main() {
 ```
 
 
-# Example script for gui
+# Planned Example script for gui
 Basic script
 ```python
 import rmf_py as rmf # preinjected / run within the embedded interpreter before everything.
@@ -216,115 +212,3 @@ mg.pushNodes(results)
 # find from testStruct to other existing nodes
 mg.findLinks(source="testStruct", target="helloWorldStr")
 ```
-
-# Graph implementation
-
-The datastore is separate, under MemoryGraphData.
-You can add, delete and update to this, and other stuff.
-In fact you can combine multiple together, but no method operations
-can be applied to this. It is normally owned by MemoryGraph for user access,
-which has helper methods to help modify its internal data.
-
-The key detail is OrderedSnapshot, which just a sorted vector of { target, sourceMrp }
-which we can then perform binary searches when we want to find regions that point to
-specific other regions.
-
-Using this, we can do findSourceRegions which will return a vectors of pairs
-{ sourceMrpVec, targetMrpVec }.
-
-It is also advisable to add a struct registry into a memory graph so that we can resolve
-links. Links will not exist unless structs are given pointers. The default one is (void*)
-if we don't know what type we are pointing to.
-
-Now we can just add this to our MemoryGraph by doing mg.addLinks(source, target, policy::replace)
-They are implicitly converted into nodes, but it would be nicer if they were converted into
-nodes earlier so that we can assign a default pointer struct to it. Under the hood
-it would manage all the nodes and generate specialised link structs so we know what
-links to what.
-
-MemoryGraphData should be holding a sorted vector of Nodes, sorted by TrueAddress.
-It also holds a vector of links. The link holds data about who is the source, which
-element of the struct is the source, and the target, and if the target is another where/
-what it points to in the other struct.
-
-When we do mg.addLinks(source, target), the MemoryGraph will do some internal calculations
-using MemoryGraphData to try to insert sources (and if they exist or replace them depending on the policy),
-and also try to insert
-
-We should also have an internal struct registry used by the memory graph.
-The links will store all the struct data about which part of the struct points to what.
-It would sort of be in the form of like
-```cpp
-struct LinkData {
-	StructMemberId source_smi;
-	StructMemberId target_smi;
-	uintptr_t sourceAddr;
-	uintptr_t targetAddr;
-	...
-}
-
-struct NodeData {
-	MemoryRegionProperties mrp;
-	StructTypeId structType;
-	...
-}
-```
-
-What is the goal of MemoryGraphs?
-1. To help provide easier visualisation of data flow
-    a. By doing so, help find methods of deterministically finding the key structure of a program
-    b. To profile a program's use of temporary objects
-2. To help provide more deterministic ways of finding the key structure of a program
-    a. By doing so, allowing us to reverse engineer and consistently find key areas of a programs memory
-    b. Offering solutions for exploring and deciphering pointer chaining
-
-For each of the goals, what things do I need to consider?
-1. How efficient should removals and additions be?
-	Efficient as we want to be able to update the graph when volatile parts disappear or
-	no longer reference correctly. O(1) for insertion and deletion
-
-2. How efficient should iterating / access be?
-	Efficient as we want to be able to draw this graph containing 10,000s of nodes.
-	O(n) for full iteration? But node link deduction should be O(log n)
-
-3. How efficient should searching be?
-	Somewhat important, as we could want to filter nodes with specific properties
-	But I think O(n) is fine in this case.
-
-4. How efficient should traversal be?
-	Not sure. I don't know exactly what's the best workflow.
-	O(1) to find the next node if using cache, but generating the
-	cache might take O(n^2 log n), and the cache is immediately invalidated
-	if the graph updates.
-
-How should node and link resolution work?
-There are a couple of options on how to do this, but the main thing
-is that the MemoryGraph has no clue on whether or not the data is linked.
-So we need to tell it that 2 nodes are linked, and tell it to link them.
-
-Who is in charge of doing the link and node resolution?
-We are in charge of finding the links, and then telling the memory graph that
-specific nodes are linked together.
-
-For example, we could do the following:
-1. Select a set amount of nodes from our memory graph
-2. Use those nodes to find other nodes that link to our nodes.
-3. Tell our memory graph that other nodes link to these nodes.
-
-So where should links be traversed from? Each node can have multiple links,
-and links need to have some data, so a central storage is required.
-1. Links are stored in a sorted array, sorted by source address and target address.
-2. Links are stored in a std::unordered map, with addr as keys
-	- The thing with this is that traversal will be faster if keys are
-	  pointing directly to known areas
-2. Links are stored in a std map
-	- Slowest? 
-
-As for structure members, we can deal with that later.
-
-What about updating the structure?
-If we update a node, it may or may not invalidate the links pointing to it.
-IE if we update the node to be larger, then we must modify the links pointing to it.
-Similarly with links?
-
-We'll just invalidate the links.
