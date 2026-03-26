@@ -113,6 +113,7 @@ namespace rmf::graph
     {
         std::string        name;
         std::vector<Field> fields;
+
         std::vector<Field>::const_iterator
         getFieldIter(std::string_view name) const
         {
@@ -149,22 +150,10 @@ namespace rmf::graph
             return m_struct;
         }
     };
-
-    struct RegisteredStruct
+    struct StructAlignmentRules
     {
-        Struct _struct;
-        // Also contains details about offsets for each.
-        std::vector<ptrdiff_t> cumulativeOffsets;
-        uint32_t               size;
-        std::optional<size_t>
-        getFieldOffset(std::string_view name) const
-        {
-            auto fieldIter = _struct.getFieldIter(name);
-            if (fieldIter == _struct.fields.cend())
-                return std::nullopt;
-            return cumulativeOffsets[fieldIter -
-                                     _struct.fields.cbegin()];
-        }
+        uint8_t alignedAs;
+        size_t  totalSize;
     };
 
     // Very rudimentary prototype. I can't be bothered to think up of a good
@@ -173,6 +162,22 @@ namespace rmf::graph
     class StructRegistry
     {
       private:
+        struct RegisteredStruct
+        {
+            Struct _struct;
+            // Also contains details about offsets for each.
+            std::vector<ptrdiff_t> cumulativeOffsets;
+            StructAlignmentRules   alignmentRules;
+            std::optional<size_t>
+            getFieldOffset(std::string_view name) const
+            {
+                auto fieldIter = _struct.getFieldIter(name);
+                if (fieldIter == _struct.fields.cend())
+                    return std::nullopt;
+                return cumulativeOffsets[fieldIter -
+                                         _struct.fields.cbegin()];
+            }
+        };
         // Probably should change it to
         std::unordered_map<StructTypeId, RegisteredStruct>
             m_registeredStructs;

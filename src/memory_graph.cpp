@@ -6,6 +6,13 @@
 #include <cstddef>
 #include <optional>
 #include <ranges>
+
+struct test
+{
+    char     a;
+    uint8_t* c;
+};
+
 // List of fundamental types to sizes.
 #define BASIC_TYPE_LIST                                              \
     X(bool)                                                          \
@@ -71,7 +78,7 @@ namespace rmf::graph
                     }},
                           },
             .cumulativeOffsets = {0, 8},
-            .size              = 8,
+            .alignmentRules    = {8, 8},
         };
     }
 
@@ -89,35 +96,53 @@ namespace rmf::graph
         size_t currentOffset = 0;
         for (const auto& field : _struct.fields)
         {
-            size_t offset = 0;
+            StructAlignmentRules rules = {0, 0};
             // Unimplemented
-            std::string strippedField =
-                field.type.substr(0, field.type.find_first_of('['));
+            // std::string strippedField =
+            //     field.type.substr(0, field.type.find_first_of('['));
+
             if (typesToSizes.contains(field.type))
-                offset = typesToSizes.at(field.type);
+            {
+                rules.totalSize = typesToSizes.at(field.type);
+                rules.alignedAs = typesToSizes.at(field.type);
+            }
             // Search ourself if it doesn't exist.
             else if (m_nameToId.contains(field.type))
-                offset =
+            {
+                rules =
                     m_registeredStructs.at(m_nameToId.at(field.type))
-                        .size;
+                        .alignmentRules;
+            }
             // Otherwise we don't register it.
             else
                 return BAD_ID;
 
+            // Align ourselves if not aligned
+            currentOffset +=
+                rules.alignedAs - currentOffset % rules.alignedAs;
             rstruct.cumulativeOffsets.push_back(currentOffset);
-            currentOffset += offset;
+            currentOffset += rules.totalSize;
+            // Aligned by the largest alignment
+            if (rstruct.alignmentRules.alignedAs < rules.alignedAs)
+                rstruct.alignmentRules.alignedAs = rules.alignedAs;
         }
-        rstruct.size                     = currentOffset;
+        rstruct.alignmentRules.totalSize = currentOffset;
         m_registeredStructs[id]          = rstruct;
         m_nameToId[rstruct._struct.name] = id;
         // Register the pointer as well.
 
         // Pointers are automatically registered as well.
-        const StructTypeId pointerId   = m_idGiver++;
-        Struct             copy        = _struct;
+        const StructTypeId pointerId = m_idGiver++;
+        Struct             copy      = _struct;
+        copy.fields                  = {
+            {"d", copy.name}
+        };
         copy.name                      = copy.name + "*";
-        m_registeredStructs[pointerId] = {copy, {}, sizeof(void*)};
-        m_nameToId[copy.name]          = pointerId;
+        m_registeredStructs[pointerId] = {
+            copy, {0},
+             {sizeof(void*), sizeof(void*)}
+        };
+        m_nameToId[copy.name] = pointerId;
         return id;
     }
 
@@ -126,7 +151,7 @@ namespace rmf::graph
     {
         if (!m_registeredStructs.contains(id))
             return std::nullopt;
-        return m_registeredStructs.at(id).size;
+        return m_registeredStructs.at(id).alignmentRules.totalSize;
     }
     std::optional<size_t> StructRegistry::getFieldOffset(
         StructTypeId id, const std::string_view fieldName) const
