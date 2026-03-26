@@ -117,31 +117,17 @@ namespace rmf::types
             return relativeRegionAddress + relativeRegionSize;
         }
 
-        // Method below is written by ai.
         std::string toString() const
         {
             using namespace std::string_literals;
             std::string      displayName   = *regionName_sp;
-            constexpr size_t visibleLength = 35;
+            constexpr size_t visibleLength = 38;
 
-            try
+            if (regionName_sp->length() > visibleLength)
             {
-                if (regionName_sp->length() > visibleLength)
-                {
-                    displayName = "[.]"s +
-                        regionName_sp->substr(
-                            regionName_sp->length() - visibleLength -
-                            3);
-                }
-            }
-            catch (const std::exception& e)
-            {
-                rmf_Log(rmf_Error,
-                        "Error when shortening display name...");
-                rmf_Log(rmf_Error,
-                        "Fault display name: " << *regionName_sp);
-                rmf_Log(rmf_Error, "Error is: " << e.what());
-                displayName = "Error Occurred";
+                displayName = "[.]"s +
+                    regionName_sp->substr(regionName_sp->length() -
+                                          visibleLength);
             }
 
             return std::format(
