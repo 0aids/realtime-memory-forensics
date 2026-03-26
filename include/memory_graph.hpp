@@ -196,7 +196,8 @@ namespace rmf::graph
         std::optional<StructTypeId>
         getParentOfField(StructMemberId id) const;
 
-        std::optional<std::vector<StructMemberId>>
+        std::optional<std::unordered_map<std::string, StructMemberId,
+                                         StringHash, std::equal_to<>>>
         getFieldsOfParent(StructTypeId id) const;
 
         // Assuming that the true address is the element at root, reconstructs

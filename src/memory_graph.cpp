@@ -41,12 +41,15 @@ struct test
     X(intptr_t)                                                      \
     X(uintptr_t)
 
+// clang-format off
 const std::unordered_map<std::string_view, size_t> typesToSizes = {
 #define X(type) {#type, sizeof(type)}, {#type "*", sizeof(type*)},
 
     BASIC_TYPE_LIST
+    {"void*", 8},
 #undef X
 };
+// clang-format on
 
 namespace rmf::graph
 {
@@ -87,7 +90,8 @@ namespace rmf::graph
         if (m_data.alignmentRules.alignedAs < rules.alignedAs)
             m_data.alignmentRules.alignedAs = rules.alignedAs;
 
-        if (m_currentOffset % rules.alignedAs != 0)
+        if (m_currentOffset > 0 &&
+            m_currentOffset % rules.alignedAs != 0)
             m_currentOffset +=
                 rules.alignedAs - m_currentOffset % rules.alignedAs;
 
@@ -104,6 +108,12 @@ namespace rmf::graph
 
     StructTypeId StructRegistry::StructBuilder::end()
     {
+        // Size must be aligned.
+        if (m_currentOffset > 0 &&
+            m_currentOffset % m_data.alignmentRules.alignedAs != 0)
+            m_currentOffset += m_data.alignmentRules.alignedAs -
+                m_currentOffset % m_data.alignmentRules.alignedAs;
+        m_data.alignmentRules.totalSize = m_currentOffset;
         return m_registry._registerStruct(std::move(m_data));
     }
 
@@ -190,22 +200,26 @@ namespace rmf::graph
     std::optional<StructTypeId>
     StructRegistry::getParentOfField(StructMemberId id) const
     {
-        if (containsParentId(id.type))
+        if (!containsParentId(id.type))
             return std::nullopt;
         return id.type;
     }
 
-    std::optional<std::vector<StructMemberId>>
+    std::optional<std::unordered_map<std::string, StructMemberId,
+                                     StringHash, std::equal_to<>>>
     StructRegistry::getFieldsOfParent(StructTypeId id) const
     {
         auto it = m_data.find(id);
         if (it != m_data.end())
         {
-            std::vector<StructMemberId> fields;
+            std::unordered_map<std::string, StructMemberId,
+                               StringHash, std::equal_to<>>
+                fields;
             fields.reserve(it->second.fields.size());
             for (uint32_t i = 0; i < it->second.fields.size(); ++i)
             {
-                fields.push_back({id, i});
+                fields.emplace(it->second.fields[i].name,
+                               StructMemberId{id, i});
             }
             return fields;
         }
