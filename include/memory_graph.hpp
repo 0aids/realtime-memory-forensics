@@ -16,7 +16,6 @@
 
 namespace rmf::graph
 {
-    // Temporary, will deal with those ter
     using StructTypeId = uint64_t;
     struct StructMemberId
     {
@@ -76,6 +75,16 @@ struct std::hash<rmf::graph::MemoryLinkData>
 
 namespace rmf::graph
 {
+    struct StringHash
+    {
+        using is_transparent =
+            void; // Marks the hasher as transparent
+
+        std::size_t operator()(std::string_view sv) const
+        {
+            return std::hash<std::string_view>{}(sv);
+        }
+    };
 
     struct MemoryLink
     {
@@ -157,9 +166,11 @@ namespace rmf::graph
         };
 
       private:
-        StructTypeId                                  m_idGiver = 1;
-        std::unordered_map<std::string, StructTypeId> m_nameToId;
-        std::unordered_map<StructTypeId, StructData>  m_data;
+        StructTypeId m_idGiver = 1;
+        std::unordered_map<std::string, StructTypeId, StringHash,
+                           std::equal_to<>>
+                                                     m_nameToId;
+        std::unordered_map<StructTypeId, StructData> m_data;
         StructTypeId _registerStruct(StructData&& data);
 
       public:
@@ -170,24 +181,29 @@ namespace rmf::graph
         StructRegistry& operator=(const StructRegistry&) = default;
         StructRegistry& operator=(StructRegistry&&)      = default;
 
-        bool            containsFieldId(StructMemberId id);
-        bool            containsParentId(StructTypeId id);
+        bool            containsFieldId(StructMemberId id) const;
+        bool            containsParentId(StructTypeId id) const;
         std::optional<StructTypeId>
-        getParentId(const std::string_view name);
-        std::optional<ptrdiff_t> getFieldOffset(StructMemberId id);
-        std::optional<ptrdiff_t> getFieldAlignment(StructMemberId id);
+        getParentId(const std::string_view name) const;
+        std::optional<ptrdiff_t>
+        getFieldOffset(StructMemberId id) const;
+        std::optional<ptrdiff_t>
+        getFieldAlignment(StructMemberId id) const;
         std::optional<StructAlignmentRules>
-        getStructAlignmentRules(StructTypeId id);
+        getStructAlignmentRules(StructTypeId id) const;
         std::optional<StructAlignmentRules>
-        getStructAlignmentRules(const std::string_view view);
-        std::optional<StructTypeId> getParentOfField();
+        getStructAlignmentRules(const std::string_view view) const;
+        std::optional<StructTypeId>
+        getParentOfField(StructMemberId id) const;
 
         std::optional<std::vector<StructMemberId>>
-        getFieldsOfParent();
+        getFieldsOfParent(StructTypeId id) const;
 
-        types::MemoryRegionProperties
-        restructureMrp(StructMemberId                       root,
-                       const types::MemoryRegionProperties& mrp);
+        // Assuming that the true address is the element at root, reconstructs
+        // the mrp around the root to contain the struct.
+        types::MemoryRegionProperties restructureMrp(
+            StructMemberId                       root,
+            const types::MemoryRegionProperties& mrp) const;
 
         // Actually returns the struct type id, after you call builder.end().
         // otherwise it doesn't.

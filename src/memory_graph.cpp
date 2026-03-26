@@ -89,7 +89,7 @@ namespace rmf::graph
 
         if (m_currentOffset % rules.alignedAs != 0)
             m_currentOffset +=
-                rules.totalSize - rules.totalSize % rules.alignedAs;
+                rules.alignedAs - m_currentOffset % rules.alignedAs;
 
         FieldData f = {
             .name             = std::string(name),
@@ -115,56 +115,113 @@ namespace rmf::graph
         m_data.emplace(id, data);
         return id;
     }
-
-    bool StructRegistry::containsFieldId(StructMemberId id)
+    bool StructRegistry::containsFieldId(StructMemberId id) const
     {
-        //
+        auto it = m_data.find(id.type);
+        if (it == m_data.end())
+            return false;
+
+        return id.index < it->second.fields.size();
     }
 
-    bool StructRegistry::containsParentId(StructTypeId id)
+    bool StructRegistry::containsParentId(StructTypeId id) const
     {
-        //
+        return m_data.find(id) != m_data.end();
     }
 
     std::optional<StructTypeId>
-    StructRegistry::getParentId(const std::string_view name)
+    StructRegistry::getParentId(const std::string_view name) const
     {
+        auto it = m_nameToId.find(name);
+        if (it != m_nameToId.end())
+        {
+            return it->second;
+        }
+        return std::nullopt;
     }
 
     std::optional<ptrdiff_t>
-    StructRegistry::getFieldOffset(StructMemberId id)
+    StructRegistry::getFieldOffset(StructMemberId id) const
     {
+        auto it = m_data.find(id.type);
+        if (it != m_data.end() && id.index < it->second.fields.size())
+        {
+            return static_cast<ptrdiff_t>(
+                it->second.fields[id.index].cumulativeOffset);
+        }
+        return std::nullopt;
     }
 
     std::optional<ptrdiff_t>
-    StructRegistry::getFieldAlignment(StructMemberId id)
+    StructRegistry::getFieldAlignment(StructMemberId id) const
     {
+        auto it = m_data.find(id.type);
+        if (it != m_data.end() && id.index < it->second.fields.size())
+        {
+            return static_cast<ptrdiff_t>(
+                it->second.fields[id.index].alignmentRules.alignedAs);
+        }
+        return std::nullopt;
     }
 
     std::optional<StructAlignmentRules>
-    StructRegistry::getStructAlignmentRules(StructTypeId id)
+    StructRegistry::getStructAlignmentRules(StructTypeId id) const
     {
+        auto it = m_data.find(id);
+        if (it != m_data.end())
+        {
+            return it->second.alignmentRules;
+        }
+        return std::nullopt;
     }
 
     std::optional<StructAlignmentRules>
     StructRegistry::getStructAlignmentRules(
-        const std::string_view view)
+        const std::string_view view) const
     {
+        auto idOpt = getParentId(view);
+        if (idOpt.has_value())
+        {
+            return getStructAlignmentRules(idOpt.value());
+        }
+        return std::nullopt;
     }
 
-    std::optional<StructTypeId> StructRegistry::getParentOfField()
+    std::optional<StructTypeId>
+    StructRegistry::getParentOfField(StructMemberId id) const
     {
-        //
+        if (containsParentId(id.type))
+            return std::nullopt;
+        return id.type;
     }
 
     std::optional<std::vector<StructMemberId>>
-    StructRegistry::getFieldsOfParent()
+    StructRegistry::getFieldsOfParent(StructTypeId id) const
     {
+        auto it = m_data.find(id);
+        if (it != m_data.end())
+        {
+            std::vector<StructMemberId> fields;
+            fields.reserve(it->second.fields.size());
+            for (uint32_t i = 0; i < it->second.fields.size(); ++i)
+            {
+                fields.push_back({id, i});
+            }
+            return fields;
+        }
+        return std::nullopt;
     }
 
     types::MemoryRegionProperties StructRegistry::restructureMrp(
-        StructMemberId root, const types::MemoryRegionProperties& mrp)
+        StructMemberId                       root,
+        const types::MemoryRegionProperties& mrp) const
     {
+        auto alignmentRules = getStructAlignmentRules(root.type);
+        types::MrpRestructure res;
+        res.offset = -getFieldOffset(root).value();
+        res.sizeDelta =
+            alignmentRules.value().totalSize - mrp.relativeRegionSize;
+        return utils::RestructureMrp(mrp, res);
     }
 
     StructRegistry::StructBuilder
