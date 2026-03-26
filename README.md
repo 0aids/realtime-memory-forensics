@@ -80,51 +80,18 @@ int main() {
     // These known structs must have pointer members at defined offsets.
     // This must be done to a "StructRegistry" so structs can refer to eachother.
     StructRegistry sr;
-    sr.register( // Automatically calculates size.
-    	{
-        	.name = "IntLinkedList",
-        	.fields = {
-            	{
-            		.name = "next",
-            		.type = "IntLinkedList*", // can parse pointers
-            		.offset = 0, // For now, only manual specification of offsets.
-        		},
-        		{
-        			.name = "data",
-        			.type = "int32_t", // has a list of preregistered fundamental datatypes.
-        			.offset = sizeof(void*),
-        		},
-        	},
-    	}
-    );
-    sr.register( // Automatically calculates size.
-    	{
-        	.name = "IntVector",
-        	.fields = {
-            	{
-            		.name = "numElements",
-            		.type = "size_t", // can parse pointers
-            		.offset = 0, // For now, only manual specification of offsets.
-        		},
-        		{
-        			.name = "data",
-        			.type = "int32_t*", // has a list of preregistered fundamental datatypes.
-        			.offset = sizeof(size_t),
-        		},
-        	},
-    	}
-    );
-    sr.register( // Automatically calculates size.
-    	{
-        	.name = "flatString1",
-        	.fields = {
-        		{
-        			.name = "string",
-        			.type = "char[10]", // has a list of preregistered fundamental datatypes.
-        		},
-        	},
-    	}
-    );
+    sr.registerr("IntLinkedList") // Automatically calculates size.
+    	.field("next", "IntLinkedList*")
+    	.field("data", "int32_t")
+    	.end()
+    sr.registerr("IntVector")
+    	.field("numElements", "size_t")
+    	.field("data", "int32_t*") // has a list of preregistered fundamental datatypes.
+    	.end();
+
+    sr.registerr("flatString1") // Automatically calculates size.
+		.field("string", "char[10]") // has a list of preregistered fundamental datatypes.
+        .end();
     // Or this
     sr.registerTemplated<StructHere>("CustomNameOfStruct");
     graph.structRegistry.combine(sr);

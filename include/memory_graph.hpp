@@ -13,7 +13,6 @@
 #include "types.hpp"
 #include <stdexcept>
 #include <utility>
-#define register _structRegister
 
 namespace rmf::graph
 {
@@ -102,87 +101,66 @@ namespace rmf::graph
             return a < b.addr;
         }
     };
-    // Literally only for arguments?
-    struct Field
-    {
-        std::string name;
-        std::string type;
-    };
 
-    struct Struct
-    {
-        std::string        name;
-        std::vector<Field> fields;
-
-        std::vector<Field>::const_iterator
-        getFieldIter(std::string_view name) const
-        {
-            auto beg = fields.cbegin();
-            auto end = fields.cend();
-            for (; beg != end; beg++)
-            {
-                if (beg->name == name)
-                    break;
-            }
-            return beg;
-        }
-    };
-
-    class StructBuilder
-    {
-      private:
-        Struct m_struct;
-
-      public:
-        StructBuilder(const std::string_view str) :
-            m_struct(std::string(str))
-        {
-        }
-        StructBuilder& field(const std::string_view name,
-                             const std::string_view type)
-        {
-            m_struct.fields.emplace_back(std::string(name),
-                                         std::string(type));
-            return *this;
-        }
-        Struct build()
-        {
-            return m_struct;
-        }
-    };
     struct StructAlignmentRules
     {
-        uint8_t alignedAs;
-        size_t  totalSize;
+        size_t alignedAs;
+        size_t totalSize;
     };
 
-    // Very rudimentary prototype. I can't be bothered to think up of a good
-    // DS for this.
-    // Does not support square bracket arrays rn because can't be bothered.
     class StructRegistry
     {
       private:
-        struct RegisteredStruct
+        // Not true data orientated design but i'm lazy.
+        // Plus we are not constantly modifying this.
+        struct FieldData
         {
-            Struct _struct;
-            // Also contains details about offsets for each.
-            std::vector<ptrdiff_t> cumulativeOffsets;
-            StructAlignmentRules   alignmentRules;
-            std::optional<size_t>
-            getFieldOffset(std::string_view name) const
-            {
-                auto fieldIter = _struct.getFieldIter(name);
-                if (fieldIter == _struct.fields.cend())
-                    return std::nullopt;
-                return cumulativeOffsets[fieldIter -
-                                         _struct.fields.cbegin()];
-            }
+            std::string          name;
+            std::string          type;
+            size_t               cumulativeOffset;
+            StructAlignmentRules alignmentRules;
         };
-        // Probably should change it to
-        std::unordered_map<StructTypeId, RegisteredStruct>
-            m_registeredStructs;
-        std::unordered_map<std::string, StructTypeId> m_nameToId;
+        struct StructData
+        {
+            std::string            name;
+            StructTypeId           id;
+            StructAlignmentRules   alignmentRules;
+            std::vector<FieldData> fields;
+        };
+
+      public:
+        // A class that can only exist as a temporary object to
+        // assist with cleaner registering.
+        class StructBuilder
+        {
+          public:
+            friend class StructRegistry;
+
+          private:
+            // Only initialisable by the registry.
+            StructRegistry& m_registry;
+            StructBuilder(const std::string_view name,
+                          StructRegistry&        registry);
+            StructData m_data;
+            size_t     m_currentOffset = 0;
+
+          public:
+            StructBuilder()                                = delete;
+            StructBuilder(const StructBuilder&)            = delete;
+            StructBuilder(StructBuilder&&)                 = delete;
+            StructBuilder& operator=(const StructBuilder&) = delete;
+            StructBuilder& operator=(StructBuilder&&)      = delete;
+            // Calculates offsets, alignment etc.
+            StructBuilder&& field(const std::string_view name,
+                                  const std::string_view type);
+            StructTypeId    end();
+        };
+
+      private:
         StructTypeId                                  m_idGiver = 1;
+        std::unordered_map<std::string, StructTypeId> m_nameToId;
+        std::unordered_map<StructTypeId, StructData>  m_data;
+        StructTypeId _registerStruct(StructData&& data);
 
       public:
         static constexpr StructTypeId BAD_ID = 0;
@@ -192,17 +170,28 @@ namespace rmf::graph
         StructRegistry& operator=(const StructRegistry&) = default;
         StructRegistry& operator=(StructRegistry&&)      = default;
 
-        // keyword "register" hidden via #define. who tf even uses this keyword.
-        StructTypeId register(const Struct& _struct);
+        bool            containsFieldId(StructMemberId id);
+        bool            containsParentId(StructTypeId id);
         std::optional<StructTypeId>
-        getIdFromString(const std::string_view view);
+        getParentId(const std::string_view name);
+        std::optional<ptrdiff_t> getFieldOffset(StructMemberId id);
+        std::optional<ptrdiff_t> getFieldAlignment(StructMemberId id);
+        std::optional<StructAlignmentRules>
+        getStructAlignmentRules(StructTypeId id);
+        std::optional<StructAlignmentRules>
+        getStructAlignmentRules(const std::string_view view);
+        std::optional<StructTypeId> getParentOfField();
 
-        std::optional<size_t> getStructSize(StructTypeId id) const;
-        std::optional<size_t>
-             getFieldOffset(StructTypeId           id,
-                            const std::string_view fieldName) const;
+        std::optional<std::vector<StructMemberId>>
+        getFieldsOfParent();
 
-        bool containsStructMember(StructMemberId id);
+        types::MemoryRegionProperties
+        restructureMrp(StructMemberId                       root,
+                       const types::MemoryRegionProperties& mrp);
+
+        // Actually returns the struct type id, after you call builder.end().
+        // otherwise it doesn't.
+        StructBuilder registerr(const std::string_view name);
     };
 
     class MemoryGraphData

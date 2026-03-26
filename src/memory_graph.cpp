@@ -41,142 +41,143 @@ struct test
     X(intptr_t)                                                      \
     X(uintptr_t)
 
-const std::unordered_map<std::string, size_t> typesToSizes = []()
-{
-    std::unordered_map<std::string, size_t> map;
-#define X(type)                                                      \
-    map[#type]     = sizeof(type);                                   \
-    map[#type "*"] = sizeof(type*);
+const std::unordered_map<std::string_view, size_t> typesToSizes = {
+#define X(type) {#type, sizeof(type)}, {#type "*", sizeof(type*)},
 
     BASIC_TYPE_LIST
 #undef X
-    map["void*"] = sizeof(void*);
-    return map;
-}();
+};
 
 namespace rmf::graph
 {
-    StructRegistry::StructRegistry()
+    StructRegistry::StructRegistry() {}
+
+    StructRegistry::StructBuilder::StructBuilder(
+        const std::string_view name, StructRegistry& registry) :
+        m_registry(registry)
     {
-#define X(typename)                                                  \
-    register({                                                       \
-        .name   = #typename,                                         \
-        .fields = {{                                                 \
-            .name = "d",                                             \
-            .type = #typename,                                       \
-        }},                                                          \
-    });                                                              \
-    BASIC_TYPE_LIST
-#undef X
-        m_registeredStructs[m_idGiver++] = {
-            ._struct =
-                {
-                          .name   = "void*",
-                          .fields = {{
-                        .name = "d",
-                        .type = "void*",
-                    }},
-                          },
-            .cumulativeOffsets = {0, 8},
-            .alignmentRules    = {8, 8},
+        m_data = {
+            .name           = std::string(name),
+            .id             = 0,
+            .alignmentRules = {},
+            .fields         = {},
         };
     }
 
-    StructTypeId StructRegistry::register(const Struct& _struct)
+    StructRegistry::StructBuilder&&
+    StructRegistry::StructBuilder::field(const std::string_view name,
+                                         const std::string_view type)
     {
-        const StructTypeId id      = m_idGiver++;
-        RegisteredStruct   rstruct = {_struct, {0}, {}};
-        if (m_nameToId.contains(_struct.name))
-            return BAD_ID;
-
-        // Parse the struct stuff
-        if (_struct.fields.empty())
-            return BAD_ID;
-
-        size_t currentOffset = 0;
-        for (const auto& field : _struct.fields)
+        StructAlignmentRules rules = {};
+        if (typesToSizes.contains(type))
         {
-            StructAlignmentRules rules = {0, 0};
-            // Unimplemented
-            // std::string strippedField =
-            //     field.type.substr(0, field.type.find_first_of('['));
-
-            if (typesToSizes.contains(field.type))
-            {
-                rules.totalSize = typesToSizes.at(field.type);
-                rules.alignedAs = typesToSizes.at(field.type);
-            }
-            // Search ourself if it doesn't exist.
-            else if (m_nameToId.contains(field.type))
-            {
-                rules =
-                    m_registeredStructs.at(m_nameToId.at(field.type))
-                        .alignmentRules;
-            }
-            // Otherwise we don't register it.
-            else
-                return BAD_ID;
-
-            // Align ourselves if not aligned
-            currentOffset +=
-                rules.alignedAs - currentOffset % rules.alignedAs;
-            rstruct.cumulativeOffsets.push_back(currentOffset);
-            currentOffset += rules.totalSize;
-            // Aligned by the largest alignment
-            if (rstruct.alignmentRules.alignedAs < rules.alignedAs)
-                rstruct.alignmentRules.alignedAs = rules.alignedAs;
+            rules.alignedAs = typesToSizes.at(type);
+            rules.totalSize = typesToSizes.at(type);
         }
-        rstruct.alignmentRules.totalSize = currentOffset;
-        m_registeredStructs[id]          = rstruct;
-        m_nameToId[rstruct._struct.name] = id;
-        // Register the pointer as well.
+        else if (auto rulesOpt =
+                     m_registry.getStructAlignmentRules(type);
+                 rulesOpt.has_value())
+        {
+            rules = *rulesOpt;
+        }
+        // silent failure.
+        else
+            return std::move(*this);
 
-        // Pointers are automatically registered as well.
-        const StructTypeId pointerId = m_idGiver++;
-        Struct             copy      = _struct;
-        copy.fields                  = {
-            {"d", copy.name}
+        if (m_data.alignmentRules.alignedAs < rules.alignedAs)
+            m_data.alignmentRules.alignedAs = rules.alignedAs;
+
+        if (m_currentOffset % rules.alignedAs != 0)
+            m_currentOffset +=
+                rules.totalSize - rules.totalSize % rules.alignedAs;
+
+        FieldData f = {
+            .name             = std::string(name),
+            .type             = std::string(type),
+            .cumulativeOffset = m_currentOffset,
+            .alignmentRules   = rules,
         };
-        copy.name                      = copy.name + "*";
-        m_registeredStructs[pointerId] = {
-            copy, {0},
-             {sizeof(void*), sizeof(void*)}
-        };
-        m_nameToId[copy.name] = pointerId;
+        m_currentOffset += rules.totalSize;
+        m_data.fields.push_back(f);
+        return std::move(*this);
+    }
+
+    StructTypeId StructRegistry::StructBuilder::end()
+    {
+        return m_registry._registerStruct(std::move(m_data));
+    }
+
+    StructTypeId StructRegistry::_registerStruct(StructData&& data)
+    {
+        auto id = m_idGiver++;
+        data.id = id;
+        m_nameToId.emplace(data.name, id);
+        m_data.emplace(id, data);
         return id;
     }
 
-    std::optional<size_t>
-    StructRegistry::getStructSize(StructTypeId id) const
+    bool StructRegistry::containsFieldId(StructMemberId id)
     {
-        if (!m_registeredStructs.contains(id))
-            return std::nullopt;
-        return m_registeredStructs.at(id).alignmentRules.totalSize;
-    }
-    std::optional<size_t> StructRegistry::getFieldOffset(
-        StructTypeId id, const std::string_view fieldName) const
-    {
-        if (!m_registeredStructs.contains(id))
-            return std::nullopt;
-        auto registered = m_registeredStructs.at(id);
-        return registered.getFieldOffset(fieldName);
+        //
     }
 
-    bool StructRegistry::containsStructMember(StructMemberId id)
+    bool StructRegistry::containsParentId(StructTypeId id)
     {
-        if (!m_registeredStructs.contains(id.type))
-            return false;
+        //
+    }
 
-        if (m_registeredStructs.at(id.type)._struct.fields.size() <=
-            id.index)
-            return false;
-        return true;
+    std::optional<StructTypeId>
+    StructRegistry::getParentId(const std::string_view name)
+    {
+    }
+
+    std::optional<ptrdiff_t>
+    StructRegistry::getFieldOffset(StructMemberId id)
+    {
+    }
+
+    std::optional<ptrdiff_t>
+    StructRegistry::getFieldAlignment(StructMemberId id)
+    {
+    }
+
+    std::optional<StructAlignmentRules>
+    StructRegistry::getStructAlignmentRules(StructTypeId id)
+    {
+    }
+
+    std::optional<StructAlignmentRules>
+    StructRegistry::getStructAlignmentRules(
+        const std::string_view view)
+    {
+    }
+
+    std::optional<StructTypeId> StructRegistry::getParentOfField()
+    {
+        //
+    }
+
+    std::optional<std::vector<StructMemberId>>
+    StructRegistry::getFieldsOfParent()
+    {
+    }
+
+    types::MemoryRegionProperties StructRegistry::restructureMrp(
+        StructMemberId root, const types::MemoryRegionProperties& mrp)
+    {
+    }
+
+    StructRegistry::StructBuilder
+    StructRegistry::registerr(const std::string_view name)
+    {
+        return StructBuilder(name, *this);
     }
 
     void MemoryGraphData::invalidateCache()
     {
         m_traversalCacheInvalidated = true;
     }
+
     void MemoryGraphData::buildTraversalCacheIfNeeded()
     {
         if (!m_traversalCacheInvalidated)
@@ -216,14 +217,6 @@ namespace rmf::graph
         }
         m_traversalCacheInvalidated = false;
     }
-    std::optional<StructTypeId>
-    StructRegistry::getIdFromString(const std::string_view view)
-    {
-        if (!m_nameToId.contains(std::string(view)))
-            return std::nullopt;
-
-        return m_nameToId.at(std::string(view));
-    }
 
     NodeKey MemoryGraphData::addNode(const MemoryNodeData& data)
     {
@@ -235,36 +228,6 @@ namespace rmf::graph
         m_nodeSearchCache.emplace(data.mrp,
                                   NodePair{key, m_nodes[key]});
         return key;
-    }
-
-    std::optional<NodeKey> MemoryGraphData::addStructuredNode(
-        const types::MemoryRegionProperties&  mrp,
-        const std::string_view                structName,
-        const std::optional<std::string_view> field)
-    {
-        auto idOpt = structRegistry.getIdFromString(structName);
-        if (!idOpt.has_value())
-            return std::nullopt;
-        auto structSizeOpt = structRegistry.getStructSize(*idOpt);
-        types::MrpRestructure res = {
-            .offset = 0,
-            .sizeDelta =
-                (ptrdiff_t)*structSizeOpt - mrp.relativeRegionSize,
-        };
-        if (field.has_value())
-        {
-            auto offsetOpt =
-                structRegistry.getFieldOffset(*idOpt, *field);
-            if (!offsetOpt.has_value())
-                return std::nullopt;
-            res = {
-                .offset = -(int)(*offsetOpt),
-                .sizeDelta =
-                    (int)*structSizeOpt - mrp.relativeRegionSize,
-            };
-        }
-        auto newMrp = utils::RestructureMrp(mrp, res);
-        return addNode({newMrp, *idOpt});
     }
 
     std::optional<LinkKey>
@@ -281,21 +244,6 @@ namespace rmf::graph
         LinkKey key = m_links.insert({data, source, target});
         m_linkSearchCache.emplace(data, LinkPair{key, m_links[key]});
         return key;
-    }
-
-    std::optional<LinkKey> MemoryGraphData::addLinkStructured(
-        NodeKey source, NodeKey target, StructMemberId sourceMember,
-        StructMemberId targetMember, uintptr_t sourceAddr,
-        uintptr_t targetAddr)
-    {
-        if (!structRegistry.containsStructMember(sourceMember) ||
-            !structRegistry.containsStructMember(targetMember))
-            return std::nullopt;
-        return addLink(source, target,
-                       {.sourceMemberId = sourceMember,
-                        .targetMemberId = targetMember,
-                        .sourceAddr     = sourceAddr,
-                        .targetAddr     = targetAddr});
     }
 
     bool MemoryGraphData::removeNode(NodeKey key)
