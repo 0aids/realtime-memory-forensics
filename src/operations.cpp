@@ -112,26 +112,27 @@ namespace rmf::op
     {
         types::MemoryRegionPropertiesVec results;
         auto                             span = snap1.getDataSpan();
+        const char* head = reinterpret_cast<const char*>(span.data());
+        const char* begin = head;
+        const char* end   = head + span.size();
 
-        for (uintptr_t i = 0; i + str.length() < span.size(); i++)
+        while (head < end)
         {
-            size_t count = 0;
-            for (uintptr_t j = 0; j < str.length(); j++)
+            head = static_cast<const char*>(
+                std::memchr(head, str[0], end - head));
+            if (!head)
+                break;
+
+            if (std::memcmp(head, str.data(), str.size()) == 0)
             {
-                if (span[i + j] != str[j])
-                {
-                    break;
-                }
-                count++;
-            }
-            if (count == str.length())
-            {
-                auto mrp = snap1.getMrp();
-                mrp.relativeRegionAddress += i;
-                mrp.relativeRegionSize = str.length();
+                auto mrp                  = snap1.getMrp();
+                mrp.relativeRegionAddress = head - begin;
+                mrp.relativeRegionSize    = str.size();
                 results.push_back(mrp);
             }
+            head++;
         }
+
         return results;
     }
 

@@ -305,7 +305,7 @@ namespace rmf::utils
             rmf_Log(rmf_Error, "Failed to open the pageMap!!!!");
             return {};
         }
-        const uint64_t ACTIVE_BIT = (1ULL << 63);
+        static constexpr uint64_t ACTIVE_BIT = (1ULL << 63);
         for (const auto& mrp : mrpVec)
         {
             for (uintptr_t addr = mrp.TrueAddress();
@@ -331,11 +331,20 @@ namespace rmf::utils
 
                 if (entry & ACTIVE_BIT)
                 {
-                    types::MemoryRegionProperties newMrp = mrp;
-                    newMrp.relativeRegionSize            = pageSize;
-                    newMrp.relativeRegionAddress =
-                        addr - mrp.parentRegionAddress;
-                    regions.push_back(newMrp);
+                    if (regions.size() > 0 &&
+                        regions.back().relativeEnd() ==
+                            addr - mrp.parentRegionAddress)
+                    {
+                        regions.back().relativeRegionSize += pageSize;
+                    }
+                    else
+                    {
+                        types::MemoryRegionProperties newMrp = mrp;
+                        newMrp.relativeRegionSize = pageSize;
+                        newMrp.relativeRegionAddress =
+                            addr - mrp.parentRegionAddress;
+                        regions.push_back(newMrp);
+                    }
                 }
             }
         }
