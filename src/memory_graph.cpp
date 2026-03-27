@@ -205,6 +205,26 @@ namespace rmf::graph
         return id.type;
     }
 
+    std::optional<StructMemberId> StructRegistry::getFieldOfParent(
+        StructTypeId id, const std::string_view view) const
+    {
+        if (!containsParentId(id))
+            return std::nullopt;
+
+        StructMemberId memberId = {
+            .type  = id,
+            .index = 0,
+        };
+        for (const auto& field : m_data.at(id).fields)
+        {
+            if (field.name == view)
+                return memberId;
+            memberId.index++;
+        }
+
+        return std::nullopt;
+    }
+
     std::optional<std::unordered_map<std::string, StructMemberId,
                                      StringHash, std::equal_to<>>>
     StructRegistry::getFieldsOfParent(StructTypeId id) const
@@ -233,6 +253,18 @@ namespace rmf::graph
         auto alignmentRules = getStructAlignmentRules(root.type);
         types::MrpRestructure res;
         res.offset = -getFieldOffset(root).value();
+        res.sizeDelta =
+            alignmentRules.value().totalSize - mrp.relativeRegionSize;
+        return utils::RestructureMrp(mrp, res);
+    }
+
+    types::MemoryRegionProperties StructRegistry::restructureMrp(
+        StructTypeId                         id,
+        const types::MemoryRegionProperties& mrp) const
+    {
+        auto alignmentRules       = getStructAlignmentRules(id);
+        types::MrpRestructure res = {};
+        res.offset                = 0;
         res.sizeDelta =
             alignmentRules.value().totalSize - mrp.relativeRegionSize;
         return utils::RestructureMrp(mrp, res);
@@ -301,6 +333,35 @@ namespace rmf::graph
         return key;
     }
 
+    std::optional<NodeKey> MemoryGraphData::addStructuredNode(
+        const types::MemoryRegionProperties&  mrp,
+        const std::string_view                structName,
+        const std::optional<std::string_view> field)
+    {
+        const auto structIdOpt =
+            structRegistry.getParentId(structName);
+        types::MemoryRegionProperties newmrp = {};
+        if (!structIdOpt)
+        {
+            return std::nullopt;
+        }
+        if (field)
+        {
+            const auto fieldIdOpt =
+                structRegistry.getFieldOfParent(*structIdOpt, *field);
+            if (!fieldIdOpt)
+            {
+                return std::nullopt;
+            }
+            newmrp = structRegistry.restructureMrp(*fieldIdOpt, mrp);
+        }
+        else
+        {
+            newmrp = structRegistry.restructureMrp(*structIdOpt, mrp);
+        }
+        return addNode({newmrp, *structIdOpt});
+    }
+
     std::optional<LinkKey>
     MemoryGraphData::addLink(NodeKey source, NodeKey target,
                              const MemoryLinkData& data)
@@ -315,6 +376,38 @@ namespace rmf::graph
         LinkKey key = m_links.insert({data, source, target});
         m_linkSearchCache.emplace(data, LinkPair{key, m_links[key]});
         return key;
+    }
+    std::optional<LinkKey>
+    MemoryGraphData::addLinkStructured(NodeKey source, NodeKey target,
+                                       StructMemberId sourceMember,
+                                       StructMemberId targetMember)
+    {
+        if (!m_nodes.contains(source) || !m_nodes.contains(target))
+        {
+            return std::nullopt;
+        }
+        uintptr_t sourceAddr =
+            m_nodes[source].nodeData.mrp.TrueAddress();
+        sourceAddr +=
+            structRegistry.getFieldOffset(sourceMember).value();
+        uintptr_t targetAddr =
+            m_nodes[target].nodeData.mrp.TrueAddress();
+        targetAddr +=
+            structRegistry.getFieldOffset(targetMember).value();
+        MemoryLinkData data = {
+            .sourceMemberId = sourceMember,
+            .targetMemberId = targetMember,
+            .sourceAddr     = sourceAddr,
+            .targetAddr     = targetAddr,
+        };
+        // Updates the link with members if it already existed.
+        if (auto linkKeyOpt = getLinkKeyAtLinkData(data);
+            linkKeyOpt.has_value())
+        {
+            return *updateLinkData(*linkKeyOpt, data);
+        }
+
+        return addLink(source, target, data);
     }
 
     bool MemoryGraphData::removeNode(NodeKey key)

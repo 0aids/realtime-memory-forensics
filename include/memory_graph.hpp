@@ -64,10 +64,12 @@ struct std::hash<rmf::graph::MemoryLinkData>
 {
     size_t operator()(const rmf::graph::MemoryLinkData& ld) const
     {
-        return std::hash<rmf::graph::StructMemberId>()(
-                   ld.sourceMemberId) ^
-            std::hash<rmf::graph::StructMemberId>()(
-                   ld.targetMemberId) ^
+        // So we can easily find by address for duplicates.
+        return
+            // std::hash<rmf::graph::StructMemberId>()(
+            //        ld.sourceMemberId) ^
+            // std::hash<rmf::graph::StructMemberId>()(
+            //        ld.targetMemberId) ^
             std::hash<uintptr_t>()(ld.sourceAddr) ^
             std::hash<uintptr_t>()(ld.targetAddr);
     }
@@ -196,6 +198,10 @@ namespace rmf::graph
         std::optional<StructTypeId>
         getParentOfField(StructMemberId id) const;
 
+        std::optional<StructMemberId>
+        getFieldOfParent(StructTypeId           id,
+                         const std::string_view view) const;
+
         std::optional<std::unordered_map<std::string, StructMemberId,
                                          StringHash, std::equal_to<>>>
         getFieldsOfParent(StructTypeId id) const;
@@ -204,6 +210,11 @@ namespace rmf::graph
         // the mrp around the root to contain the struct.
         types::MemoryRegionProperties restructureMrp(
             StructMemberId                       root,
+            const types::MemoryRegionProperties& mrp) const;
+
+        // Alternatively just use the type
+        types::MemoryRegionProperties restructureMrp(
+            StructTypeId                         type,
             const types::MemoryRegionProperties& mrp) const;
 
         // Actually returns the struct type id, after you call builder.end().
@@ -276,8 +287,7 @@ namespace rmf::graph
         std::optional<LinkKey>
              addLinkStructured(NodeKey source, NodeKey target,
                                StructMemberId sourceMember,
-                               StructMemberId targetMember,
-                               uintptr_t sourceAddr, uintptr_t targetAddr);
+                               StructMemberId targetMember);
         bool removeNode(NodeKey key);
         bool removeLink(LinkKey key);
 
