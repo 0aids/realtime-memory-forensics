@@ -162,8 +162,8 @@ namespace rmf::graph
             StructBuilder& operator=(const StructBuilder&) = delete;
             StructBuilder& operator=(StructBuilder&&)      = delete;
             // Calculates offsets, alignment etc.
-            StructBuilder&& field(const std::string_view name,
-                                  const std::string_view type);
+            StructBuilder&& field(const std::string_view type,
+                                  const std::string_view name);
             StructTypeId    end();
         };
 

@@ -68,9 +68,11 @@ namespace rmf::graph
     }
 
     StructRegistry::StructBuilder&&
-    StructRegistry::StructBuilder::field(const std::string_view name,
-                                         const std::string_view type)
+    StructRegistry::StructBuilder::field(const std::string_view type,
+                                         const std::string_view name)
     {
+        // TODO: add square bracket support.
+        // Forgot to check for square brackets.
         StructAlignmentRules rules = {};
         if (typesToSizes.contains(type))
         {

@@ -18,7 +18,9 @@ via node-graph visualisation, all done without analysing executed assembly.
 - [-] feat: implement memory graph algorithms.
     - [x] Get structs working.
     - [ ] MemoryGraphData wrapper MemoryGraph.
+    - [ ] Structs working with square bracket syntax.
     - [x] Basic prototype of MemoryGraphData without structs
+- [ ] fix: narrowing and sign comparison warnings
 - [ ] feat: integrated python scripting in gui and file saving
 - [ ] feat: Add link details on hover
 - [ ] feat: Add node details on hover

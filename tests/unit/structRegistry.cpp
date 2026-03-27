@@ -8,8 +8,8 @@ TEST(StructRegistryTest, RegisterSimpleStruct)
     StructRegistry registry;
 
     auto           id = registry.registerr("SimpleStruct")
-                  .field("x", "int")
-                  .field("y", "int")
+                  .field("int*", "x")
+                  .field("int", "y")
                   .end();
 
     EXPECT_NE(id, StructRegistry::BAD_ID);
@@ -20,10 +20,10 @@ TEST(StructRegistryTest, RegisterMultipleStructsUniqueIds)
 {
     StructRegistry registry;
 
-    auto id1 = registry.registerr("StructA").field("a", "int").end();
-    auto id2 =
-        registry.registerr("StructB").field("b", "float").end();
-    auto id3 = registry.registerr("StructC").field("c", "char").end();
+    auto id1 = registry.registerr("StructA").field("int", "a").end();
+    auto id2 = registry.registerr("StructB").field("int", "b").end();
+    auto id3 =
+        registry.registerr("StructC").field("float", "c").end();
 
     EXPECT_NE(id1, id2);
     EXPECT_NE(id2, id3);
@@ -38,7 +38,7 @@ TEST(StructRegistryTest, GetParentIdByName)
 {
     StructRegistry registry;
 
-    auto id = registry.registerr("MyStruct").field("x", "int").end();
+    auto id = registry.registerr("MyStruct").field("char", "x").end();
 
     auto foundId = registry.getParentId("MyStruct");
     EXPECT_TRUE(foundId.has_value());
@@ -49,7 +49,7 @@ TEST(StructRegistryTest, GetParentIdByNameNotFound)
 {
     StructRegistry registry;
 
-    registry.registerr("Existing").field("x", "int").end();
+    registry.registerr("Existing").field("int", "x").end();
 
     auto foundId = registry.getParentId("NonExistent");
     EXPECT_FALSE(foundId.has_value());
@@ -60,7 +60,7 @@ TEST(StructRegistryTest, SingleFieldOffsetAndAlignment)
     StructRegistry registry;
 
     auto           id =
-        registry.registerr("SingleField").field("x", "int").end();
+        registry.registerr("SingleField").field("int", "x").end();
 
     StructMemberId memberId{id, 0};
 
@@ -86,9 +86,9 @@ TEST(StructRegistryTest, MultipleFieldsOffsets)
     };
 
     auto id = registry.registerr("MultiField")
-                  .field("a", "char")
-                  .field("b", "int")
-                  .field("c", "double")
+                  .field("int", "a")
+                  .field("char", "b")
+                  .field("int", "c")
                   .end();
 
     auto memberIds = registry.getFieldsOfParent(id).value();
@@ -111,16 +111,16 @@ TEST(StructRegistryTest, MultipleFieldsOffsets2)
     struct multiField
     {
         double a;
-        char   b;
-        int    c;
-        char   d;
+        double b;
+        char   c;
+        int    d;
     };
 
     auto id = registry.registerr("MultiField")
-                  .field("a", "double")
-                  .field("b", "char")
-                  .field("c", "int")
-                  .field("d", "char")
+                  .field("double", "a")
+                  .field("double", "b")
+                  .field("char", "c")
+                  .field("int", "d")
                   .end();
 
     auto memberIds = registry.getFieldsOfParent(id).value();
@@ -147,8 +147,8 @@ TEST(StructRegistryTest, ContainsFieldIdValidInvalid)
     StructRegistry registry;
 
     auto           id = registry.registerr("TestStruct")
-                  .field("x", "int")
-                  .field("y", "int")
+                  .field("char", "x")
+                  .field("int", "y")
                   .end();
 
     StructMemberId valid{id, 0};
@@ -167,7 +167,7 @@ TEST(StructRegistryTest, ContainsParentIdValidInvalid)
     StructRegistry registry;
 
     auto           validId =
-        registry.registerr("Valid").field("x", "int").end();
+        registry.registerr("Valid").field("int", "x").end();
     auto invalidId = static_cast<StructTypeId>(999);
 
     EXPECT_TRUE(registry.containsParentId(validId));
@@ -179,9 +179,9 @@ TEST(StructRegistryTest, GetFieldsOfParent)
     StructRegistry registry;
 
     auto           id = registry.registerr("TestStruct")
-                  .field("a", "int")
-                  .field("b", "float")
-                  .field("c", "char")
+                  .field("int", "a")
+                  .field("int", "b")
+                  .field("float", "c")
                   .end();
 
     auto fields = registry.getFieldsOfParent(id);
@@ -194,7 +194,7 @@ TEST(StructRegistryTest, GetFieldsOfParentInvalidId)
 {
     StructRegistry registry;
 
-    registry.registerr("Valid").field("x", "int").end();
+    registry.registerr("Valid").field("char", "x").end();
 
     auto fields = registry.getFieldsOfParent(999);
     EXPECT_FALSE(fields.has_value());
@@ -210,14 +210,14 @@ TEST(StructRegistryTest, GetStructAlignmentRulesById)
     };
 
     auto id = registry.registerr("AlignedStruct")
-                  .field("x", "int")
-                  .field("y", "double")
+                  .field("int", "x")
+                  .field("double", "y")
                   .end();
 
     auto rules = registry.getStructAlignmentRules(id);
 
     EXPECT_TRUE(rules.has_value());
-    EXPECT_EQ(rules.value().alignedAs, alignof(double));
+    EXPECT_EQ(rules.value().alignedAs, alignof(AlignedStruct));
     EXPECT_EQ(rules.value().totalSize, sizeof(AlignedStruct));
 }
 
@@ -226,8 +226,8 @@ TEST(StructRegistryTest, GetStructAlignmentRulesByName)
     StructRegistry registry;
 
     registry.registerr("AlignedStruct")
-        .field("x", "int")
-        .field("y", "double")
+        .field("double", "x")
+        .field("int", "y")
         .end();
 
     auto rules = registry.getStructAlignmentRules("AlignedStruct");
@@ -240,7 +240,7 @@ TEST(StructRegistryTest, GetStructAlignmentRulesNotFound)
 {
     StructRegistry registry;
 
-    registry.registerr("Existing").field("x", "int").end();
+    registry.registerr("Existing").field("double", "x").end();
 
     auto rulesById = registry.getStructAlignmentRules(
         static_cast<StructTypeId>(999));
@@ -256,9 +256,9 @@ TEST(StructRegistryTest, GetFieldAlignment)
     StructRegistry registry;
 
     auto           id = registry.registerr("TestStruct")
-                  .field("charField", "char")
-                  .field("intField", "int")
-                  .field("doubleField", "double")
+                  .field("char", "charField")
+                  .field("int", "intField")
+                  .field("double", "doubleField")
                   .end();
 
     StructMemberId charMember{id, 0};
@@ -283,7 +283,7 @@ TEST(StructRegistryTest, GetFieldAlignmentInvalid)
     StructRegistry registry;
 
     auto           id =
-        registry.registerr("TestStruct").field("x", "int").end();
+        registry.registerr("TestStruct").field("double", "x").end();
 
     StructMemberId invalid{id, 99};
 
@@ -295,7 +295,7 @@ TEST(StructRegistryTest, NestedStruct)
 {
     StructRegistry registry;
 
-    registry.registerr("Inner").field("value", "int").end();
+    registry.registerr("Inner").field("int", "value").end();
     struct Inner
     {
         int value;
@@ -307,8 +307,8 @@ TEST(StructRegistryTest, NestedStruct)
     };
 
     auto outerId = registry.registerr("Outer")
-                       .field("inner", "Inner")
-                       .field("extra", "int")
+                       .field("Inner", "inner")
+                       .field("int", "extra")
                        .end();
 
     auto outerRules = registry.getStructAlignmentRules(outerId);
@@ -335,12 +335,12 @@ TEST(StructRegistryTest, NestedStructAlignment)
     StructRegistry registry;
 
     registry.registerr("Inner")
-        .field("a", "int")
-        .field("b", "int")
+        .field("int", "a")
+        .field("int", "b")
         .end();
 
     auto outerId =
-        registry.registerr("Outer").field("inner", "Inner").end();
+        registry.registerr("Outer").field("Inner", "inner").end();
 
     auto rules = registry.getStructAlignmentRules(outerId);
     EXPECT_TRUE(rules.has_value());
@@ -352,10 +352,10 @@ TEST(StructRegistryTest, UnknownTypeSilentlyIgnored)
     StructRegistry registry;
 
     auto           id = registry.registerr("TestStruct")
-                  .field("known", "int")
-                  .field("unknown1", "UnknownType")
-                  .field("known2", "float")
-                  .field("unknown2", "AnotherUnknown")
+                  .field("int", "known")
+                  .field("UnknownType", "unknown1")
+                  .field("float", "known2")
+                  .field("AnotherUnknown", "unknown2")
                   .end();
 
     auto fields = registry.getFieldsOfParent(id);
@@ -368,8 +368,8 @@ TEST(StructRegistryTest, PointerTypes)
     StructRegistry registry;
 
     auto           id = registry.registerr("PtrStruct")
-                  .field("intPtr", "int*")
-                  .field("voidPtr", "void*")
+                  .field("int*", "intPtr")
+                  .field("void*", "voidPtr")
                   .end();
 
     auto fields = registry.getFieldsOfParent(id);
@@ -387,26 +387,26 @@ TEST(StructRegistryTest, AllBasicTypes)
     StructRegistry registry;
 
     auto           id = registry.registerr("AllBasicTypes")
-                  .field("b", "bool")
-                  .field("c", "char")
-                  .field("s", "short")
-                  .field("i", "int")
-                  .field("l", "long")
-                  .field("ll", "long long")
-                  .field("f", "float")
-                  .field("d", "double")
-                  .field("u", "unsigned int")
-                  .field("ul", "unsigned long")
-                  .field("ull", "unsigned long long")
-                  .field("sz", "size_t")
-                  .field("i8", "int8_t")
-                  .field("u8", "uint8_t")
-                  .field("i16", "int16_t")
-                  .field("u16", "uint16_t")
-                  .field("i32", "int32_t")
-                  .field("u32", "uint32_t")
-                  .field("i64", "int64_t")
-                  .field("u64", "uint64_t")
+                  .field("uint64_t", "u64")
+                  .field("bool", "b")
+                  .field("char", "c")
+                  .field("short", "s")
+                  .field("int", "i")
+                  .field("long", "l")
+                  .field("long long", "ll")
+                  .field("float", "f")
+                  .field("double", "d")
+                  .field("unsigned int", "u")
+                  .field("unsigned long", "ul")
+                  .field("unsigned long long", "ull")
+                  .field("size_t", "sz")
+                  .field("int8_t", "i8")
+                  .field("uint8_t", "u8")
+                  .field("int16_t", "i16")
+                  .field("uint16_t", "u16")
+                  .field("int32_t", "i32")
+                  .field("uint32_t", "u32")
+                  .field("int64_t", "i64")
                   .end();
 
     auto fields = registry.getFieldsOfParent(id);
@@ -419,8 +419,8 @@ TEST(StructRegistryTest, RestructureMrpBasic)
     StructRegistry registry;
 
     auto           id = registry.registerr("TestStruct")
-                  .field("x", "int")
-                  .field("y", "int")
+                  .field("uint64_t", "x")
+                  .field("int", "y")
                   .end();
 
     StructMemberId                     root{id, 0};
@@ -441,8 +441,8 @@ TEST(StructRegistryTest, RestructureMrpWithOffset)
     StructRegistry registry;
 
     auto           id = registry.registerr("TestStruct")
-                  .field("x", "char")
-                  .field("y", "int")
+                  .field("int", "x")
+                  .field("char", "y")
                   .end();
 
     StructMemberId                     root{id, 1};
@@ -467,10 +467,10 @@ TEST(StructRegistryTest, RestructureMrpSizeIncrease)
     StructRegistry registry;
 
     auto           id = registry.registerr("LargeStruct")
-                  .field("a", "int")
-                  .field("b", "int")
-                  .field("c", "int")
-                  .field("d", "int")
+                  .field("int", "a")
+                  .field("int", "b")
+                  .field("int", "c")
+                  .field("int", "d")
                   .end();
 
     StructMemberId                     root{id, 0};
@@ -507,9 +507,9 @@ TEST(StructRegistryTest, StructBuilderMoveSemantics)
     StructRegistry registry;
 
     auto           id1 =
-        registry.registerr("MoveTest1").field("x", "int").end();
+        registry.registerr("MoveTest1").field("int", "x").end();
     auto id2 =
-        registry.registerr("MoveTest2").field("y", "float").end();
+        registry.registerr("MoveTest2").field("int", "y").end();
 
     EXPECT_NE(id1, id2);
     EXPECT_TRUE(registry.containsParentId(id1));
@@ -521,7 +521,7 @@ TEST(StructRegistryTest, GetFieldOffsetInvalid)
     StructRegistry registry;
 
     auto           id =
-        registry.registerr("TestStruct").field("x", "int").end();
+        registry.registerr("TestStruct").field("float", "x").end();
 
     StructMemberId invalidIndex{id, 99};
     StructMemberId invalidType{999, 0};
@@ -538,8 +538,8 @@ TEST(StructRegistryTest, MemoryGraphDataStructRegistryIntegration)
     MemoryGraphData graph;
 
     auto            id = graph.structRegistry.registerr("GraphStruct")
-                  .field("value", "int")
-                  .field("next", "int*")
+                  .field("int", "value")
+                  .field("int", "next")
                   .end();
 
     EXPECT_NE(id, StructRegistry::BAD_ID);
