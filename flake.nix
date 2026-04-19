@@ -62,6 +62,7 @@
             kdePackages.kcachegrind
             heaptrack
             cling
+            gdbgui
           ];
 
           LD_LIBRARY_PATH = "${

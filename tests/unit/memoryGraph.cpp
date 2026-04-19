@@ -1,5 +1,4 @@
 #include <gtest/gtest.h>
-#include <stdexcept>
 #include "memory_graph.hpp"
 
 using namespace rmf::graph;

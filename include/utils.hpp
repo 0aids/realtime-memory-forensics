@@ -267,7 +267,41 @@ namespace rmf::utils
         size_t            activeCount =
             0; // Tracks the actual number of valid elements
 
+        void throwKey(SlotKey key) const
+        {
+            if (contains(key).Value == AccessResult::Expired)
+                throw std::out_of_range("Expired key");
+            if (contains(key).Value == AccessResult::Invalid)
+                throw std::out_of_range("Invalid key");
+        }
+
       public:
+        struct AccessResult
+        {
+            enum
+            {
+                Valid,
+                Expired,
+                Invalid,
+            } Value;
+            operator bool() const
+            {
+                return this->Value == Valid;
+            }
+        };
+        friend bool operator==(AccessResult a, AccessResult b)
+        {
+            return a.Value == b.Value;
+        }
+        friend bool operator!=(AccessResult a, AccessResult b)
+        {
+            return !(a.Value == b.Value);
+        }
+        friend bool operator!(AccessResult a)
+        {
+            return a.Value != a.Valid;
+        }
+
         SlotMap()                          = default;
         SlotMap(const SlotMap&)            = default;
         SlotMap(SlotMap&&)                 = default;
@@ -350,37 +384,34 @@ namespace rmf::utils
             return slots[key.index].data;
         }
 
-        bool contains(SlotKey key) const
+        AccessResult contains(SlotKey key) const
         {
-            if (key.index >= slots.size() ||
-                slots[key.index].generation != key.generation ||
+            if (slots[key.index].generation != key.generation ||
                 !slots[key.index].valid)
-            {
-                return false;
-            }
-            return true;
+                return {AccessResult::Expired};
+            if (key.index >= slots.size())
+                return {AccessResult::Invalid};
+
+            return {AccessResult::Valid};
         }
 
         SlotKey replace(SlotKey key, const T& data)
         {
-            if (!contains(key))
-                throw std::out_of_range("Not valid key");
+            throwKey(key);
             erase(key);
             return insert(data);
         }
 
-        // Checked access (no throws because I don't use exceptions)
+        // Checked access
         T& at(SlotKey key)
         {
-            if (!contains(key))
-                throw std::out_of_range("Not valid key");
+            throwKey(key);
             return slots[key.index].data;
         }
 
         const T& at(SlotKey key) const
         {
-            if (!contains(key))
-                throw std::out_of_range("Not valid key");
+            throwKey(key);
             return slots[key].data;
         }
 

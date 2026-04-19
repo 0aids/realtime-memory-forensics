@@ -19,12 +19,12 @@ using namespace rmf::types;
 using namespace std;
 
 using FlatPointerList = std::vector<std::pair<uintptr_t, uintptr_t>>;
-using MapifiedSnap =
+using SpecialMapifiedSnap =
     std::pair<FlatPointerList, MemoryRegionProperties>;
 
-MapifiedSnap mapifySnap(const MemorySnapshot& snap)
+SpecialMapifiedSnap mapifySnap(const MemorySnapshot& snap)
 {
-    MapifiedSnap pointers;
+    SpecialMapifiedSnap pointers;
     pointers.second = snap.getMrp();
 
     const auto mrp  = snap.getMrp();
@@ -58,7 +58,7 @@ MapifiedSnap mapifySnap(const MemorySnapshot& snap)
 }
 
 MemoryRegionPropertiesVec
-findSourceTargetRegionsFast(const MapifiedSnap&              mapsnap,
+findSourceTargetRegionsFast(const SpecialMapifiedSnap&       mapsnap,
                             const MemoryRegionPropertiesVec& regions,
                             const MrpRestructure& mrpRestructure)
 {

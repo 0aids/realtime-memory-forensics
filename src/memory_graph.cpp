@@ -1,11 +1,17 @@
 #include "memory_graph.hpp"
+#include "operations.hpp"
 #include "logger.hpp"
+#include "rmf.hpp"
 #include "types.hpp"
 #include "utils.hpp"
 #include <algorithm>
+#include <cctype>
+#include <charconv>
 #include <cstddef>
+#include <memory>
 #include <optional>
 #include <ranges>
+#include <string>
 
 struct test
 {
@@ -44,12 +50,35 @@ struct test
 // clang-format off
 const std::unordered_map<std::string_view, size_t> typesToSizes = {
 #define X(type) {#type, sizeof(type)}, {#type "*", sizeof(type*)},
-
     BASIC_TYPE_LIST
     {"void*", 8},
 #undef X
 };
 // clang-format on
+
+// Returns -1,
+int32_t isPointer(const std::string_view& view)
+{
+    auto head = view.begin();
+    // skip spaces
+    while (head != view.end() && *head == ' ')
+        head++;
+    // skip letters
+    while (head != view.end() && std::isalpha(*head))
+        head++;
+    // skip alphanumeric
+    while (head != view.end() && std::isalnum(*head))
+        head++;
+    int32_t endOfAlphaNum = view.end() - head;
+
+    // skip spaces
+    while (head != view.end() && *head == ' ')
+        head++;
+    // Check for *
+    if (*head == '*')
+        return endOfAlphaNum;
+    return -1;
+}
 
 namespace rmf::graph
 {
@@ -71,23 +100,58 @@ namespace rmf::graph
     StructRegistry::StructBuilder::field(const std::string_view type,
                                          const std::string_view name)
     {
-        // TODO: add square bracket support.
-        // Forgot to check for square brackets.
-        StructAlignmentRules rules = {};
-        if (typesToSizes.contains(type))
+        // Check for square brackets
+        size_t                 squareBracketMultiplier = 1;
+        const std::string_view parsedView =
+            type.substr(0, type.find("["));
+        if (parsedView.size() != type.size())
         {
-            rules.alignedAs = typesToSizes.at(type);
-            rules.totalSize = typesToSizes.at(type);
+            const std::string_view squareBracket =
+                type.substr(type.find("[") + 1,
+                            type.find("]") - type.find("[") - 1);
+            if (squareBracket.size() > 0)
+            {
+                rmf_Log(rmf_Info,
+                        "Found square brackets: " << squareBracket);
+                auto fromchars = std::from_chars(
+                    squareBracket.data(),
+                    squareBracket.data() + squareBracket.size(),
+                    squareBracketMultiplier);
+                if (fromchars.ec != std::errc())
+                {
+                    rmf_Log(
+                        rmf_Error,
+                        "Failed to parse square brackets: " << type);
+                    squareBracketMultiplier = 1;
+                }
+            }
+        }
+        StructAlignmentRules rules = {};
+        if (typesToSizes.contains(parsedView))
+        {
+            rules.alignedAs = typesToSizes.at(parsedView);
+            rules.totalSize = typesToSizes.at(parsedView);
         }
         else if (auto rulesOpt =
-                     m_registry.getStructAlignmentRules(type);
+                     m_registry.getStructAlignmentRules(parsedView);
                  rulesOpt.has_value())
         {
             rules = *rulesOpt;
         }
-        // silent failure.
+        // Check if pointer
+        // Then we allow resolving later.
+        else if (int32_t isP = isPointer(parsedView); isP != -1)
+        {
+            rules.totalSize = typesToSizes.at("void*");
+            rules.alignedAs = typesToSizes.at("void*");
+        }
         else
+        {
+            rmf_Log(rmf_Error,
+                    "Failed to find appropriate matching type: "
+                        << parsedView);
             return std::move(*this);
+        }
 
         if (m_data.alignmentRules.alignedAs < rules.alignedAs)
             m_data.alignmentRules.alignedAs = rules.alignedAs;
@@ -96,6 +160,8 @@ namespace rmf::graph
             m_currentOffset % rules.alignedAs != 0)
             m_currentOffset +=
                 rules.alignedAs - m_currentOffset % rules.alignedAs;
+
+        rules.totalSize *= squareBracketMultiplier;
 
         FieldData f = {
             .name             = std::string(name),
@@ -164,14 +230,29 @@ namespace rmf::graph
         return std::nullopt;
     }
 
-    std::optional<ptrdiff_t>
-    StructRegistry::getFieldAlignment(StructMemberId id) const
+    std::optional<StructMemberId>
+    StructRegistry::getFieldAtOffset(StructTypeId id,
+                                     ptrdiff_t    offset) const
+    {
+        if (!containsParentId(id))
+            return std::nullopt;
+        uint32_t index = 0;
+        for (const auto& field : m_data.at(id).fields)
+        {
+            if (field.cumulativeOffset == (uintptr_t)offset)
+                return StructMemberId{.type = id, .index = index};
+            index++;
+        }
+        return std::nullopt;
+    }
+
+    std::optional<StructAlignmentRules>
+    StructRegistry::getFieldAlignmentRules(StructMemberId id) const
     {
         auto it = m_data.find(id.type);
         if (it != m_data.end() && id.index < it->second.fields.size())
         {
-            return static_cast<ptrdiff_t>(
-                it->second.fields[id.index].alignmentRules.alignedAs);
+            return it->second.fields[id.index].alignmentRules;
         }
         return std::nullopt;
     }
@@ -278,6 +359,37 @@ namespace rmf::graph
         return StructBuilder(name, *this);
     }
 
+    std::optional<std::span<const uint8_t>>
+    StructRegistry::getValuesAtMember(
+        std::span<const uint8_t> structData, StructMemberId memberId)
+    {
+        auto offset = getFieldOffset(memberId);
+        if (!offset.has_value())
+            return std::nullopt;
+        auto size =
+            getFieldAlignmentRules(memberId).value().totalSize;
+        if (*offset + size > structData.size())
+        {
+            rmf_Log(rmf_Warning,
+                    "Failed access to field outside of span's range");
+            return std::nullopt;
+        }
+        return structData.subspan(offset.value(), size);
+    }
+
+    std::optional<uintptr_t> StructRegistry::getTrueAddressOfMember(
+        const types::MemoryRegionProperties& mrp,
+        StructMemberId                       member)
+    {
+        auto offsetOpt = getFieldOffset(member);
+        if (!offsetOpt.has_value())
+            return std::nullopt;
+        auto result = mrp.TrueAddress() + *offsetOpt;
+        if (result >= mrp.TrueEnd())
+            return std::nullopt;
+        return result;
+    }
+
     void MemoryGraphData::invalidateCache()
     {
         m_traversalCacheInvalidated = true;
@@ -333,6 +445,15 @@ namespace rmf::graph
         m_nodeSearchCache.emplace(data.mrp,
                                   NodePair{key, m_nodes[key]});
         return key;
+    }
+    std::optional<NodeKey> MemoryGraphData::addStructuredNode(
+        const types::MemoryRegionProperties& mrp,
+        StructMemberId                       memberId)
+    {
+        types::MemoryRegionProperties newmrp = {};
+        newmrp = structRegistry.restructureMrp(memberId, mrp);
+        return addNode(
+            {newmrp, *structRegistry.getParentOfField(memberId)});
     }
 
     std::optional<NodeKey> MemoryGraphData::addStructuredNode(
@@ -430,6 +551,29 @@ namespace rmf::graph
         m_linkSearchCache.erase(m_links[key].data);
         m_links.erase(key);
         return true;
+    }
+
+    // Returns the number of nodes successfully removed
+    size_t MemoryGraphData::removeNodes(std::span<const NodeKey> keys)
+    {
+        size_t count = 0;
+        for (const auto& key : keys)
+        {
+            if (removeNode(key))
+                count++;
+        }
+        return count;
+    }
+    // Returns the number of links successfully removed
+    size_t MemoryGraphData::removeLinks(std::span<const LinkKey> keys)
+    {
+        size_t count = 0;
+        for (const auto& key : keys)
+        {
+            if (removeLink(key))
+                count++;
+        }
+        return count;
     }
 
     // Getters for Node
@@ -595,7 +739,7 @@ namespace rmf::graph
         return std::nullopt;
     }
 
-    size_t MemoryGraphData::pruneDeadLinks()
+    std::vector<LinkKey> MemoryGraphData::getStaleLinks()
     {
         std::vector<LinkKey> linksToPrune;
         for (const auto& [key, link] : m_links)
@@ -606,14 +750,9 @@ namespace rmf::graph
                 linksToPrune.push_back(key);
             }
         }
-        for (const auto& key : linksToPrune)
-        {
-            removeLink(key);
-        }
-        return linksToPrune.size();
+        return linksToPrune;
     }
-
-    size_t MemoryGraphData::pruneDeadNodes()
+    std::vector<NodeKey> MemoryGraphData::getStaleNodes()
     {
         std::vector<NodeKey> nodesToPrune;
         for (const auto& [key, node] : m_nodes)
@@ -621,10 +760,97 @@ namespace rmf::graph
             if (getChildren(key).empty() && getParents(key).empty())
                 nodesToPrune.push_back(key);
         }
-        for (const auto& key : nodesToPrune)
-        {
-            removeNode(key);
-        }
-        return nodesToPrune.size();
+        return nodesToPrune;
+    }
+
+    size_t MemoryGraphData::pruneStaleLinks()
+    {
+        return removeLinks(getStaleLinks());
+    }
+
+    size_t MemoryGraphData::pruneStaleNodes()
+    {
+        return removeNodes(getStaleNodes());
+    }
+
+    MemoryGraph::MemoryGraph() : self(*this)
+    {
+        return;
+    }
+    // Ignores nodes that have no links.
+    std::vector<NodeKey> MemoryGraph::getExpiredNodes()
+    {
+        // auto temp = std::make_shared<std::string>("temporary");
+        // // Remove all keys and links that no longer exist.
+        // // This will be added to the MemoryGraph wrapper class.
+        // std::vector<graph::NodeKey> nodesToRemove;
+        // for (const auto& [linkKey, link] : self->getLinks())
+        // {
+        //     uintptr_t sourceAddr = link.data.sourceAddr;
+        //     uintptr_t targetAddr = link.data.targetAddr;
+        //     // Check if the source addr still points to the target.
+        //     auto snap = types::MemorySnapshot::Make(
+        //         {
+        //             .parentRegionAddress   = sourceAddr,
+        //             .parentRegionSize      = 8,
+        //             .relativeRegionAddress = 0,
+        //             .relativeRegionSize    = 8,
+        //             .regionName_sp         = temp,
+        //             .perms                 = types::Perms::Read,
+        //         },
+        //         m_pid);
+        //     // Checks if the values pointed to remain the same.
+        //     const uintptr_t currentTarget = *reinterpret_cast<uintptr_t*>(
+        //             snap.getDataSpan().data());
+        //     if (targetAddr != currentTarget)
+        //     {
+        //         nodesToRemove.push_back(link.sourceNode);
+        //     }
+        // }
+        // return nodesToRemove;
+    }
+
+    // Won't prune links
+    size_t MemoryGraph::pruneExpiredNodes()
+    {
+        return self->removeNodes(getExpiredNodes());
+    }
+
+    // Prunes all expired nodes, stale nodes and stale links.
+    std::pair<size_t, size_t> MemoryGraph::strictPrune()
+    {
+        size_t expired = pruneExpiredNodes();
+        // remove links
+        self->pruneStaleLinks();
+        size_t stale = self->pruneStaleNodes();
+        self->pruneStaleLinks();
+        return {expired, stale};
+    }
+
+    // Pruns only expired nodes and links
+    std::pair<size_t, size_t> MemoryGraph::relaxedPrune()
+    {
+        size_t count = 0;
+        count += self->pruneStaleNodes();
+        return {count, self->pruneStaleLinks()};
+    }
+
+    // Find sources
+    // Returns the keys to nodes that were added.
+    // Must point to the correct member of the target?
+    std::vector<NodeKey> MemoryGraph::findSourcesOfTargetsStrict(
+        const types::MemorySnapshotVec& regionsToSearch,
+        const std::vector<NodeKey>&     targetRegions,
+        StructMemberId sourceMember, StructMemberId targetMember)
+    {
+    }
+    // Find sources
+    // Returns the keys to nodes that were added.
+    // Automatically assigns the structs that are the targets.
+    std::vector<NodeKey> MemoryGraph::findSourcesOfTargetsRelaxed(
+        const types::MemorySnapshotVec& regionsToSearch,
+        const std::vector<NodeKey>&     targetRegions,
+        StructMemberId                  sourceMember)
+    {
     }
 }

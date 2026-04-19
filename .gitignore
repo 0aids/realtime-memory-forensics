@@ -11,3 +11,4 @@ __pycache__
 heaptrack.*
 callgrind.*
 venv
+Testing

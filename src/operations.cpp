@@ -11,6 +11,7 @@
 
 namespace rmf::op
 {
+    using namespace rmf::types;
     /******************************/
     /* Binary Snapshot Operations */
     /******************************/
@@ -182,5 +183,85 @@ namespace rmf::op
     {
         auto newMrp = utils::RestructureMrp(mrp, restructure);
         return findPointersToRegion(snap1, newMrp);
+    }
+
+    types::MapifiedSnap mapifySnap(const types::MemorySnapshot& snap)
+    {
+        types::MapifiedSnap pointers;
+        pointers.sourceMrp = snap.getMrp();
+
+        const auto mrp  = snap.getMrp();
+        const auto data = snap.getDataSpan();
+
+        ptrdiff_t  head =
+            sizeof(uintptr_t) - mrp.TrueAddress() % sizeof(uintptr_t);
+
+        pointers.sourceTargetPairs.reserve(
+            (mrp.relativeRegionSize - head) / sizeof(uintptr_t));
+
+        const uintptr_t* ptr_data =
+            reinterpret_cast<const uintptr_t*>(data.data() + head);
+        size_t count =
+            (mrp.relativeRegionSize - head) / sizeof(uintptr_t);
+
+        for (size_t i = 0; i < count; ++i)
+        {
+            uintptr_t target = ptr_data[i];
+            uintptr_t source =
+                head + (i * sizeof(uintptr_t)) + mrp.TrueAddress();
+            pointers.sourceTargetPairs.emplace_back(source, target);
+        }
+
+        // Sort the flat array by target address for fast binary searching later
+        std::sort(pointers.sourceTargetPairs.begin(),
+                  pointers.sourceTargetPairs.end(),
+                  [](const auto& a, const auto& b)
+                  { return a.target < b.target; });
+
+        return pointers;
+    }
+
+    // Search if a regions' true address lies within some other region.
+    std::vector<
+        std::pair<MemoryRegionProperties, MemoryRegionProperties>>
+    findSourcesOfTargetRegions(
+        const MapifiedSnap&              mapsnap,
+        const MemoryRegionPropertiesVec& regions,
+        const MrpRestructure&            mrpRestructure)
+    {
+        std::vector<
+            std::pair<MemoryRegionProperties, MemoryRegionProperties>>
+                    result;
+        const auto& sourceTargetPairs = mapsnap.sourceTargetPairs;
+
+        for (auto target : regions)
+        {
+            target = utils::RestructureMrp(target, mrpRestructure);
+
+            // Binary search the flat vector by the target
+            auto sourcesBottom = std::lower_bound(
+                sourceTargetPairs.begin(), sourceTargetPairs.end(),
+                target.TrueAddress(),
+                [](const SourceTargetPointerPair& element,
+                   uintptr_t val) { return element.target < val; });
+
+            auto sourcesTop = std::upper_bound(
+                sourceTargetPairs.begin(), sourceTargetPairs.end(),
+                target.TrueEnd() - 1,
+                [](uintptr_t                      val,
+                   const SourceTargetPointerPair& element)
+                { return element.target > val; });
+
+            for (auto it = sourcesBottom; it != sourcesTop; ++it)
+            {
+                MemoryRegionProperties newSourceMrp =
+                    mapsnap.sourceMrp;
+                newSourceMrp.relativeRegionAddress =
+                    it->source - newSourceMrp.parentRegionAddress;
+                newSourceMrp.relativeRegionSize = sizeof(uintptr_t);
+                result.emplace_back(newSourceMrp, target);
+            }
+        }
+        return result;
     }
 }

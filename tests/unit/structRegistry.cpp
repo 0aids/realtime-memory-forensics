@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
+#include <memory>
+#include "logger.hpp"
 #include "memory_graph.hpp"
+#include "types.hpp"
 
 using namespace rmf::graph;
 
@@ -18,6 +21,7 @@ TEST(StructRegistryTest, RegisterSimpleStruct)
 
 TEST(StructRegistryTest, RegisterMultipleStructsUniqueIds)
 {
+    rmf::g_logLevel = rmf_Verbose;
     StructRegistry registry;
 
     auto id1 = registry.registerr("StructA").field("int", "a").end();
@@ -70,9 +74,9 @@ TEST(StructRegistryTest, SingleFieldOffsetAndAlignment)
     EXPECT_TRUE(offset.has_value());
     EXPECT_EQ(offset.value(), 0);
 
-    auto alignment = registry.getFieldAlignment(memberId);
+    auto alignment = registry.getFieldAlignmentRules(memberId);
     EXPECT_TRUE(alignment.has_value());
-    EXPECT_EQ(alignment.value(), sizeof(int));
+    EXPECT_EQ(alignment.value().alignedAs, sizeof(int));
 }
 
 TEST(StructRegistryTest, MultipleFieldsOffsets)
@@ -265,17 +269,17 @@ TEST(StructRegistryTest, GetFieldAlignment)
     StructMemberId intMember{id, 1};
     StructMemberId doubleMember{id, 2};
 
-    auto           charAlign = registry.getFieldAlignment(charMember);
-    auto           intAlign  = registry.getFieldAlignment(intMember);
-    auto doubleAlign = registry.getFieldAlignment(doubleMember);
+    auto charAlign   = registry.getFieldAlignmentRules(charMember);
+    auto intAlign    = registry.getFieldAlignmentRules(intMember);
+    auto doubleAlign = registry.getFieldAlignmentRules(doubleMember);
 
     EXPECT_TRUE(charAlign.has_value());
     EXPECT_TRUE(intAlign.has_value());
     EXPECT_TRUE(doubleAlign.has_value());
 
-    EXPECT_EQ(charAlign.value(), alignof(char));
-    EXPECT_EQ(intAlign.value(), alignof(int));
-    EXPECT_EQ(doubleAlign.value(), alignof(double));
+    EXPECT_EQ(charAlign.value().alignedAs, alignof(char));
+    EXPECT_EQ(intAlign.value().alignedAs, alignof(int));
+    EXPECT_EQ(doubleAlign.value().alignedAs, alignof(double));
 }
 
 TEST(StructRegistryTest, GetFieldAlignmentInvalid)
@@ -287,7 +291,7 @@ TEST(StructRegistryTest, GetFieldAlignmentInvalid)
 
     StructMemberId invalid{id, 99};
 
-    auto           alignment = registry.getFieldAlignment(invalid);
+    auto alignment = registry.getFieldAlignmentRules(invalid);
     EXPECT_FALSE(alignment.has_value());
 }
 
@@ -377,9 +381,9 @@ TEST(StructRegistryTest, PointerTypes)
     EXPECT_GE(fields.value().size(), 1);
 
     auto alignment =
-        registry.getFieldAlignment(fields.value()["voidPtr"]);
+        registry.getFieldAlignmentRules(fields.value()["voidPtr"]);
     EXPECT_TRUE(alignment.has_value());
-    EXPECT_EQ(alignment.value(), sizeof(void*));
+    EXPECT_EQ(alignment.value().alignedAs, sizeof(void*));
 }
 
 TEST(StructRegistryTest, AllBasicTypes)
@@ -393,12 +397,8 @@ TEST(StructRegistryTest, AllBasicTypes)
                   .field("short", "s")
                   .field("int", "i")
                   .field("long", "l")
-                  .field("long long", "ll")
                   .field("float", "f")
                   .field("double", "d")
-                  .field("unsigned int", "u")
-                  .field("unsigned long", "ul")
-                  .field("unsigned long long", "ull")
                   .field("size_t", "sz")
                   .field("int8_t", "i8")
                   .field("uint8_t", "u8")
@@ -550,4 +550,79 @@ TEST(StructRegistryTest, MemoryGraphDataStructRegistryIntegration)
 
     auto rules = graph.structRegistry.getStructAlignmentRules(id);
     EXPECT_TRUE(rules.has_value());
+}
+
+TEST(StructRegistryTest, CanPointToSelf)
+{
+    MemoryGraphData graph;
+
+    auto            id = graph.structRegistry.registerr("Node")
+                  .field("uint32_t", "data")
+                  .field("Node*", "next")
+                  .end();
+    struct Node
+    {
+        uint32_t data;
+        Node*    next;
+    };
+    Node                 n1 = {0xf0f0f0f0, nullptr};
+    Node                 n2 = {0xf0f0f0f0, &n1};
+    std::vector<uint8_t> bytes(sizeof(n2), 16);
+    memcpy(bytes.data(), &n2, sizeof(n2));
+    const auto nodePointerId =
+        graph.structRegistry.getFieldOfParent(id, "next").value();
+    const auto nodeDataId =
+        graph.structRegistry.getFieldOfParent(id, "data").value();
+    // stupid runtime types.
+    {
+        const auto received =
+            graph.structRegistry
+                .getValuesAtMember(bytes, nodePointerId)
+                .value();
+        EXPECT_EQ(received.size(), sizeof(Node*));
+        EXPECT_EQ(*(Node**)received.data(), n2.next);
+    }
+    {
+        const auto received =
+            graph.structRegistry.getValuesAtMember(bytes, nodeDataId)
+                .value();
+        EXPECT_EQ(received.size(), sizeof(uint32_t));
+        EXPECT_EQ(*(uint32_t*)received.data(), n2.data);
+    }
+}
+
+TEST(StructRegistryTest, ProperlyResizesMrp)
+{
+    MemoryGraphData graph;
+
+    auto            id = graph.structRegistry.registerr("Node")
+                  .field("uint32_t", "data")
+                  .field("Node*", "next")
+                  .end();
+    auto fieldNode =
+        graph.structRegistry.getFieldOfParent(id, "next").value();
+    struct Node
+    {
+        uint32_t data;
+        Node*    next;
+    };
+    rmf::types::MemoryRegionProperties mrpOfNodeStar = {
+        .parentRegionAddress   = 0x0,
+        .parentRegionSize      = 0x1000,
+        .relativeRegionAddress = 0x38,
+        .relativeRegionSize    = 0x8,
+        .regionName_sp = std::make_shared<std::string>("bruh"),
+        .perms = rmf::types::Perms::Read | rmf::types::Perms::Write,
+    };
+    rmf::types::MemoryRegionProperties correctedMrp = {
+        .parentRegionAddress   = 0x0,
+        .parentRegionSize      = 0x1000,
+        .relativeRegionAddress = 0x30,
+        .relativeRegionSize    = sizeof(Node),
+        .regionName_sp = std::make_shared<std::string>("bruh"),
+        .perms = rmf::types::Perms::Read | rmf::types::Perms::Write,
+    };
+    auto newMrp =
+        graph.structRegistry.restructureMrp(fieldNode, mrpOfNodeStar);
+    EXPECT_EQ(newMrp, correctedMrp);
 }

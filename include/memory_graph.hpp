@@ -3,12 +3,15 @@
 #include <cstddef>
 #include <functional>
 #include <map>
+#include <memory>
 #include <ranges>
 #include <string_view>
 #include <unordered_map>
 #include <optional>
 #include <vector>
 #include <cstdint>
+#include "abbreviations.hpp"
+#include "rmf.hpp"
 #include "utils.hpp"
 #include "types.hpp"
 #include <stdexcept>
@@ -189,8 +192,8 @@ namespace rmf::graph
         getParentId(const std::string_view name) const;
         std::optional<ptrdiff_t>
         getFieldOffset(StructMemberId id) const;
-        std::optional<ptrdiff_t>
-        getFieldAlignment(StructMemberId id) const;
+        std::optional<StructAlignmentRules>
+        getFieldAlignmentRules(StructMemberId id) const;
         std::optional<StructAlignmentRules>
         getStructAlignmentRules(StructTypeId id) const;
         std::optional<StructAlignmentRules>
@@ -201,6 +204,9 @@ namespace rmf::graph
         std::optional<StructMemberId>
         getFieldOfParent(StructTypeId           id,
                          const std::string_view view) const;
+
+        std::optional<StructMemberId>
+        getFieldAtOffset(StructTypeId id, ptrdiff_t offset) const;
 
         std::optional<std::unordered_map<std::string, StructMemberId,
                                          StringHash, std::equal_to<>>>
@@ -220,6 +226,14 @@ namespace rmf::graph
         // Actually returns the struct type id, after you call builder.end().
         // otherwise it doesn't.
         StructBuilder registerr(const std::string_view name);
+
+        std::optional<std::span<const uint8_t>>
+        getValuesAtMember(std::span<const uint8_t> structData,
+                          StructMemberId           memberId);
+
+        std::optional<uintptr_t> getTrueAddressOfMember(
+            const types::MemoryRegionProperties& mrp,
+            StructMemberId                       member);
     };
 
     class MemoryGraphData
@@ -277,6 +291,9 @@ namespace rmf::graph
             const std::string_view                structName,
             const std::optional<std::string_view> field =
                 std::nullopt);
+        std::optional<NodeKey>
+        addStructuredNode(const types::MemoryRegionProperties& mrp,
+                          StructMemberId                       id);
 
         // Default: Adds a link between two nodes.
         std::optional<LinkKey> addLink(NodeKey source, NodeKey target,
@@ -290,6 +307,10 @@ namespace rmf::graph
                                StructMemberId targetMember);
         bool removeNode(NodeKey key);
         bool removeLink(LinkKey key);
+        // Returns the number of nodes successfully removed
+        size_t removeNodes(std::span<const NodeKey> key);
+        // Returns the number of links successfully removed
+        size_t removeLinks(std::span<const LinkKey> key);
 
         // Getters for Node
         std::optional<MemoryNode> getNode(NodeKey key);
@@ -396,9 +417,69 @@ namespace rmf::graph
         getNodeKeyAtMrp(const types::MemoryRegionProperties& mrp);
         std::optional<LinkKey>
         getLinkKeyAtLinkData(const MemoryLinkData& link);
+        std::vector<LinkKey> getStaleLinks();
+        std::vector<NodeKey> getStaleNodes();
+        void removeLinks(const std::span<LinkKey>& keys);
+        void removeNodes(const std::span<NodeKey>& keys);
         // Returns number of dead links.
-        size_t pruneDeadLinks();
-        size_t pruneDeadNodes();
+        size_t pruneStaleLinks();
+        size_t pruneStaleNodes();
+    };
+
+    class MemoryGraph
+    {
+      private:
+        struct Data
+        {
+            MemoryGraphData data;
+        };
+        abv::sptr<Data> m_data = std::make_shared<Data>();
+        // Makes a copy, but it's a handle-body with sptr impl
+        // But we end up with the same analyzer.
+        // Used so we can use operator-> for easy of access.
+        MemoryGraph& self;
+
+      public:
+        MemoryGraph();
+        MemoryGraph(const MemoryGraph&)                = default;
+        MemoryGraph(MemoryGraph&&)                     = default;
+        MemoryGraph&     operator=(const MemoryGraph&) = default;
+        MemoryGraph&     operator=(MemoryGraph&&)      = default;
+        MemoryGraphData* operator->()
+        {
+            return &m_data->data;
+        }
+        const MemoryGraphData* operator->() const
+        {
+            return &m_data->data;
+        }
+        // Ignores nodes that have don't have valid links anymore
+        // Reads the memory, and checks if it points to the same
+        // region anymore.
+        std::vector<NodeKey> getExpiredNodes();
+        // Won't prune links
+        size_t pruneExpiredNodes();
+
+        // Prunes all expired nodes, stale nodes and stale links.
+        // Returns a pair of {count of pruned nodes, count of pruned links}
+        std::pair<size_t, size_t> strictPrune();
+
+        // Prunes only expired nodes and links
+        std::pair<size_t, size_t> relaxedPrune();
+
+        // Find sources
+        // Returns the keys to nodes that were added.
+        std::vector<NodeKey> findSourcesOfTargetsStrict(
+            const types::MemorySnapshotVec& regionsToSearch,
+            const std::vector<NodeKey>&     targetRegions,
+            StructMemberId sourceMember, StructMemberId targetMember);
+        // Find sources
+        // Returns the keys to nodes that were added.
+        // Automatically assigns the structs that are the targets.
+        std::vector<NodeKey> findSourcesOfTargetsRelaxed(
+            const types::MemorySnapshotVec& regionsToSearch,
+            const std::vector<NodeKey>&     targetRegions,
+            StructMemberId                  sourceMember);
     };
 }
 

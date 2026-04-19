@@ -21,92 +21,6 @@ using namespace rmf;
 using namespace rmf::types;
 using namespace std;
 
-struct SourceTargetPointerPair
-{
-    uintptr_t source;
-    uintptr_t target;
-};
-struct MapifiedSnap
-{
-    vector<SourceTargetPointerPair> sourceTargetPairs;
-    MemoryRegionProperties          sourceMrp;
-};
-
-MapifiedSnap mapifySnap(const MemorySnapshot& snap)
-{
-    MapifiedSnap pointers;
-    pointers.sourceMrp = snap.getMrp();
-
-    const auto mrp  = snap.getMrp();
-    const auto data = snap.getDataSpan();
-
-    ptrdiff_t  head =
-        sizeof(uintptr_t) - mrp.TrueAddress() % sizeof(uintptr_t);
-
-    pointers.sourceTargetPairs.reserve(
-        (mrp.relativeRegionSize - head) / sizeof(uintptr_t));
-
-    const uintptr_t* ptr_data =
-        reinterpret_cast<const uintptr_t*>(data.data() + head);
-    size_t count =
-        (mrp.relativeRegionSize - head) / sizeof(uintptr_t);
-
-    for (size_t i = 0; i < count; ++i)
-    {
-        uintptr_t target = ptr_data[i];
-        uintptr_t source =
-            head + (i * sizeof(uintptr_t)) + mrp.TrueAddress();
-        pointers.sourceTargetPairs.emplace_back(source, target);
-    }
-
-    // Sort the flat array by target address for fast binary searching later
-    std::sort(pointers.sourceTargetPairs.begin(),
-              pointers.sourceTargetPairs.end(),
-              [](const auto& a, const auto& b)
-              { return a.target < b.target; });
-
-    return pointers;
-}
-
-// Search if a regions' true address lies within some other region.
-vector<pair<MemoryRegionProperties, MemoryRegionProperties>>
-findSourceTargetRegionsFast(const MapifiedSnap&              mapsnap,
-                            const MemoryRegionPropertiesVec& regions,
-                            const MrpRestructure& mrpRestructure)
-{
-    vector<pair<MemoryRegionProperties, MemoryRegionProperties>>
-                result;
-    const auto& sourceTargetPairs = mapsnap.sourceTargetPairs;
-
-    for (auto target : regions)
-    {
-        target = utils::RestructureMrp(target, mrpRestructure);
-
-        // Binary search the flat vector by the target
-        auto sourcesBottom = std::lower_bound(
-            sourceTargetPairs.begin(), sourceTargetPairs.end(),
-            target.TrueAddress(),
-            [](const SourceTargetPointerPair& element, uintptr_t val)
-            { return element.target < val; });
-
-        auto sourcesTop = std::upper_bound(
-            sourceTargetPairs.begin(), sourceTargetPairs.end(),
-            target.TrueEnd() - 1,
-            [](uintptr_t val, const SourceTargetPointerPair& element)
-            { return element.target > val; });
-
-        for (auto it = sourcesBottom; it != sourcesTop; ++it)
-        {
-            MemoryRegionProperties newSourceMrp = mapsnap.sourceMrp;
-            newSourceMrp.relativeRegionAddress =
-                it->source - newSourceMrp.parentRegionAddress;
-            newSourceMrp.relativeRegionSize = sizeof(uintptr_t);
-            result.emplace_back(newSourceMrp, target);
-        }
-    }
-    return result;
-}
-
 bool operator==(const rmf::types::MemoryRegionProperties& a,
                 const rmf::types::MemoryRegionProperties& b)
 {
@@ -130,7 +44,7 @@ int         main(int argc, const char** argv)
                 "argument AND string to match for as third"
              << endl;
     }
-    const MrpRestructure restructure{-32, 64};
+    const MrpRestructure restructure{-64, 128};
     const pid_t          pid         = std::stoul(argv[1]);
     std::string          matchString = argv[2];
 
@@ -168,15 +82,15 @@ int         main(int argc, const char** argv)
                  .FilterActiveRegions(pid);
         snaps = analyzer.Execute(rmf::types::MemorySnapshot::Make, og,
                                  pid);
-        auto mapsSnaps = analyzer.Execute(mapifySnap, snaps);
+        auto mapsSnaps = analyzer.Execute(op::mapifySnap, snaps);
         println("Running loop");
         size_t i = 0;
         while (sources.size() > 0 && i < 5)
         {
             auto newResult =
                 analyzer
-                    .Execute(findSourceTargetRegionsFast, mapsSnaps,
-                             sources, MrpRestructure{0, 0})
+                    .Execute(op::findSourcesOfTargetRegions,
+                             mapsSnaps, sources, MrpRestructure{0, 0})
                     .flatten();
             println("@ bfs{{{}}} new sources with duplicates: {}",
                     bfsDepth++, newResult.size());
@@ -243,8 +157,8 @@ int         main(int argc, const char** argv)
         {
             mg.removeNode(key);
         }
-        mg.pruneDeadLinks();
-        mg.pruneDeadNodes();
+        mg.pruneStaleLinks();
+        mg.pruneStaleNodes();
         println("Pruned graph for dead nodes");
         println("Num Nodes: {}, Num links: {}", mg.getNodes().size(),
                 mg.getLinks().size());

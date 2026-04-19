@@ -42,6 +42,8 @@ struct magic_enum::customize::enum_range<rmf::types::Perms>
     static constexpr bool is_flags = true;
 };
 
+using namespace magic_enum::bitwise_operators;
+
 namespace rmf::types
 {
 
@@ -166,12 +168,21 @@ namespace rmf::types
             const MemoryRegionProperties mrp;
             SnapshotDataBuffer           mc_data;
             Data(const MemoryRegionProperties _mrp) : mrp(_mrp) {}
+            Data(const MemoryRegionProperties _mrp,
+                 SnapshotDataBuffer& data) : mrp(_mrp), mc_data(data)
+            {
+            }
         };
         MemorySnapshot(const MemoryRegionProperties& _mrp);
         std::shared_ptr<Data> d;
 
       public:
-        MemorySnapshot() = delete;
+        // for debugging
+        MemorySnapshot(const MemoryRegionProperties& mrp,
+                       SnapshotDataBuffer&           data) :
+            d(std::make_shared<Data>(mrp, data))
+        {
+        }
         // Generic copy and move stuff tho
         MemorySnapshot(MemorySnapshot&&)                    = default;
         MemorySnapshot(const MemorySnapshot&)               = default;
@@ -195,7 +206,8 @@ namespace rmf::types
 
         inline bool           isValid() const
         {
-            return d->mc_data.size() == d->mrp.relativeRegionSize;
+            return (ssize_t)d->mc_data.size() ==
+                d->mrp.relativeRegionSize;
         }
 
         void                        printHex(size_t charsPerLine = 32,
@@ -253,6 +265,16 @@ namespace rmf::types
             std::vector<MemoryRegionProperties>&& other);
         MemoryRegionPropertiesVec(
             const std::vector<MemoryRegionProperties>& other);
+    };
+    struct SourceTargetPointerPair
+    {
+        uintptr_t source;
+        uintptr_t target;
+    };
+    struct MapifiedSnap
+    {
+        std::vector<SourceTargetPointerPair> sourceTargetPairs;
+        types::MemoryRegionProperties        sourceMrp;
     };
 };
 

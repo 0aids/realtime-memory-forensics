@@ -220,11 +220,22 @@ namespace rmf::op
         const types::MemorySnapshot&         snap1,
         const types::MemoryRegionProperties& mrp,
         const types::MrpRestructure&         restructure = {});
+
     types::MemoryRegionPropertiesVec
     findPointersToRegionsRestructured(
         const types::MemorySnapshot&            snap1,
         const types::MemoryRegionPropertiesVec& mrps,
         const types::MrpRestructure&            restructure);
+
+    types::MapifiedSnap mapifySnap(const types::MemorySnapshot& snap);
+
+    // Search if a regions' true address lies within some other region.
+    std::vector<std::pair<types::MemoryRegionProperties,
+                          types::MemoryRegionProperties>>
+    findSourcesOfTargetRegions(
+        const types::MapifiedSnap&              mapsnap,
+        const types::MemoryRegionPropertiesVec& regions,
+        const types::MrpRestructure&            mrpRestructure);
 
 }
 

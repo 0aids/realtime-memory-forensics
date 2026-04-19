@@ -22,15 +22,15 @@ using namespace rmf;
 using namespace rmf::types;
 using namespace std;
 
-struct MapifiedSnap
+struct SpecialMapifiedSnap
 {
     unordered_map<uintptr_t, size_t> targetValueCountsMap;
     MemoryRegionProperties           sourceMrp;
 };
 
-MapifiedSnap mapifySnap(const MemorySnapshot& snap)
+SpecialMapifiedSnap mapifySnap(const MemorySnapshot& snap)
 {
-    MapifiedSnap pointers;
+    SpecialMapifiedSnap pointers;
     pointers.sourceMrp = snap.getMrp();
 
     const auto mrp  = snap.getMrp();

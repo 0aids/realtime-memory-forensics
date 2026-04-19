@@ -10,16 +10,23 @@ via node-graph visualisation, all done without analysing executed assembly.
 - [x] refac: fix build script for better incorporation of testing
 - [x] feat: better testing and more coverage
 - [x] refac: Remove PIDs (should be user managed, idk why i'm storing it in the mrps)
-- [?] refac: Remove named values for now for simplification.
+- [x] refac: Remove named values for now for simplification.
 - [x] feat: python interoperability / bindings
 - [x] feat: integrated python shell
 - [x] feat: multi threading in python
     - [x] feat: faster multithreading via Batcher.
 - [-] feat: implement memory graph algorithms.
-    - [x] Get structs working.
-    - [ ] MemoryGraphData wrapper MemoryGraph.
-    - [ ] Structs working with square bracket syntax.
     - [x] Basic prototype of MemoryGraphData without structs
+    - [x] Get structs working.
+    - [-] MemoryGraphData wrapper MemoryGraph.
+    - [x] Structs working with square bracket syntax.
+    - [?] Structs that can have a pointer to itself. (linked list)
+    - [ ] Redesign structregistry api
+    - [ ] Rewrite entire graph methods and datastructure.
+    - [ ] Get prototype working
+- [ ] refac: refactor snapshots to be able to input your own data as buffers for testing.
+- [ ] refac: Memory graph to not take pids.
+- [ ] refac: Memory graph to not take other stuff.
 - [ ] fix: narrowing and sign comparison warnings
 - [ ] feat: integrated python scripting in gui and file saving
 - [ ] feat: Add link details on hover
@@ -79,16 +86,16 @@ int main() {
     // This must be done to a "StructRegistry" so structs can refer to eachother.
     StructRegistry sr;
     sr.registerr("IntLinkedList") // Automatically calculates size.
-    	.field("next", "IntLinkedList*")
-    	.field("data", "int32_t")
+    	.field("IntLinkedList*", "next")
+    	.field("int32_t", "data")
     	.end()
     sr.registerr("IntVector")
-    	.field("numElements", "size_t")
-    	.field("data", "int32_t*") // has a list of preregistered fundamental datatypes.
+    	.field("size_t", "numElements")
+    	.field("int32_t*", "data") // has a list of preregistered fundamental datatypes.
     	.end();
 
     sr.registerr("flatString1") // Automatically calculates size.
-		.field("string", "char[10]") // has a list of preregistered fundamental datatypes.
+		.field("char[10]", "string") // has a list of preregistered fundamental datatypes.
         .end();
     // Or this
     sr.registerTemplated<StructHere>("CustomNameOfStruct");
@@ -144,12 +151,12 @@ mg = rmf.MemoryGraph(BATCHER, PID, structRegistry=rmf.defaultStructRegistry)
 # something at it's origin (if pointer aligned).
 mg.structRegistry.register(
 	Struct("helloWorldStr")
-    	.field("chars", "char[13]")
+    	.field("char[13]", "chars")
 )
 
 mg.structRegistry.register(
 	Struct("charstar")
-    	.field("c", "char*")
+    	.field("char*", "c")
 )
 
 # Coerces the MRP to fit the given struct.

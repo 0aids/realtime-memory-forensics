@@ -181,6 +181,19 @@ namespace rmf::test
         {
             m_head = m_nodes.front();
         }
+        // assert that we can traverse ourselves.
+        const Node* beginNode = m_nodes.front();
+        const Node* endNode   = m_nodes.back();
+        const Node* head      = beginNode;
+        size_t      i         = 0;
+        while (head != endNode)
+        {
+            assert(head->data == m_values[i++] &&
+                   "head should have correct value!");
+            head = head->next;
+            assert(head != nullptr &&
+                   "head should never be nullptr!");
+        }
     }
 
     template <typename T>
@@ -284,7 +297,10 @@ namespace rmf::test
         if (m_pid < 0)
             throw std::runtime_error("Failed to fork test process!");
         else if (m_pid > 0)
+        {
+            std::this_thread::sleep_for(100ms);
             return m_pid;
+        }
 
         // Set it so we die on parent process death.
         if (prctl(PR_SET_PDEATHSIG, SIGKILL) == -1)
