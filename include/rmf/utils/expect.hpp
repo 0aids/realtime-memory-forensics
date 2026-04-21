@@ -2,6 +2,7 @@
 #include <expected>
 #include <string>
 #include <exception>
+#include <optional>
 namespace RealtimeMemoryForensics::Utils
 {
     enum class ErrorEnum
@@ -14,6 +15,10 @@ namespace RealtimeMemoryForensics::Utils
     using ErrE = std::unexpected<Error>;
     template <typename T>
     using ErrU = std::expected<T, Error>;
+
+    template <typename T>
+    using Opt           = std::optional<T>;
+    constexpr auto nopt = std::nullopt;
 
     class Error : public std::exception
     {

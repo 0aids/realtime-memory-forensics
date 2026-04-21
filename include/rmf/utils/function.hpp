@@ -10,10 +10,15 @@
 namespace RealtimeMemoryForensics::Utils
 {
     template <typename T>
-    struct FunctionTraits;
+    struct FunctionTraitsGetter
+    {
+        static_assert(false,
+                      "Type T is not a function, or not decoded via "
+                      "a FunctionDecoder!");
+    };
 
     template <typename R, typename... Args>
-    struct FunctionTraits<std::function<R(Args...)>>
+    struct FunctionTraitsGetter<std::function<R(Args...)>>
     {
         using Base        = std::function<R(Args...)>;
         using InputsTuple = std::tuple<Args...>;
@@ -27,7 +32,7 @@ namespace RealtimeMemoryForensics::Utils
         decltype(std::function{std::declval<F>()});
 
     template <typename F>
-    using FuncTraits = FunctionTraits<FunctionDecoder<F>>;
+    using FuncTraits = FunctionTraitsGetter<FunctionDecoder<F>>;
 
     // A temporary object that holds the information
     template <typename FT>
