@@ -60,7 +60,7 @@ namespace RealtimeMemoryForensics::Logging
         const auto preamble = formatPreamble(
             level, threadname, filename, lineNumber, functionName);
         const auto postamble = std::format(fmtString, args...);
-        stderr("{} {}", preamble, postamble);
+        stderr("{} {}{}", preamble, postamble, StringColors[Reset]);
     }
 }
 

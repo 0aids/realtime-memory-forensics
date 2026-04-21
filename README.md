@@ -6,42 +6,7 @@ via node-graph visualisation, all done without analysing executed assembly.
 
 
 # TODO
-- [x] feat: Incorporate MrpVec capabilities (assigning and adding nodes)
-- [x] refac: fix build script for better incorporation of testing
-- [x] feat: better testing and more coverage
-- [x] refac: Remove PIDs (should be user managed, idk why i'm storing it in the mrps)
-- [x] refac: Remove named values for now for simplification.
-- [x] feat: python interoperability / bindings
-- [x] feat: integrated python shell
-- [x] feat: multi threading in python
-    - [x] feat: faster multithreading via Batcher.
-- [-] feat: implement memory graph algorithms.
-    - [x] Basic prototype of MemoryGraphData without structs
-    - [x] Get structs working.
-    - [-] MemoryGraphData wrapper MemoryGraph.
-    - [x] Structs working with square bracket syntax.
-    - [?] Structs that can have a pointer to itself. (linked list)
-    - [ ] Redesign structregistry api
-    - [ ] Rewrite entire graph methods and datastructure.
-    - [ ] Get prototype working
-- [ ] refac: refactor snapshots to be able to input your own data as buffers for testing.
-- [ ] refac: Memory graph to not take pids.
-- [ ] refac: Memory graph to not take other stuff.
-- [ ] fix: narrowing and sign comparison warnings
-- [ ] feat: integrated python scripting in gui and file saving
-- [ ] feat: Add link details on hover
-- [ ] feat: Add node details on hover
-- [ ] feat: Incorporate auto linking using an inputted ANALYZER.
-- [ ] feat: undo + redo
-- [ ] feat: graph serialisation?
-- [x] fix: Find that stupid race condition
-- [ ] feat: lazy snapshots for reduced memory usage?
-           The only problem is delays between snapshots, which wouldnt work
-           as easily. The only way to get this to work is to have
-           some sort of global vector storing times at which each snapshot was
-           "Created"? Or just make this sort of snapshot not compatible with
-           searching for changed memory?
-
+- [ ] Massive refactor for the below API.
 - [ ] done for now?
 
 
@@ -214,14 +179,16 @@ vec<mf::Map> maps = getMapsBy(pid)
 	.maxSize(0xffffff)
 	.active(pid);
 
-// Get our snapshots (operator() of Analyzer automatically parallelises and flattens).
-vec<mf::Snapshot> snapshots = makeSnapshot.mt(an)(maps, pid);
+vec<mf::Snapshot> snapshots = makeSnapshot.threaded(maps, pid).using_(an);
 
 // Obviously we can just access the data raw
 mf::Snapshot snap1 = snapshots.front();
 snap1... // Standard vector operations.
 
 // find* are static classes that support operator(), or a .threaded version which takes in an analyzer.
+// For templated functions, use something like the following
+// template <Numeral T>
+// constexpr auto findNumInRange<T> = mfu::function(implFunc<T>);
 vec<mf::Map> stringInSnap = findStr.threaded(snapshots, "RandomString!").using_(an);
 vec<mf::Map> floatYRanges = findNumInRange<float>.threaded(snapshots, 0.99, 1.01).using_(an);
 vec<mf::Map> numCloseTo = findNumCloseTo<double>.threaded(snapshots, 1e5, 0.5).using_(an);
