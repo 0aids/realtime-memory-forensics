@@ -54,16 +54,16 @@ cmake -S . -B build -Dbuild_tests=ON && cmake --build build -j 12 && (ulimit -m 
 
 # planned api structure/use
 ```cpp
-using mf = RealtimeMemoryForensics;
-using mfl = mf::Logging;
-using mfu = mf::Utils;
+namespace mf = RealtimeMemoryForensics;
+namespace mfl = mf::Logging;
+namespace mfu = mf::Utils;
 /***************************/
 /****** Logging/utils ******/
 /***************************/
 // Only log errors
 mfl::setLogLevel(mf::LogError);
-mfl::error("Wowwy {}", 10); // cerr, special stuff with destructors
-mfl::println("hello {}", "world"); // cout
+mfl::stdout("Wowwy {}", 10); // cerr
+mfl::stderr("hello {}", "world"); // cout
 mfu::assert(..., "string"); // Will just throw, which we do not catch
 
 // Utils are common abbreviations or wrappers on std to make my life easier.
@@ -94,6 +94,8 @@ struct Errc {
 };
 
 struct ErrcThrow : public std::exception {
+private:
+public:
 	using std::exception...;
 	ErrcThrow();
 	const char* what() override;
@@ -102,10 +104,9 @@ struct ErrcThrow : public std::exception {
 	// "    ^-> From @ [file : line : function] errc"
 };
 
-mf_RetErr(result); // Propogates the error
-mf_SwapErr(result, errc); // Swaps the error for another one.
-mf_Errc(enumErr); // Initialises an error with extra string metadata
-mf_UpdateRetErr(result); // Updates with current line metadata.
+rmf_retErr(result); // Propogates the error
+rmf_mkErr(enumErr); // Initialises an error with extra string metadata
+rmf_updErr(result, errc); // Updates with current line metadata.
 
 // For errors that are non-destructive/cannot be dealt with
 // Non-destructive error. These are just warnings.
