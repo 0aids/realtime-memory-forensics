@@ -95,6 +95,8 @@ struct Errc {
 
 struct ErrcThrow : public std::exception {
 private:
+	std::string generateMsg(ErrorEnum e, const char* file, lineNumber_t line,
+                  const char* function);
 public:
 	using std::exception...;
 	ErrcThrow();

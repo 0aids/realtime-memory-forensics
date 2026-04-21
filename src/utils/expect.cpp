@@ -1,12 +1,11 @@
-#include "rmf/logging/logging.hpp"
 #include "rmf/utils/expect.hpp"
+#include <format>
 #include <magic_enum/magic_enum.hpp>
 namespace mf  = RealtimeMemoryForensics;
-namespace mfl = mf::Logging;
 namespace mfu = mf::Utils;
 
 #define fmtString       "From [{}:{} - {}] {}"
-#define fmtStringSubseq fmtString "\n\t^->"
+#define fmtStringSubseq fmtString "\n\t^-> "
 std::string mfu::Error::generateMsg(ErrorEnum e, const char* file,
                                     lineNumber_t line,
                                     const char*  function)
