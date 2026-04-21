@@ -52,7 +52,7 @@ namespace RealtimeMemoryForensics::Utils
 #define rmf_retErr(exp)                                              \
     {                                                                \
         if (!exp.has_value())                                        \
-            return errU;                                             \
+            return exp;                                              \
     }
 
 #define rmf_updErr(exp, errc)                                        \

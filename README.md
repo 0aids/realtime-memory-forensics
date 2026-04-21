@@ -4,9 +4,8 @@ multi-threaded high-throughput scanning, interactive gui with python
 bindings/scripting support, allowing reproducible analysis of key data flow
 via node-graph visualisation, all done without analysing executed assembly.
 
-
 # TODO
-- [ ] Massive refactor for the below API.
+- [-] Massive refactor for the below API.
 - [ ] done for now?
 
 

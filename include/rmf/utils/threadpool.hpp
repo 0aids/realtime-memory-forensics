@@ -222,7 +222,17 @@ namespace RealtimeMemoryForensics::Utils
         std::move_only_function<void()> lambda =
             [func = std::move(func), p = std::move(promise),
              ... args = std::forward<Args>(args)]() mutable
-        { p.set_value(func(args...)); };
+        {
+            if constexpr (std::is_same_v<ReturnType, void>)
+            {
+                func(args...);
+                p.set_value();
+            }
+            else
+            {
+                p.set_value(func(args...));
+            }
+        };
         m_queue.enqueue(std::move(lambda));
         return future;
     }

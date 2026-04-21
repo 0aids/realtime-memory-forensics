@@ -80,3 +80,61 @@ TEST(function, perfectForwarding)
     newFunc(test{});
     EXPECT_EQ(_i, 0);
 }
+
+TEST(function, Function_noCopySemantics)
+{
+    auto func = mfu::Function(+[]() { return 42; });
+    static_assert(!std::is_copy_constructible_v<decltype(func)>,
+                  "Function should not be copy constructible");
+    static_assert(!std::is_copy_assignable_v<decltype(func)>,
+                  "Function should not be copy assignable");
+}
+
+struct MoveOnlyType
+{
+    int value;
+    MoveOnlyType(int v) : value(v) {}
+    MoveOnlyType(const MoveOnlyType&)            = delete;
+    MoveOnlyType& operator=(const MoveOnlyType&) = delete;
+    MoveOnlyType(MoveOnlyType&& other) : value(other.value)
+    { other.value = 0; }
+    MoveOnlyType& operator=(MoveOnlyType&& other)
+    {
+        value       = other.value;
+        other.value = 0;
+        return *this;
+    }
+};
+
+TEST(function, Function_moveOnlyCallable)
+{
+    auto func =
+        mfu::Function(+[](MoveOnlyType m) { return m.value; });
+    MoveOnlyType mobj(42);
+    EXPECT_EQ(func(std::move(mobj)), 42);
+    EXPECT_EQ(mobj.value, 0);
+}
+
+TEST(function, Function_returnTypeCorrect)
+{
+    auto intFunc = mfu::Function(+[]() { return 42; });
+    auto strFunc =
+        mfu::Function(+[]() { return std::string("hello"); });
+    auto doubleFunc = mfu::Function(+[]() { return 3.14; });
+
+    EXPECT_EQ(intFunc(), 42);
+    EXPECT_EQ(strFunc(), std::string("hello"));
+    EXPECT_DOUBLE_EQ(doubleFunc(), 3.14);
+}
+
+TEST(function, Function_variousArgTypes)
+{
+    auto funcInt = mfu::Function(+[](int x) { return x * 2; });
+    auto funcStr =
+        mfu::Function(+[](const std::string& s) { return s.size(); });
+    auto funcFloat = mfu::Function(+[](double d) { return d + 1.0; });
+
+    EXPECT_EQ(funcInt(5), 10);
+    EXPECT_EQ(funcStr(std::string("hello")), 5);
+    EXPECT_DOUBLE_EQ(funcFloat(2.5), 3.5);
+}
