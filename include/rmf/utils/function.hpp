@@ -44,7 +44,7 @@ namespace RealtimeMemoryForensics::Utils
       public:
         using FTTraits = FuncTraits<FT>;
         Threader(FT ft);
-        vec<typename FTTraits::Output> with(Threadpool);
+        vec<typename FTTraits::Output> with(ThreadPool);
     };
 
     template <typename F, typename FT = F>
@@ -96,8 +96,6 @@ namespace RealtimeMemoryForensics::Utils
             std::tuple<Args...>, typename FuncTraits<F>::InputsTuple>
     typename FuncTraits<F>::Output
     Function<F, FT>::operator()(Args&&... args)
-    {
-        return m_func(std::forward<Args>(args)...);
-    }
+    { return m_func(std::forward<Args>(args)...); }
 }
 #endif // functions_hpp_INCLUDED

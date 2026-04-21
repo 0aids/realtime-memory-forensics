@@ -25,3 +25,10 @@ TEST(logging, AttemptLoggingErrorOnly)
     rmf_Verbose("Verbose Test");
     rmf_Debug("Debug Test");
 }
+
+TEST(Logging, AttemptLoggingVariables)
+{
+    int a = 0;
+    int b = -10;
+    rmf_Debug("a - b = {}", a - b);
+}

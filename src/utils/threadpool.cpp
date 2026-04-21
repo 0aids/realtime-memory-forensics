@@ -4,13 +4,14 @@
 #include <format>
 #include <thread>
 
-namespace mf  = RealtimeMemoryForensics;
-namespace mfu = mf::Utils;
+namespace mf   = RealtimeMemoryForensics;
+namespace mfu  = mf::Utils;
+namespace mfud = mf::Utils::Detail;
 
 void mfu::ThreadPool::threadFunction(
-    const std::atomic<bool>&          alive,
-    SPMCQueue<std::function<void()>>& queue,
-    std::atomic<uint64_t>&            m_numRunning)
+    const std::atomic<bool>&                          alive,
+    mfud::SPMCQueue<std::move_only_function<void()>>& queue,
+    std::atomic<uint64_t>&                            m_numRunning)
 {
     using namespace std::chrono_literals;
     while (alive.load(std::memory_order_acquire))
@@ -30,8 +31,20 @@ void mfu::ThreadPool::threadFunction(
 void mfu::ThreadPool::awaitTasks()
 {
     using namespace std::chrono_literals;
-    while (!m_queue.empty() || m_numRunning.load() > 0)
+    while (true)
+    {
         std::this_thread::sleep_for(10ms);
+        bool   empty = m_queue.empty();
+        size_t numRunning =
+            m_numRunning.load(std::memory_order::acquire);
+        if (empty && numRunning == 0)
+        {
+            rmf_Verbose("finished awaiting tasks - Reason "
+                        "empty:{:s}, numRunning: {}",
+                        empty, numRunning);
+            break;
+        }
+    }
 }
 
 mfu::ThreadPool::ThreadPool(size_t numThreads, size_t queueSize) :
@@ -40,7 +53,8 @@ mfu::ThreadPool::ThreadPool(size_t numThreads, size_t queueSize) :
     for (size_t i = 0; i < numThreads; i++)
     {
         m_threads.emplace_back(threadFunction, std::ref(m_alive),
-                               std::ref(m_queue));
+                               std::ref(m_queue),
+                               std::ref(m_numRunning));
         m_threadNames.emplace_back(std::to_string(i + 1));
 
         pthread_setname_np(m_threads.back().native_handle(),

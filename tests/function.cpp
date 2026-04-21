@@ -36,9 +36,7 @@ TEST(function, stdfunction)
 }
 
 size_t doubleNum(size_t num)
-{
-    return num * 2;
-}
+{ return num * 2; }
 
 TEST(function, withInputs)
 {

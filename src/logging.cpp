@@ -1,6 +1,7 @@
 #include <rmf/logging/logging.hpp>
-namespace mf  = RealtimeMemoryForensics;
-namespace mfl = mf::Logging;
+namespace mf   = RealtimeMemoryForensics;
+namespace mfl  = mf::Logging;
+namespace mfld = mf::Logging::Detail;
 
 // Default log level is debug
 mfl::LogLevels mfl::LogLevel = mfl::Debug;
@@ -11,11 +12,10 @@ std::string    mfl::formatPreamble(mfl::LogLevels level,
                                    size_t         lineNumber,
                                    const char*    functionName)
 {
-    return std::format("{}[{}][{}:{} - {}]", mfl::StringColors[level],
-                       mfl::LogLevelNames[level], filename,
+    return std::format("{}[{}][{}:{} - {}]",
+                       mfld::StringColors[level],
+                       mfld::LogLevelNames[level], filename,
                        lineNumber, functionName);
 }
 void mfl::setLogLevel(LogLevels level)
-{
-    mfl::LogLevel = level;
-}
+{ mfl::LogLevel = level; }

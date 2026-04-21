@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <future>
 #include <ranges>
+#include <thread>
 #include <type_traits>
 #include <vector>
 #include <atomic>
@@ -15,53 +16,59 @@
 
 namespace RealtimeMemoryForensics::Utils
 {
-    template <typename T, ptrdiff_t MaxThreads = 2 << 10>
-    class SPMCQueue
+    namespace Detail
     {
-      private:
-        alignas(64) std::vector<T> m_data;
+        template <typename T, ptrdiff_t MaxThreads = 2 << 10>
+        class SPMCQueue
+        {
+          private:
+            alignas(64) std::vector<T> m_data;
 
-        // Represents the next available index.
-        alignas(64) std::atomic<uint64_t> m_produceIndex = 0;
+            // Represents the next available index.
+            alignas(64) std::atomic<uint64_t> m_produceIndex = 0;
 
-        // represents the next index that is guaranteed to be done.
-        alignas(64) std::atomic<uint64_t> m_consumeCommitIndex = 0;
+            // represents the next index that is guaranteed to be done.
+            alignas(64) std::atomic<uint64_t> m_consumeCommitIndex =
+                0;
 
-        // represents the next index that can be claimed.
-        // The consume index is greater than the produce index by 1 when full.
-        alignas(64) std::atomic<uint64_t> m_consumeClaimIndex = 0;
-        std::counting_semaphore<MaxThreads> m_semaphore{0};
+            // represents the next index that can be claimed.
+            // The consume index is greater than the produce index by 1 when full.
+            alignas(64) std::atomic<uint64_t> m_consumeClaimIndex = 0;
+            std::counting_semaphore<MaxThreads> m_semaphore{0};
 
-      public:
-        uint64_t     getConsumeIndex() const;
+          public:
+            uint64_t     getConsumeIndex() const;
 
-        const size_t size;
-        SPMCQueue(size_t _size);
+            const size_t size;
+            SPMCQueue(size_t _size);
 
-        bool   enqueue(const T& value);
+            bool   tryEnqueue(T&& value);
 
-        bool   empty();
+            void   enqueue(T&& value);
 
-        Opt<T> tryDequeue();
+            bool   empty();
 
-        template <class Rep, class Period>
-        Opt<T>
-        tryDequeueFor(std::chrono::duration<Rep, Period> duration);
-    };
+            Opt<T> tryDequeue();
+
+            template <class Rep, class Period>
+            Opt<T> tryDequeueFor(
+                std::chrono::duration<Rep, Period> duration);
+        };
+    }
 
     class ThreadPool
     {
       private:
-        SPMCQueue<std::function<void()>> m_queue;
-        std::vector<std::thread>         m_threads     = {};
-        std::vector<std::string>         m_threadNames = {};
-        std::atomic<bool>                m_alive       = false;
-        std::atomic<uint64_t>            m_numRunning  = 0;
+        Detail::SPMCQueue<std::move_only_function<void()>> m_queue;
+        std::vector<std::thread> m_threads     = {};
+        std::vector<std::string> m_threadNames = {};
+        std::atomic<bool>        m_alive       = true;
+        std::atomic<uint64_t>    m_numRunning  = 0;
 
-        static void
-        threadFunction(const std::atomic<bool>&          alive,
-                       SPMCQueue<std::function<void()>>& queue,
-                       std::atomic<uint64_t>& m_numRunning);
+        static void              threadFunction(
+            const std::atomic<bool>&                            alive,
+            Detail::SPMCQueue<std::move_only_function<void()>>& queue,
+            std::atomic<uint64_t>& m_numRunning);
 
       public:
         constexpr static size_t DefaultQueueSize = 2 << 20;
@@ -71,7 +78,6 @@ namespace RealtimeMemoryForensics::Utils
         template <typename Func, typename... Args,
                   typename ReturnType =
                       std::invoke_result_t<Func&&, Args&&...>>
-            requires std::is_nothrow_invocable_v<Func, Args...>
         std::future<ReturnType> pushTask(Func task, Args&&... args);
 
         void                    awaitTasks();
@@ -82,22 +88,18 @@ namespace RealtimeMemoryForensics::Utils
     };
 }
 
-namespace RealtimeMemoryForensics::Utils
+namespace RealtimeMemoryForensics::Utils::Detail
 {
     template <typename T, ptrdiff_t MaxThreads>
     uint64_t SPMCQueue<T, MaxThreads>::getConsumeIndex() const
-    {
-        return m_consumeCommitIndex.load();
-    }
+    { return m_consumeCommitIndex.load(); }
 
     template <typename T, ptrdiff_t MaxThreads>
     SPMCQueue<T, MaxThreads>::SPMCQueue(size_t _size) : size(_size)
-    {
-        m_data.resize(size);
-    }
+    { m_data.resize(size); }
 
     template <typename T, ptrdiff_t MaxThreads>
-    bool SPMCQueue<T, MaxThreads>::enqueue(const T& value)
+    bool SPMCQueue<T, MaxThreads>::tryEnqueue(T&& value)
     {
         uint64_t produceIndex =
             m_produceIndex.load(std::memory_order_relaxed);
@@ -111,7 +113,7 @@ namespace RealtimeMemoryForensics::Utils
                         produceIndex - consumeIndex - 1);
             return false;
         }
-        m_data[produceIndex % size] = value;
+        m_data[produceIndex % size] = std::move(value);
         m_produceIndex.store(produceIndex + 1,
                              std::memory_order_release);
         rmf_Debug("Enqueued, notifying one...");
@@ -121,6 +123,40 @@ namespace RealtimeMemoryForensics::Utils
         m_semaphore.release();
 
         return true;
+    }
+
+    template <typename T, ptrdiff_t MaxThreads>
+    void SPMCQueue<T, MaxThreads>::enqueue(T&& value)
+    {
+        uint64_t produceIndex =
+            m_produceIndex.load(std::memory_order_relaxed);
+
+        uint64_t consumeIndex =
+            m_consumeCommitIndex.load(std::memory_order_acquire);
+
+        while (true)
+        {
+            produceIndex =
+                m_produceIndex.load(std::memory_order_relaxed);
+            consumeIndex =
+                m_consumeCommitIndex.load(std::memory_order_acquire);
+
+            // Queue has space;
+            if (produceIndex - consumeIndex < size - 1)
+            {
+                break;
+            }
+            using namespace std::chrono_literals;
+            std::this_thread::sleep_for(1ms);
+        }
+        m_data[produceIndex % size] = std::move(value);
+        m_produceIndex.store(produceIndex + 1,
+                             std::memory_order_release);
+        rmf_Debug("Enqueued, notifying one...");
+        rmf_Debug("Last indices were: Consumer - {}, Producer - "
+                  "{}",
+                  consumeIndex, produceIndex + 1);
+        m_semaphore.release();
     }
 
     template <typename T, ptrdiff_t MaxThreads>
@@ -144,7 +180,7 @@ namespace RealtimeMemoryForensics::Utils
         uint64_t consumeIndex = m_consumeClaimIndex.fetch_add(
             1, std::memory_order_acquire);
 
-        auto data = m_data[consumeIndex % size];
+        auto data = std::move(m_data[consumeIndex % size]);
         m_consumeCommitIndex.fetch_add(1, std::memory_order_release);
         rmf_Debug("Successful dequeue.");
         rmf_Debug("Last indices were: Consumer - {}", consumeIndex);
@@ -164,7 +200,7 @@ namespace RealtimeMemoryForensics::Utils
         uint64_t consumeIndex = m_consumeClaimIndex.fetch_add(
             1, std::memory_order_acquire);
 
-        auto data = m_data[consumeIndex % size];
+        auto data = std::move(m_data[consumeIndex % size]);
         m_consumeCommitIndex.fetch_add(1, std::memory_order_release);
         rmf_Debug("Successful dequeue.");
         rmf_Debug("Last indices were: Consumer - {}", consumeIndex);
@@ -172,19 +208,21 @@ namespace RealtimeMemoryForensics::Utils
         return data;
     }
 
+}
+namespace RealtimeMemoryForensics::Utils
+{
     // A task is a function wrapper, which holds a promise and a void function that fulfills the promise.
     // This is a packaged task?
     template <typename Func, typename... Args, typename ReturnType>
-        requires std::is_nothrow_invocable_v<Func, Args...>
     std::future<ReturnType> ThreadPool::pushTask(Func func,
                                                  Args&&... args)
     {
-        std::promise<ReturnType> promise;
-        std::future<ReturnType>  future = promise.get_future();
-        auto                     lambda = [func = std::move(func),
-                       promise = std::move(promise),
-                       ... args = std::forward<Args>(args)]() mutable
-        { promise.set_value(func(args...)); };
+        std::promise<ReturnType>        promise;
+        std::future<ReturnType>         future = promise.get_future();
+        std::move_only_function<void()> lambda =
+            [func = std::move(func), p = std::move(promise),
+             ... args = std::forward<Args>(args)]() mutable
+        { p.set_value(func(args...)); };
         m_queue.enqueue(std::move(lambda));
         return future;
     }

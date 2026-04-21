@@ -32,7 +32,7 @@
           buildInputs = with pkgs; [
             gnumake
             ninja
-            # clang_20
+            clang_22
             cmake
             xxd
             clang-tools
@@ -75,10 +75,10 @@
             ]
           }:$LD_LIBRARY_PATH";
 
-          # UV_PYTHON = "${pythonEnv}/bin/python";
-          # UV_PYTHON_PREFERENCE = "only-system";
           shellHook = ''
             export PYTHONWARNINGS="ignore"
+            export CXX=clang++
+            export CC=clang
           '';
         };
       }

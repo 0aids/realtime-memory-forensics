@@ -11,5 +11,9 @@ foreach(test_file_cpp ${tests_files_cpp})
         PRIVATE librmf
 		PUBLIC GTest::gtest_main
 	)
+    gtest_discover_tests(${testName}
+        PROPERTIES 
+            ENVIRONMENT "PYTHONPATH=${CMAKE_SOURCE_DIR}"
+    )
 endforeach()
 
