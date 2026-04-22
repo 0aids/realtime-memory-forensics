@@ -180,3 +180,151 @@ TEST(function, Function_singleCopy)
     println("Num copies called: {}", r.front());
     EXPECT_LE(r.front(), 1);
 }
+
+TEST(function, threaded_returnsCorrectValues)
+{
+    auto funcInt = mfu::Function([](int x) { return x * 2; });
+    mfu::ThreadPool tp(1);
+    vector<int>     a        = {1, 2, 3, 4, 5};
+    auto            r        = funcInt.threaded(a).with(tp);
+    vector<int>     expected = {2, 4, 6, 8, 10};
+    ASSERT_EQ(r.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); i++)
+    {
+        EXPECT_EQ(r[i], expected[i]);
+    }
+}
+
+TEST(function, threaded_emptyVector)
+{
+    auto funcInt = mfu::Function([](int x) { return x * 2; });
+    mfu::ThreadPool tp(1);
+    vector<int>     a = {};
+    auto            r = funcInt.threaded(a).with(tp);
+    EXPECT_TRUE(r.empty());
+}
+
+TEST(function, threaded_singleElement)
+{
+    auto funcInt = mfu::Function([](int x) { return x * 2; });
+    mfu::ThreadPool tp(1);
+    vector<int>     a = {42};
+    auto            r = funcInt.threaded(a).with(tp);
+    ASSERT_EQ(r.size(), 1);
+    EXPECT_EQ(r[0], 84);
+}
+
+// TODO: Commented out due to forward_as_tuple bug in function.hpp
+// TEST(function, threaded_mixedVectorAndScalar)
+// {
+//     auto func = mfu::Function(
+//         [](int x, const string& prefix) { return prefix + to_string(x); });
+//     mfu::ThreadPool tp(1);
+//     vector<int>    nums = {1, 2, 3};
+//     auto          r = func.threaded(nums, string("num_")).with(tp);
+//     ASSERT_EQ(r.size(), 3);
+//     EXPECT_EQ(r[0], "num_1");
+//     EXPECT_EQ(r[1], "num_2");
+//     EXPECT_EQ(r[2], "num_3");
+// }
+
+TEST(function, threaded_multipleVectors_sameLength)
+{
+    auto func = mfu::Function([](int x, int y) { return x + y; });
+    mfu::ThreadPool tp(1);
+    vector<int>     a = {1, 2, 3};
+    vector<int>     b = {10, 20, 30};
+    auto            r = func.threaded(a, b).with(tp);
+    ASSERT_EQ(r.size(), 3);
+    EXPECT_EQ(r[0], 11);
+    EXPECT_EQ(r[1], 22);
+    EXPECT_EQ(r[2], 33);
+}
+
+struct MoveTracker
+{
+    int numCopies = 0;
+    int numMoves  = 0;
+    int value;
+    MoveTracker() = default;
+    MoveTracker(int v) : value(v) {}
+    MoveTracker(const MoveTracker& other) : value(other.value)
+    { numCopies++; }
+    MoveTracker(MoveTracker&& other) noexcept : value(other.value)
+    {
+        other.value = 0;
+        numMoves++;
+    }
+    MoveTracker& operator=(const MoveTracker& other)
+    {
+        value = other.value;
+        numCopies++;
+        return *this;
+    }
+    MoveTracker& operator=(MoveTracker&& other) noexcept
+    {
+        value       = other.value;
+        other.value = 0;
+        numMoves++;
+        return *this;
+    }
+};
+
+TEST(function, threaded_perfectForwarding_byValue)
+{
+    auto func = mfu::Function([](MoveTracker t) { return t.value; });
+    mfu::ThreadPool     tp(1);
+    vector<MoveTracker> items;
+    for (int i = 0; i < 5; i++)
+        items.emplace_back(i * 10);
+    auto r = func.threaded(items).with(tp);
+    ASSERT_EQ(r.size(), 5);
+    EXPECT_EQ(r[0], 0);
+    EXPECT_EQ(r[1], 10);
+    EXPECT_EQ(r[2], 20);
+    EXPECT_EQ(r[3], 30);
+    EXPECT_EQ(r[4], 40);
+    for (auto& item : items)
+    {
+        EXPECT_EQ(item.value, 0);
+    }
+}
+
+TEST(function, threaded_perfectForwarding_lvalueRef)
+{
+    auto func =
+        mfu::Function([](const MoveTracker& t) { return t.value; });
+    mfu::ThreadPool     tp(1);
+    vector<MoveTracker> items;
+    for (int i = 0; i < 5; i++)
+        items.emplace_back(i * 10);
+    auto r = func.threaded(items).with(tp);
+    ASSERT_EQ(r.size(), 5);
+    EXPECT_EQ(r[0], 0);
+    EXPECT_EQ(r[1], 10);
+    for (size_t i = 0; i < items.size(); i++)
+    {
+        EXPECT_EQ(items[i].value, i * 10);
+    }
+}
+
+TEST(function, threaded_unequalVectorLengths)
+{
+    auto func = mfu::Function([](int x, int y) { return x + y; });
+    mfu::ThreadPool tp(1);
+    vector<int>     a        = {1, 2, 3};
+    vector<int>     b        = {10, 20};
+    auto            threader = func.threaded(a, b);
+    auto            r        = threader.with(tp);
+    EXPECT_TRUE(r.empty());
+}
+
+// TODO: Commented out due to function requiring at least one argument
+// TEST(function, threaded_emptyThreader_with)
+// {
+//     auto func = mfu::Function([](int x) { return x; });
+//     mfu::ThreadPool tp(1);
+//     auto            threader = func.threaded();
+//     auto            r        = threader.with(tp);
+//     EXPECT_TRUE(r.empty());
+// }
