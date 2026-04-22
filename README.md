@@ -6,6 +6,17 @@ via node-graph visualisation, all done without analysing executed assembly.
 
 # TODO
 - [-] Massive refactor for the below API.
+    - [x] Refactor errors/expected + error unions + optional
+    - [x] Refactor String format literal helper
+    - [x] Refactor Logging
+    - [x] Feature Function wrapper
+    - [x] Refactor threadpool
+    - [x] Feature Threaded function wrapper (analyzer replacement)
+    - [ ] MapImpl DS and Map concept (any object with a map)
+    - [ ] NodeImpl DS and Node concept (an extension of a map)
+    - [ ] Add back operations
+    - [ ] Basic type parsing
+    - [ ] New struct registry
 - [ ] done for now?
 
 
@@ -170,7 +181,7 @@ mf::Field vec3dY = sr["vec3d", "y"];
 /***************************************/
 /******* Basic Memory Operations *******/
 /***************************************/
-Analyzer an(mf::concurrency()); // Multithreading
+ThreadPool tp(mf::concurrency()); // Multithreading
 pid_t pid = ...;
 // Get our original maps.
 vec<mf::Map> maps = getMapsBy(pid)
@@ -178,7 +189,7 @@ vec<mf::Map> maps = getMapsBy(pid)
 	.maxSize(0xffffff)
 	.active(pid);
 
-vec<mf::Snapshot> snapshots = makeSnapshot.threaded(maps, pid).using_(an);
+vec<mf::Snapshot> snapshots = makeSnapshot.threaded(maps, pid).with(tp);
 
 // Obviously we can just access the data raw
 mf::Snapshot snap1 = snapshots.front();
@@ -188,11 +199,11 @@ snap1... // Standard vector operations.
 // For templated functions, use something like the following
 // template <Numeral T>
 // constexpr auto findNumInRange<T> = mfu::function(implFunc<T>);
-vec<mf::Map> stringInSnap = findStr.threaded(snapshots, "RandomString!").using_(an);
-vec<mf::Map> floatYRanges = findNumInRange<float>.threaded(snapshots, 0.99, 1.01).using_(an);
-vec<mf::Map> numCloseTo = findNumCloseTo<double>.threaded(snapshots, 1e5, 0.5).using_(an);
-vec<mf::Map> strLike = findStrLike.threaded(snapshots).using_(an);
-vec<mf::Map> exactNum = findNum<uint32_t>.threaded(snapshots, 1000).using_(an);
+vec<mf::Map> stringInSnap = findStr.threaded(snapshots, "RandomString!").with(tp);
+vec<mf::Map> floatYRanges = findNumInRange<float>.threaded(snapshots, 0.99, 1.01).with(tp);
+vec<mf::Map> numCloseTo = findNumCloseTo<double>.threaded(snapshots, 1e5, 0.5).with(tp);
+vec<mf::Map> strLike = findStrLike.threaded(snapshots).with(tp);
+vec<mf::Map> exactNum = findNum<uint32_t>.threaded(snapshots, 1000).with(tp);
 
 // You can coerce results and then extract values.
 // Say for example our floats we found are expected to be Y values in a vec3d.
@@ -214,11 +225,19 @@ vec<mf::Node> vec3dNodes = vec3dMap.fromType(vec3d);
 
 // We can also access data of nodes.
 mf::Node node = vec3dNodes.front();
-mf::Info("value x of node: {}", node(pid)["x"].as<float>());
-// Or you can do the other way, with less copying required.
-mf::Info("value x of node: {}", node["x"](pid).as<float>());
 
-// Or in long form
+// Abusing the type system ;)
+// A node that owns snapshot data from pid.
+mf::WideNode nodeWithCapture = node.capture(pid);
+mf::WideProperty wideProperty = nodeWithCapture.property("x");
+
+// Or equivalently with less capturing
+mf::NodeProperty nodeProperty = node.property("x");
+mf::WideProperty wideProperty = nodeProperty.capture(pid);
+
+// Not really sure about nested types.
+float f = wideProperty.as<float>();
+
 mf::Info("value x of node: {}", node.capture(pid).property("x").as<float>());
 
 mf::Info("value x of node: {}", node.property("x").capture(pid).as<float>());
@@ -227,10 +246,13 @@ mf::Info("value x of node: {}", node.property("x").capture(pid).as<float>());
 // The .as method is available for converting into the correct type.
 auto value = node.property("x").capture(pid);
 
+
 // You can also capture a large amount of data by applying the parallel to the capture part.
-// Not sure if this will work, as it'll require much later evaluation.
-vec<float> parallelised_capture = node[pid]["x"].as<float>()(an);
-vec<float> parallelised_capture = node.capture.threaded(pid).property("x").as<float>()(an);
+// Might have to use monads or smth for this.
+// The static functions build a monad that is run by map?
+// And then all class methods are just run the static method generated "monads"?
+vec<float> parallelised_capture = vec3dNodes.map(mf::Node::property("x").capture(pid).as<float>());
+vec<float> parallelised_capture = vec3dNodes.map.threaded(mf::Node::property("x").capture(pid).as<float>()).with(tp);
 
 
 /***************************************/
@@ -260,15 +282,15 @@ mf::MemoryGraphPart mgp = mg.pruneLinkless();
 
 // Removes links and nodes that have changed.
 mf::MemoryGraphPart mgp = mg.pruneExpired(newSnapshots);
-mf::MemoryGraphPart mgp = mg.pruneExpired.threaded(newSnapshots).using_(an);
+mf::MemoryGraphPart mgp = mg.pruneExpired.threaded(newSnapshots).with(tp);
 
 // Multithreaded operation. findSources is not actually a function, but a class.
 // The class has operator() and operator[]. operator() acts like a normal function
 // operator[] acts like a weird function, returning a special type with another operator() awaiting an analyzer.
-mf::MemoryGraphPart mgp = mg.findSources[snapshots, nodeKeys, sourceField](an);
+mf::MemoryGraphPart mgp = mg.findSources[snapshots, nodeKeys, sourceField](tp);
 
 // Equivalent to:
-mf::MemoryGraphPart mgp = mg.findSources.threaded(snapshots, nodeKeys, sourceField).using_(an);
+mf::MemoryGraphPart mgp = mg.findSources.threaded(snapshots, nodeKeys, sourceField).with(tp);
 
 // What about traversal? of course can traverse.
 mf::MemoryGraphPart children = mg.getChildren(moreKeys[0]);
@@ -281,11 +303,11 @@ mf::MemoryGraphPart mgp = mg.filterType(vec3d);
 mf::MemoryGraphPart mgp = mg.filter*(...);
 
 // Grabbing a node and checking their values.
-vec<float> floats = mgp.nodes[0].capture.threaded(pid).property("x").as<float>().using_(an);
+vec<float> floats = mgp.nodes[0].capture.threaded(pid).property("x").as<float>().with(tp);
 
 // Or we can just get nodes with embedded snapshots.
 // But we do lose link information??
-vec<mf::FullNode> vecFullNodes = mgp.nodes[0].capture.threaded(pid).using_(an);
+vec<mf::FullNode> vecFullNodes = mgp.nodes[0].capture.threaded(pid).with(tp);
 
 // using "e" to extract elementwise properties.
 vec<float> floats = vecFullNodes.e.property("x");
