@@ -171,17 +171,3 @@ TEST(threadpool, ThreadPool_variousReturnTypes)
     futureVoid.get();
     EXPECT_EQ(futureStr.get(), "hello");
 }
-
-// TODO: Commented out due to exception handling issues across threads
-// TEST(threadpool, ThreadPool_exceptionSafety)
-// {
-//     mfu::ThreadPool tp(2, 100);
-
-//     auto future1 = tp.pushTask(+[]() { throw runtime_error("test error"); });
-//     auto future2 = tp.pushTask(+[]() { return 42; });
-
-//     tp.awaitTasks();
-
-//     EXPECT_THROW(future1.get(), runtime_error);
-//     EXPECT_EQ(future2.get(), 42);
-// }
