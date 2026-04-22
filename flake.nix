@@ -51,6 +51,7 @@
             libGLU
             libei
             python313
+            libllvm
             python313Packages.python-lsp-server
             python313Packages.scalene
             ruff

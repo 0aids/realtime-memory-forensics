@@ -1,3 +1,4 @@
+#include "rmf/utils/threadpool.hpp"
 #include <gtest/gtest.h>
 #include <rmf/logging/logging.hpp>
 #include <rmf/rmf.hpp>
@@ -9,6 +10,35 @@ namespace mf  = RealtimeMemoryForensics;
 namespace mfu = mf::Utils;
 namespace mfl = mf::Logging;
 
+using namespace std;
+struct StructorTest
+{
+    int numCopies  = 0;
+    int numMoves   = 0;
+    StructorTest() = default;
+    StructorTest(const StructorTest&)
+    {
+        numCopies++;
+        println("copy constructor called");
+    }
+    StructorTest(StructorTest&&)
+    {
+        numMoves++;
+        println("move constructor called");
+    };
+    StructorTest& operator=(const StructorTest&)
+    {
+        numCopies++;
+        println("copy assignment called");
+        return *this;
+    }
+    StructorTest& operator=(StructorTest&&)
+    {
+        numMoves++;
+        println("move assignment called");
+        return *this;
+    }
+};
 size_t testFuncReturnsInt()
 {
     static size_t i = 0;
@@ -47,37 +77,10 @@ TEST(function, withInputs)
 TEST(function, perfectForwarding)
 {
     static size_t _i = 0;
-    struct test
-    {
-        int t  = 0;
-        test() = default;
-        test(const test&)
-        {
-            _i++;
-            println("copy constructor called");
-        }
-        test(test&&)
-        {
-            _i++;
-            println("move constructor called");
-        };
-        test& operator=(const test&)
-        {
-            _i++;
-            println("copy assignment called");
-            return *this;
-        }
-        test& operator=(test&&)
-        {
-            println("move assignment called");
-            _i++;
-            return *this;
-        }
-    };
-    auto a = [](test&& t) { return t.t; };
+    auto          a  = [](StructorTest&& t) { return t.numCopies; };
 
-    auto newFunc = mfu::Function(a);
-    newFunc(test{});
+    auto          newFunc = mfu::Function(a);
+    newFunc(StructorTest{});
     EXPECT_EQ(_i, 0);
 }
 
@@ -137,4 +140,43 @@ TEST(function, Function_variousArgTypes)
     EXPECT_EQ(funcInt(5), 10);
     EXPECT_EQ(funcStr(std::string("hello")), 5);
     EXPECT_DOUBLE_EQ(funcFloat(2.5), 3.5);
+}
+
+TEST(function, Function_threader)
+{
+    auto funcInt = mfu::Function([](int x) { return x * 2; });
+    mfu::ThreadPool tp(1);
+    vector<int>     a = {1, 2, 3, 4, 5};
+    funcInt.threaded(a).with(tp);
+    funcInt.threaded(a).with(tp);
+}
+
+size_t moveTests(StructorTest&& T)
+{ return T.numCopies; }
+
+TEST(function, Function_structors)
+{
+    auto                 funcInt = mfu::Function(moveTests);
+    mfu::ThreadPool      tp(1);
+    vector<StructorTest> start;
+    start.emplace_back();
+    println("Forwarding from here...");
+    auto r = funcInt.threaded(start).with(tp);
+    println("Num copies called: {}", r.front());
+    EXPECT_LE(r.front(), 0);
+}
+
+TEST(function, Function_singleCopy)
+{
+    auto            copy = [](StructorTest T) { return T.numCopies; };
+    auto            funcInt = mfu::Function(copy);
+    mfu::ThreadPool tp(1);
+    vector<StructorTest> start;
+    for (size_t i = 0; i < 100; i++)
+        start.emplace_back();
+
+    println("Forwarding from here...");
+    auto r = funcInt.threaded(start).with(tp);
+    println("Num copies called: {}", r.front());
+    EXPECT_LE(r.front(), 0);
 }
