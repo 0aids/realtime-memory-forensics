@@ -116,12 +116,16 @@ namespace RealtimeMemoryForensics::Utils
     template <typename... Args, size_t N>
     auto Function<F, FT>::threaded(Args&&... args)
     {
+        static_assert(N > 0,
+                      "Cannot thread a function with no arguments as "
+                      "number of inputs cannot be deduced.");
         using InputsTuple  = typename FTTraits::InputsTuple;
-        using VecArgsTuple = typename std::tuple<Args...>;
-        auto   vat         = std::forward_as_tuple<Args...>(args...);
-        auto   idxSeq      = std::make_index_sequence<N>();
-        size_t length      = 0;
-        bool   isValid     = true;
+        using VecArgsTuple = typename std::tuple<Args&&...>;
+        // Detail::TypePrinter<VecArgsTuple, InputsTuple>  Gah;
+        auto   vat     = std::forward_as_tuple(args...);
+        auto   idxSeq  = std::make_index_sequence<N>();
+        size_t length  = 0;
+        bool   isValid = true;
         // List of bools to indicate which types are vectorised.
         [&]<size_t... Is>(std::index_sequence<Is...>) mutable
         {

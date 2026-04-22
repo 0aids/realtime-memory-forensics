@@ -214,19 +214,18 @@ TEST(function, threaded_singleElement)
     EXPECT_EQ(r[0], 84);
 }
 
-// TODO: Commented out due to forward_as_tuple bug in function.hpp
-// TEST(function, threaded_mixedVectorAndScalar)
-// {
-//     auto func = mfu::Function(
-//         [](int x, const string& prefix) { return prefix + to_string(x); });
-//     mfu::ThreadPool tp(1);
-//     vector<int>    nums = {1, 2, 3};
-//     auto          r = func.threaded(nums, string("num_")).with(tp);
-//     ASSERT_EQ(r.size(), 3);
-//     EXPECT_EQ(r[0], "num_1");
-//     EXPECT_EQ(r[1], "num_2");
-//     EXPECT_EQ(r[2], "num_3");
-// }
+TEST(function, threaded_mixedVectorAndScalar)
+{
+    auto func = mfu::Function([](int x, const string& prefix)
+                              { return prefix + to_string(x); });
+    mfu::ThreadPool tp(1);
+    vector<int>     nums = {1, 2, 3};
+    auto            r = func.threaded(nums, string("num_")).with(tp);
+    ASSERT_EQ(r.size(), 3);
+    EXPECT_EQ(r[0], "num_1");
+    EXPECT_EQ(r[1], "num_2");
+    EXPECT_EQ(r[2], "num_3");
+}
 
 TEST(function, threaded_multipleVectors_sameLength)
 {
@@ -319,12 +318,16 @@ TEST(function, threaded_unequalVectorLengths)
     EXPECT_TRUE(r.empty());
 }
 
-// TODO: Commented out due to function requiring at least one argument
-// TEST(function, threaded_emptyThreader_with)
-// {
-//     auto func = mfu::Function([](int x) { return x; });
-//     mfu::ThreadPool tp(1);
-//     auto            threader = func.threaded();
-//     auto            r        = threader.with(tp);
-//     EXPECT_TRUE(r.empty());
-// }
+template <typename T, typename... Args>
+concept existant = requires { T::template threaded<Args...>; };
+
+template <typename T>
+concept non_existant = !requires { requires T::template threaded<>; };
+
+TEST(function, threaded_emptyThreader_with)
+{
+    auto            func = mfu::Function([](int x) { return x; });
+    mfu::ThreadPool tp(1);
+    static_assert(non_existant<decltype(func)>,
+                  "threaded() shouldn't work for no-arguments!");
+}
