@@ -12,6 +12,7 @@ via node-graph visualisation, all done without analysing executed assembly.
     - [x] Feature Function wrapper
     - [x] Refactor threadpool
     - [x] Feature Threaded function wrapper (analyzer replacement)
+    - [ ] Switch c++ modules.
     - [ ] MapImpl DS and Map concept (any object with a map)
     - [ ] NodeImpl DS and Node concept (an extension of a map)
     - [ ] Add back operations
