@@ -74,13 +74,16 @@ namespace RealtimeMemoryForensics::Utils
         Function operator=(Function&&)      = delete;
 
         // For actually running the function
-        // GAHHHHH
+        // Runs the function inputted like normal.
         template <typename... Args>
             requires std::is_convertible_v<
                 std::tuple<Args...>, typename FTraits::InputsTuple>
         typename FTraits::Output operator()(Args&&...);
 
         // Returns an intermediate object that contains a "with" method.
+        // Does this by automatically parallelising arguments that are containers of the function's
+        // input types. IE if a function takes in a vector and a scalar, and you pass it a vector of vector and singular
+        // scalar, it will parallelise only over the vector while doing copies for the singular.
         template <typename... Args,
                   size_t N = std::tuple_size_v<std::tuple<Args...>>>
         auto threaded(Args&&... args);

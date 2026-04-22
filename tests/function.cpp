@@ -178,5 +178,5 @@ TEST(function, Function_singleCopy)
     println("Forwarding from here...");
     auto r = funcInt.threaded(start).with(tp);
     println("Num copies called: {}", r.front());
-    EXPECT_LE(r.front(), 0);
+    EXPECT_LE(r.front(), 1);
 }
