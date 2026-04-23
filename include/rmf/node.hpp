@@ -10,10 +10,14 @@ namespace RealtimeMemoryForensics
     {
 
       public:
-        using DerivedType = Node<Args...>;
-        using SelfType    = Node;
-        operator std::string() const;
-        ~Node();
+        Node()                       = default;
+        Node(Node&&)                 = default;
+        Node(const Node&)            = default;
+        Node& operator=(Node&&)      = default;
+        Node& operator=(const Node&) = default;
+        using DerivedType            = Node<Args...>;
+        using SelfType               = Node;
+             operator std::string() const;
         void wellFormed();
     };
 }

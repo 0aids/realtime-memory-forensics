@@ -6,6 +6,7 @@
 #include <memory>
 #include <type_traits>
 #include "rmf/utils/str.hpp"
+#include "rmf/node.hpp"
 
 namespace RealtimeMemoryForensics
 {
@@ -64,6 +65,15 @@ namespace RealtimeMemoryForensics
         constexpr uintptr_t pend() const;
                             operator std::string() const;
         bool operator==(const Map& other) const = default;
+
+        // oh my gah
+        template <template <typename> typename... Features>
+        struct Modifier
+        {
+            using Result_t = Node<Features...>;
+            std::function<Result_t()> func;
+            Result_t                  operator()();
+        };
     };
 }
 

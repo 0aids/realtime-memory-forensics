@@ -4,7 +4,7 @@
 #include <rmf/rmf.hpp>
 #include <rmf/utils/expect.hpp>
 #include <rmf/utils/str.hpp>
-#include <rmf/region.hpp>
+#include <rmf/node.hpp>
 #include <rmf/map.hpp>
 
 using namespace std;

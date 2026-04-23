@@ -4,7 +4,7 @@
 #include <rmf/rmf.hpp>
 #include <rmf/utils/expect.hpp>
 #include <rmf/utils/str.hpp>
-#include <rmf/region.hpp>
+#include <rmf/node.hpp>
 #include <rmf/map.hpp>
 #include <rmf/snapshot.hpp>
 #include "helpers.hpp"
@@ -26,4 +26,15 @@ TEST(snapshot, static_assertions)
     static_assert(
         requires { mf ::Node<mf ::Map, mf ::Snapshot>{}; },
         "Should require an mf::map!");
+}
+
+TEST(snapshot, fakeBuffer)
+{
+    using namespace mf;
+    std::vector<uint8_t> fakeBuffer(0xffff, 0xff);
+    Node<Snapshot, Map>  value =
+        Snapshot<Node<Snapshot, Map>>::fromBuffer(
+            std::move(fakeBuffer));
+    EXPECT_NO_THROW(value.wellFormed());
+    EXPECT_EQ(value.getSpan()[0], 0xff);
 }
