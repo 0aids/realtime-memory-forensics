@@ -20,10 +20,10 @@ concept requiresMap = requires(T t) { t.wellFormed(); };
 
 TEST(snapshot, static_assertions)
 {
-    mf::Region<mf::Snapshot> gah;
-    static_assert(requiresMap<mf::Region<mf::Snapshot>>,
+    mf::Node<mf::Snapshot> gah;
+    static_assert(requiresMap<mf::Node<mf::Snapshot>>,
                   "Should require an mf::map!");
     static_assert(
-        requires { mf ::Region<mf ::Map, mf ::Snapshot>{}; },
+        requires { mf ::Node<mf ::Map, mf ::Snapshot>{}; },
         "Should require an mf::map!");
 }

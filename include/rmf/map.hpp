@@ -4,6 +4,7 @@
 #include <magic_enum/magic_enum.hpp>
 #include <cstdint>
 #include <memory>
+#include <type_traits>
 #include "rmf/utils/str.hpp"
 
 namespace RealtimeMemoryForensics
@@ -45,6 +46,8 @@ namespace RealtimeMemoryForensics
         ptrdiff_t                          relativeSize    = 0;
         std::shared_ptr<const std::string> regionName_sp =
             defaultName;
+
+        using usesMap = std::true_type;
 
         Perms perms = Perms::None;
         // Returns the address of the beginning of this region.

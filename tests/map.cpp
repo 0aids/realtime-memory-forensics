@@ -13,8 +13,8 @@ namespace mfl = mf::Logging;
 namespace mfu = mf::Utils;
 TEST(map, BasicRegion)
 {
-    mf::Region<mf::Map> test1;
-    mf::Region<mf::Map> test2;
+    mf::Node<mf::Map> test1;
+    mf::Node<mf::Map> test2;
     println("{}", test1.regionName_sp.use_count());
     println("{}", std::string(test1));
     EXPECT_EQ(test1, test2);

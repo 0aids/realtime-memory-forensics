@@ -1,33 +1,34 @@
 #pragma once
-#include <format>
+#include <string>
 #include <type_traits>
 
 namespace RealtimeMemoryForensics
 {
     // Very sus CRTP (curiosly recurring template pattern)
     template <template <typename> typename... Args>
-    class Region : public Args<Region<Args...>>...
+    class Node : public Args<Node<Args...>>...
     {
 
       public:
-        using DerivedType = Region<Args...>;
-        using SelfType    = Region;
+        using DerivedType = Node<Args...>;
+        using SelfType    = Node;
         operator std::string() const;
-        ~Region();
+        ~Node();
+        void wellFormed();
     };
 }
 
 namespace RealtimeMemoryForensics
 {
     template <template <typename> typename... Args>
-    Region<Args...>::operator std::string() const
+    Node<Args...>::operator std::string() const
     {
         return (... +
-                std::string(static_cast<Args<Region<Args>>>(*this)));
+                std::string(static_cast<Args<Node<Args>>>(*this)));
     }
 
     // Ensure that we're not being stupid.
     template <template <typename> typename... Args>
-    Region<Args...>::~Region<Args...>()
+    void Node<Args...>::wellFormed()
     { static_assert(!std::is_polymorphic_v<SelfType>); }
 }
