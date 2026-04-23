@@ -8,6 +8,7 @@
 #include <rmf/map.hpp>
 #include <rmf/snapshot.hpp>
 #include "helpers.hpp"
+#include "rmf/utils/function.hpp"
 
 using namespace std;
 namespace mf  = RealtimeMemoryForensics;
@@ -20,7 +21,7 @@ concept requiresMap = requires(T t) { t.wellFormed(); };
 TEST(snapshot, static_assertions)
 {
     mf::Region<mf::Snapshot> gah;
-    static_assert(not requiresMap<mf::Region<mf::Snapshot>>,
+    static_assert(requiresMap<mf::Region<mf::Snapshot>>,
                   "Should require an mf::map!");
     static_assert(
         requires { mf ::Region<mf ::Map, mf ::Snapshot>{}; },

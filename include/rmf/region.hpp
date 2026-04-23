@@ -8,9 +8,10 @@ namespace RealtimeMemoryForensics
     template <template <typename> typename... Args>
     class Region : public Args<Region<Args...>>...
     {
-        using SelfType = Region;
 
       public:
+        using DerivedType = Region<Args...>;
+        using SelfType    = Region;
         operator std::string() const;
         ~Region();
     };
