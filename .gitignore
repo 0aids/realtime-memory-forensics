@@ -1,10 +1,7 @@
 build
-old
 .*
 !.gitignore
-mem-anal
 imgui.ini
-relevant-books
 Simple.json
 __pycache__
 *.so
@@ -12,3 +9,4 @@ heaptrack.*
 callgrind.*
 venv
 Testing
+old
