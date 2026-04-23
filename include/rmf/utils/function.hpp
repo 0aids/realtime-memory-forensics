@@ -86,6 +86,7 @@ namespace RealtimeMemoryForensics::Utils
         // scalar, it will parallelise only over the vector while doing copies for the singular.
         template <typename... Args,
                   size_t N = std::tuple_size_v<std::tuple<Args...>>>
+            requires(N > 0)
         constexpr auto threaded(Args&&... args) const;
 
         // Runs very basic parallelised (but not threaded)
@@ -114,11 +115,9 @@ namespace RealtimeMemoryForensics::Utils
 
     template <typename F, typename FT>
     template <typename... Args, size_t N>
+        requires(N > 0)
     constexpr auto Function<F, FT>::threaded(Args&&... args) const
     {
-        static_assert(N > 0,
-                      "Cannot thread a function with no arguments as "
-                      "the number of inputs cannot be deduced.");
         using InputsTuple  = typename FTTraits::InputsTuple;
         using VecArgsTuple = typename std::tuple<Args&&...>;
         // Detail::TypePrinter<VecArgsTuple, InputsTuple>  Gah;

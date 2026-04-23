@@ -49,7 +49,7 @@ message("-- librmf src files: ${librmf_src_files}")
 message("-- CXX_COMP_COMMANDS: ${CXX_COMP_COMMANDS}")
 message("-- CXX_LINK_COMMANDS: ${CXX_LINK_COMMANDS}")
 add_library(librmf STATIC ${librmf_src_files})
-target_link_libraries(librmf PRIVATE
+target_link_libraries(librmf PUBLIC
     magic_enum::magic_enum
 )
 target_compile_options(librmf PUBLIC ${CXX_COMP_COMMANDS})

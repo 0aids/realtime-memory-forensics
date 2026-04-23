@@ -12,12 +12,15 @@ via node-graph visualisation, all done without analysing executed assembly.
     - [x] Feature Function wrapper
     - [x] Refactor threadpool
     - [x] Feature Threaded function wrapper (analyzer replacement)
-    - [ ] Switch c++ modules.
-    - [ ] MapImpl DS and Map concept (any object with a map)
-    - [ ] NodeImpl DS and Node concept (an extension of a map)
+    - [-] Implement base + mixins
+        - [ ] Default map
+        - [ ] Snapshot mixin
     - [ ] Add back operations
     - [ ] Basic type parsing
     - [ ] New struct registry
+    - [ ] Typed mixin for region
+- [ ] Attempt 2 for memory graphs.
+- [ ] Attempt 2 at using cppyy for automatic template instantiation?
 - [ ] done for now?
 
 
@@ -205,6 +208,10 @@ vec<mf::Map> floatYRanges = findNumInRange<float>.threaded(snapshots, 0.99, 1.01
 vec<mf::Map> numCloseTo = findNumCloseTo<double>.threaded(snapshots, 1e5, 0.5).with(tp);
 vec<mf::Map> strLike = findStrLike.threaded(snapshots).with(tp);
 vec<mf::Map> exactNum = findNum<uint32_t>.threaded(snapshots, 1000).with(tp);
+
+// We can also mass resize or get the names of all the maps.
+vec<mf::sptr<mf::str>> names = vecMaps.map(mf::Map::getName);
+vec<mf::Map> resized = vecMaps.map(mf::Map::);
 
 // You can coerce results and then extract values.
 // Say for example our floats we found are expected to be Y values in a vec3d.

@@ -16,6 +16,7 @@ namespace RealtimeMemoryForensics::Utils
         using BaseType = std::vector<T, Allocator>;
         using BaseType::BaseType;
 
+        // TODO: Threaded wrapper.
         template <typename F, typename... Args>
         auto map(F&& f, Args&&... args);
 

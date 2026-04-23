@@ -1,3 +1,4 @@
+#pragma once
 // just a nice helper for string formatting
 #include <format>
 

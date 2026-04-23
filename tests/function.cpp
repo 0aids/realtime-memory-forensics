@@ -4,6 +4,7 @@
 #include <rmf/rmf.hpp>
 #include <rmf/utils/function.hpp>
 #include <print>
+#include "helpers.hpp"
 
 using namespace std;
 namespace mf  = RealtimeMemoryForensics;
@@ -327,17 +328,25 @@ TEST(function, threaded_unequalVectorLengths)
     auto            r        = threader.with(tp);
     EXPECT_TRUE(r.empty());
 }
-
-template <typename T, typename... Args>
-concept existant = requires { T::template threaded<Args...>; };
-
 template <typename T>
-concept non_existant = !requires { requires T::template threaded<>; };
+concept can_thread_empty = requires(T t) { t.template threaded<>(); };
 
+/* This succeeds
+ * static_assert(!can_thread_empty<decltype(func)>, 
+                  "threaded() shouldn't work for no-arguments!");
+ * But this fails
+ * static_assert(!requires (decltype(func) f) {f.template threaded<>(),
+                  "threaded() shouldn't work for no-arguments!");
+*/
 TEST(function, threaded_emptyThreader_with)
 {
     constexpr auto  func = mfu::Function([](int x) { return x; });
     mfu::ThreadPool tp(1);
-    static_assert(non_existant<decltype(func)>,
+    // Direct, generic, and readable.
+    // Checks if calling func.threaded() with no arguments is well-formed.
+    static_assert(
+        requires { func.template threaded<int>(1).with(tp); },
+        "threaded() SHOULD work with an int and thread pool!");
+    static_assert(!can_thread_empty<decltype(func)>,
                   "threaded() shouldn't work for no-arguments!");
 }
