@@ -185,18 +185,19 @@ mf::Field vec3dY = sr["vec3d", "y"];
 /***************************************/
 /******* Basic Memory Operations *******/
 /***************************************/
-ThreadPool tp(mf::concurrency()); // Multithreading
+ThreadPool tp(std::this_thread::hardware_concurrency()); // Multithreading
 pid_t pid = ...;
+
 // Get our original maps.
-vec<mf::Map> maps = getMapsBy(pid)
+vec<mf::Node<mf::Map>> maps = getMapsBy(pid)
 	.minSize(0x1000)
 	.maxSize(0xffffff)
 	.active(pid);
 
-vec<mf::Snapshot> snapshots = makeSnapshot.threaded(maps, pid).with(tp);
+vec<mf::Node<mf::Map, mf::Snapshot> snapshots = makeSnapshot.threaded(maps, pid).with(tp);
 
 // Obviously we can just access the data raw
-mf::Snapshot snap1 = snapshots.front();
+mf::Node<mf::Map, mf::Snapshot> snap1 = snapshots.front();
 snap1... // Standard vector operations.
 
 // find* are static classes that support operator(), or a .threaded version which takes in an analyzer.
@@ -210,29 +211,29 @@ vec<mf::Map> strLike = findStrLike.threaded(snapshots).with(tp);
 vec<mf::Map> exactNum = findNum<uint32_t>.threaded(snapshots, 1000).with(tp);
 
 // We can also mass resize or get the names of all the maps.
-vec<mf::sptr<mf::str>> names = vecMaps.map(mf::Map::getName);
-vec<mf::Map> resized = vecMaps.map(mf::Map::);
+vec<mf::sptr<mf::str>> names = vecMaps.map(mf::Node<mf::Map>::getName);
+vec<mf::Node<mf::Map>> resized = vecMaps.map(mf::Node<mf::Map>::);
 
 // You can coerce results and then extract values.
 // Say for example our floats we found are expected to be Y values in a vec3d.
 // mfu::vec has specialisations for certain types that automatically parallelise.
-vec<mf::Map> vec3dMap = floatYRanges.fromField(vec3dY);
+vec<mf::Node<mf::Map>> vec3dMap = floatYRanges.fromField(vec3dY);
 // Alternatively
-vec<mf::Map> vec3dMap = vec3dY.applyTo(floatYRanges);
+vec<mf::Node<mf::Map>> vec3dMap = vec3dY.applyTo(floatYRanges);
 // mfu::vec also has implicit conversions to std::vector, as it inherits from it.
 
 // Or we can turn them into nodes, which holds type information as well.
-vec<mf::Node> vec3dNodes = floatYRanges.fromField(vec3dY);
-vec<mf::Node> vec3dNodes = vec3dMap.fromType(vec3d);
+vec<mf::Node<mf::Map, mf::Typed>> vec3dNodes = floatYRanges.fromField(vec3dY);
+vec<mf::Node<mf::Map, mf::Typed>> vec3dNodes = vec3dMap.fromType(vec3d);
 // These will move properties of vec3dy such that it assumes that the field vec3dy is the one that
 // has been found, and will resize around that fact.
 
-// This is done by making fromField return a vec<rmf::Node>, which can be implicitly converted into vec<rmf::Map>
+// This is done by making fromField return a vec<rmf::Node<mf::Map, mf::Typed>>, which can be implicitly converted into vec<rmf::Node<mf::Map, mf::Typed><mf::Map>>
 // Polymorphism is not used here, rather concepts and templating which works because some comptime condition
 // "Map_compatible" is satisfied.
 
 // We can also access data of nodes.
-mf::Node node = vec3dNodes.front();
+mf::Node<mf::Map, mf::Typed> node = vec3dNodes.front();
 
 // Abusing the type system ;)
 // A node that owns snapshot data from pid.
@@ -240,7 +241,7 @@ mf::WideNode nodeWithCapture = node.capture(pid);
 mf::WideProperty wideProperty = nodeWithCapture.property("x");
 
 // Or equivalently with less capturing
-mf::NodeProperty nodeProperty = node.property("x");
+mf::Node<mf::Map, mf::Typed>Property nodeProperty = node.property("x");
 mf::WideProperty wideProperty = nodeProperty.capture(pid);
 
 // Not really sure about nested types.
@@ -259,8 +260,8 @@ auto value = node.property("x").capture(pid);
 // Might have to use monads or smth for this.
 // The static functions build a monad that is run by map?
 // And then all class methods are just run the static method generated "monads"?
-vec<float> parallelised_capture = vec3dNodes.map(mf::Node::property("x").capture(pid).as<float>());
-vec<float> parallelised_capture = vec3dNodes.map.threaded(mf::Node::property("x").capture(pid).as<float>()).with(tp);
+vec<float> parallelised_capture = vec3dNodes.map(vec3dNodes::property("x").capture(pid).as<float>());
+vec<float> parallelised_capture = vec3dNodes.map.threaded(vec3dNodes::property("x").capture(pid).as<float>()).with(tp);
 
 
 /***************************************/
