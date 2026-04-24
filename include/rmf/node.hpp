@@ -41,6 +41,7 @@ namespace RealtimeMemoryForensics
     void Node<Args...>::wellFormed()
     { static_assert(!std::is_polymorphic_v<SelfType>); }
 
+    // IDK why but these conversions are working without me defining them?
     template <template <typename> typename... Args>
     template <template <typename> typename... OtherArgs>
     Node<Args...>::Node(Node<OtherArgs...>&& other)

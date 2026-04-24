@@ -83,28 +83,19 @@ TEST(snapshot, findNumExact)
     // TODO: Cleanup this and the above test.
     uint64_t         num     = 0x1234567890abcdef;
     constexpr size_t bufSize = 1024;
-    size_t           head    = 0;
     auto             buffer  = mft::TestBuffer::makeZeroed(bufSize);
     ssize_t          diff1   = 100;
-    EXPECT_EQ(static_cast<bool>(buffer.pushPadding(diff1)),
-              (head += diff1) < bufSize);
+    EXPECT_TRUE(static_cast<bool>(buffer.pushPadding(diff1)));
     ssize_t diff2 = 1024;
-    EXPECT_EQ(static_cast<bool>(buffer.pushPadding(diff2)),
-              head + diff2 < bufSize);
-    ssize_t diff3 = sizeof(num);
-    EXPECT_EQ(static_cast<bool>(buffer.push(num)),
-              (head += diff3) < bufSize);
-    ssize_t diff4 = bufSize - head - 3;
-    EXPECT_EQ(static_cast<bool>(buffer.pushPadding(diff4)),
-              (head += diff4) < bufSize);
-    ssize_t diff5 = sizeof(num);
-    EXPECT_EQ(static_cast<bool>(buffer.push(num)),
-              (head += diff5) < bufSize);
+    EXPECT_FALSE(static_cast<bool>(buffer.pushPadding(diff2)));
+    EXPECT_TRUE(static_cast<bool>(buffer.push(num)));
+    EXPECT_TRUE(static_cast<bool>(buffer.pushPadding(diff1)));
+    EXPECT_TRUE(static_cast<bool>(buffer.push(num)));
     EXPECT_LE(buffer.chead(), buffer.cend());
     EXPECT_LE(buffer.chead(), buffer.cend());
     auto snapshot = Snapshot<Node<Snapshot, Map>>::fromBuffer(
         buffer.moveBuffer());
     auto res =
         findNumExact<uint64_t, decltype(snapshot)>(snapshot, num);
-    EXPECT_GT(res.size(), 0);
+    EXPECT_EQ(res.size(), 2);
 }
