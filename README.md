@@ -12,10 +12,10 @@ via node-graph visualisation, all done without analysing executed assembly.
     - [x] Feature Function wrapper
     - [x] Refactor threadpool
     - [x] Feature Threaded function wrapper (analyzer replacement)
-    - [-] Implement base + mixins
-        - [ ] Default map
-        - [ ] Snapshot mixin
-    - [ ] Add back operations
+    - [x] Implement base + mixins
+        - [x] Default map
+        - [x] Snapshot mixin
+    - [-] Add back operations
     - [ ] Basic type parsing
     - [ ] New struct registry
     - [ ] Typed mixin for region
