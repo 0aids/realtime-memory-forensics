@@ -4,6 +4,8 @@
 
 namespace RealtimeMemoryForensics
 {
+    template <typename T>
+    concept IsNode = requires(T t) { T::IsNode; };
     // Very sus CRTP (curiosly recurring template pattern)
     // I think I bit off more than i could chew...
     template <template <typename> typename... Args>
@@ -11,11 +13,12 @@ namespace RealtimeMemoryForensics
     {
 
       public:
-        Node()                       = default;
-        Node(Node&&)                 = default;
-        Node(const Node&)            = default;
-        Node& operator=(Node&&)      = default;
-        Node& operator=(const Node&) = default;
+        constexpr static inline bool IsNode = true;
+        Node()                              = default;
+        Node(Node&&)                        = default;
+        Node(const Node&)                   = default;
+        Node& operator=(Node&&)             = default;
+        Node& operator=(const Node&)        = default;
 
         // For allowing conversions between nodes.
         template <template <typename> typename... OtherArgs>

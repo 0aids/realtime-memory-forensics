@@ -11,6 +11,7 @@
 #include "rmf/test_helpers.hpp"
 #include "rmf/utils/function.hpp"
 #include "rmf/op.hpp"
+#include "rmf/utils/threadpool.hpp"
 
 using namespace std;
 namespace mf  = RealtimeMemoryForensics;
@@ -100,4 +101,11 @@ TEST(snapshot, findNumExact)
     // Holy shit it's so difficult.
     auto res = findNumExact(snapshot, num);
     EXPECT_EQ(res.size(), 2);
+    Utils::ThreadPool tp(1);
+
+    auto              snaps = mfu::Vec<decltype(snapshot)>{snapshot};
+    println("inputs: {}", snaps.size());
+    auto res1 = findNumExact.threaded(snaps, num).with(tp);
+    println("res1: {}", res1[0].size());
+    EXPECT_EQ(res1[0].size(), res.size());
 }

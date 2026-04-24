@@ -64,7 +64,9 @@ namespace RealtimeMemoryForensics
 
         struct findNumExact
         {
-            template <typename node_t, typename N>
+            template <template <typename> typename... Features,
+                      typename N, typename node_t = Node<Features...>>
+                requires IsNode<node_t>
             Utils::Vec<Node<Map>> operator()(const node_t& snap1,
                                              const N number) const;
         };
@@ -153,7 +155,9 @@ namespace RealtimeMemoryForensics::Detail
     {
     }
 
-    template <typename node_t, typename N>
+    template <template <typename> typename... Features, typename N,
+              typename node_t>
+        requires IsNode<node_t>
     Utils::Vec<Node<Map>>
     findNumExact::operator()(const node_t& snap1,
                              const N       number) const

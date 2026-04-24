@@ -15,9 +15,12 @@ via node-graph visualisation, all done without analysing executed assembly.
     - [x] Implement base + mixins
         - [x] Default map
         - [x] Snapshot mixin
+    - [x] Tidy up function wrapper api
+        - [x] Allow late evaluation of operator() for Utils::Function
+        - [x] Allow late evaluation of threaded() for Utils::Function
     - [-] Add back operations
     - [-] Add better testing features.
-        - [-] custom buffers
+        - [x] custom buffers
         - [ ] generating custom executables using functions
     - [ ] Basic type parsing
     - [ ] Redone struct registry
