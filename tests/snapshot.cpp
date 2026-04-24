@@ -98,6 +98,6 @@ TEST(snapshot, findNumExact)
     auto snapshot1 = snapshot;
     // Figure out how to shorten this.
     // Holy shit it's so difficult.
-    auto res = findNumExactShort(snapshot, num);
+    auto res = findNumExact(snapshot, num);
     EXPECT_EQ(res.size(), 2);
 }
