@@ -47,6 +47,13 @@ namespace RealtimeMemoryForensics
         Utils::Vec<Node<Map>> findNumExact(const node_t& snap1,
                                            const N       number);
 
+        struct findNumExactShort
+        {
+            template <typename N, typename node_t>
+            Utils::Vec<Node<Map>> operator()(node_t&& snap1,
+                                             N&&      number);
+        };
+
         // Inclusive.
         template <typename N, typename node_t>
         Utils::Vec<Node<Map>> findNumWithinRange(const node_t& snap1,
@@ -58,24 +65,34 @@ namespace RealtimeMemoryForensics
     template <typename node_t>
     constexpr auto findChanged =
         Utils::Function(Detail::findChanged<node_t>);
+
     template <typename node_t>
     constexpr auto findUnchanged =
         Utils::Function(Detail::findUnchanged<node_t>);
+
     template <typename num_t, typename node_t>
     constexpr auto findNumChanged =
         Utils::Function(Detail::findNumChanged<num_t, node_t>);
+
     template <typename num_t, typename node_t>
     constexpr auto findNumUnchanged =
         Utils::Function(Detail::findNumUnchanged<num_t, node_t>);
+
     template <typename node_t>
     constexpr auto findString =
         Utils::Function(Detail::findString<node_t>);
+
     template <typename num_t, typename node_t>
     constexpr auto findNumExact =
         Utils::Function(Detail::findNumExact<num_t, node_t>);
+
     template <typename num_t, typename node_t>
     constexpr auto findNumWithinRange =
         Utils::Function(Detail::findNumWithinRange<num_t, node_t>);
+
+    // TODO: Modify Utils::Function to allow having struct operator().
+    // constexpr auto findNumExactShort =
+    // 	Utils::Function(Detail::findNumExactShort{});
 
     Utils::Vec<Node<Map>> getMaps(pid_t pid);
 }
@@ -190,6 +207,13 @@ namespace RealtimeMemoryForensics::Detail
             bytesCompared += alignment;
         }
         return results;
+    }
+    template <typename N, typename node_t>
+    Utils::Vec<Node<Map>>
+    Detail::findNumExactShort::operator()(node_t&& snap1, N&& number)
+    {
+        return findNumExact<N, node_t>(std::forward<node_t>(snap1),
+                                       std::forward<N>(number));
     }
 }
 #endif // op_hpp_INCLUDED

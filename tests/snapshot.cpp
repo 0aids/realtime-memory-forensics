@@ -93,8 +93,9 @@ TEST(snapshot, findNumExact)
     EXPECT_TRUE(static_cast<bool>(buffer.push(num)));
     EXPECT_LE(buffer.chead(), buffer.cend());
     EXPECT_LE(buffer.chead(), buffer.cend());
-    auto snapshot = Snapshot<Node<Snapshot, Map>>::fromBuffer(
-        buffer.moveBuffer());
+    auto snapshot =
+        Node<Snapshot, Map>::fromBuffer(buffer.moveBuffer());
+    // Figure out how to shorten this.
     auto res =
         findNumExact<uint64_t, decltype(snapshot)>(snapshot, num);
     EXPECT_EQ(res.size(), 2);

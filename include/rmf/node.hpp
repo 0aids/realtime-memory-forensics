@@ -11,7 +11,13 @@ namespace RealtimeMemoryForensics
     {
 
       public:
-        Node() = default;
+        Node()                       = default;
+        Node(Node&&)                 = default;
+        Node(const Node&)            = default;
+        Node& operator=(Node&&)      = default;
+        Node& operator=(const Node&) = default;
+
+        // For allowing conversions between nodes.
         template <template <typename> typename... OtherArgs>
         Node(Node<OtherArgs...>&&);
         template <template <typename> typename... OtherArgs>
@@ -42,26 +48,26 @@ namespace RealtimeMemoryForensics
     { static_assert(!std::is_polymorphic_v<SelfType>); }
 
     // IDK why but these conversions are working without me defining them?
+    // My guess is that the compiler can use this templated conversions
+    // to use the move and copy features of non-templated data structs.
     template <template <typename> typename... Args>
     template <template <typename> typename... OtherArgs>
-    Node<Args...>::Node(Node<OtherArgs...>&& other)
+    Node<Args...>::Node(Node<OtherArgs...>&&)
     {
     }
     template <template <typename> typename... Args>
     template <template <typename> typename... OtherArgs>
-    Node<Args...>::Node(const Node<OtherArgs...>& other)
+    Node<Args...>::Node(const Node<OtherArgs...>&)
     {
     }
     template <template <typename> typename... Args>
     template <template <typename> typename... OtherArgs>
-    Node<Args...>&
-    Node<Args...>::operator=(Node<OtherArgs...>&& other)
+    Node<Args...>& Node<Args...>::operator=(Node<OtherArgs...>&&)
     {
     }
     template <template <typename> typename... Args>
     template <template <typename> typename... OtherArgs>
-    Node<Args...>&
-    Node<Args...>::operator=(const Node<OtherArgs...>& other)
+    Node<Args...>& Node<Args...>::operator=(const Node<OtherArgs...>&)
     {
     }
 }

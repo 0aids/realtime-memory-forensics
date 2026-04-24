@@ -16,11 +16,19 @@ via node-graph visualisation, all done without analysing executed assembly.
         - [x] Default map
         - [x] Snapshot mixin
     - [-] Add back operations
+    - [-] Add better testing features.
+        - [-] custom buffers
+        - [ ] generating custom executables using functions
     - [ ] Basic type parsing
-    - [ ] New struct registry
+    - [ ] Redone struct registry
     - [ ] Typed mixin for region
-- [ ] Attempt 2 for memory graphs.
+- [ ] Attempt 3 for memory graphs.
+    - [ ] Figure out shit
+- [ ] Attempt a visualiser for memory graphs.
+    - [ ] Opengl shader? Pure cpu rendering? Using which framework?
+- [ ] Attempt a gui for scripting via cppyy or cling.
 - [ ] Attempt 2 at using cppyy for automatic template instantiation?
+- [ ] Consider serialisations
 - [ ] done for now?
 
 
@@ -289,6 +297,8 @@ mf::MemoryGraph mg; // holds sptr.
 // mgp holds a wptr to mg_impl, and vectors of NodeKeys and LinkKeys to their relevant slotmaps (references cannot be used because the datastructure is
 // constantly growing and shrinking and changing, so they will be invalidated incredibly easily).
 // However, mgp will have wrapper functions that would make it easier and friendlier on operations.
+// mgps use the widest available nodes.
+// Using Node<Map, Snapshot, Typed> (and maybe more for storing relations?)
 mf::MemoryGraphPart mgp = mg.push(vec3dNodes);
 
 mf::MemoryGraphPart mgp = mg.findSources(snapshots, nodeKeys, sourceField);
