@@ -62,10 +62,6 @@ namespace RealtimeMemoryForensics::Utils
         FT m_mtFunc;
 
       public:
-        using FTraits  = Detail::FuncTraits<F>;
-        using FTTraits = Detail::FuncTraits<FT>;
-
-      public:
         constexpr Function(F implFunction);
         constexpr Function(F implFunction, FT threadedFunction);
         Function(Function&&)                = delete;
@@ -76,9 +72,7 @@ namespace RealtimeMemoryForensics::Utils
         // For actually running the function
         // Runs the function inputted like normal.
         template <typename... Args>
-            requires std::is_convertible_v<
-                std::tuple<Args...>, typename FTraits::InputsTuple>
-        typename FTraits::Output operator()(Args&&...) const;
+        auto operator()(Args&&...) const;
 
         // Returns an intermediate object that contains a "with" method.
         // Does this by automatically parallelising arguments that are containers of the function's
@@ -91,7 +85,7 @@ namespace RealtimeMemoryForensics::Utils
 
         // Runs very basic parallelised (but not threaded)
         template <typename... Args>
-        Vec<typename FTraits::Output> applyTo(Args&&... args) const;
+        auto applyTo(Args&&... args) const;
     };
 }
 
@@ -106,11 +100,7 @@ namespace RealtimeMemoryForensics::Utils
     // fucking disgusting for cleaner code.
     template <typename F, typename FT>
     template <typename... Args>
-        requires std::is_convertible_v<
-            std::tuple<Args...>,
-            typename Detail::FuncTraits<F>::InputsTuple>
-    typename Detail::FuncTraits<F>::Output
-    Function<F, FT>::operator()(Args&&... args) const
+    auto Function<F, FT>::operator()(Args&&... args) const
     { return m_func(std::forward<Args>(args)...); }
 
     template <typename F, typename FT>
@@ -118,6 +108,7 @@ namespace RealtimeMemoryForensics::Utils
         requires(N > 0)
     constexpr auto Function<F, FT>::threaded(Args&&... args) const
     {
+        using FTTraits     = Detail::FuncTraits<FT>;
         using InputsTuple  = typename FTTraits::InputsTuple;
         using VecArgsTuple = typename std::tuple<Args&&...>;
         // Detail::TypePrinter<VecArgsTuple, InputsTuple>  Gah;

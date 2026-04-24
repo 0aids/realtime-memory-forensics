@@ -36,8 +36,7 @@ TEST(snapshot, fakeBuffer)
     using namespace mf;
     std::vector<uint8_t> fakeBuffer(0xffff, 0xff);
     Node<Snapshot, Map>  value =
-        Snapshot<Node<Snapshot, Map>>::fromBuffer(
-            std::move(fakeBuffer));
+        Node<Snapshot, Map>::fromBuffer(std::move(fakeBuffer));
     EXPECT_NO_THROW(value.wellFormed());
     EXPECT_EQ(value.span()[0], 0xff);
 }
@@ -95,8 +94,10 @@ TEST(snapshot, findNumExact)
     EXPECT_LE(buffer.chead(), buffer.cend());
     auto snapshot =
         Node<Snapshot, Map>::fromBuffer(buffer.moveBuffer());
+    // copy
+    auto snapshot1 = snapshot;
     // Figure out how to shorten this.
-    auto res =
-        findNumExact<uint64_t, decltype(snapshot)>(snapshot, num);
+    // Holy shit it's so difficult.
+    auto res = findNumExactShort(snapshot, num);
     EXPECT_EQ(res.size(), 2);
 }
