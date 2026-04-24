@@ -66,23 +66,23 @@ struct Errc {
     // The maximum amount of times the errors can be swapped.
     static constexpr size_t maxDepth = RMF_ERRC_DEPTH; // Defaults to 5.
     using LineNumber = size_t;
-	mfu::arr<std::string_view, maxDepth> function;
-	mfu::arr<std::string_view, maxDepth> file;
-	mfu::arr<LineNumber, maxDepth> line;
+    mfu::arr<std::string_view, maxDepth> function;
+    mfu::arr<std::string_view, maxDepth> file;
+    mfu::arr<LineNumber, maxDepth> line;
     mfu::arr<ErrcEnum, maxDepth> errc;
 };
 
 struct ErrcThrow : public std::exception {
 private:
-	std::string generateMsg(ErrorEnum e, const char* file, lineNumber_t line,
+    std::string generateMsg(ErrorEnum e, const char* file, lineNumber_t line,
                   const char* function);
 public:
-	using std::exception...;
-	ErrcThrow();
-	const char* what() override;
-	// "Error @ [file : line : function] errc"
-	// " ^-> From @ [file : line : function] errc"
-	// "    ^-> From @ [file : line : function] errc"
+    using std::exception...;
+    ErrcThrow();
+    const char* what() override;
+    // "Error @ [file : line : function] errc"
+    // " ^-> From @ [file : line : function] errc"
+    // "    ^-> From @ [file : line : function] errc"
 };
 
 rmf_retErr(result); // Propogates the error
@@ -196,9 +196,9 @@ pid_t pid = ...;
 // Get our original maps.
 // The {} creates a maps modifier class.
 Vec<mf::Node<mf::Map>> maps = getMapsBy(pid).filter({}
-	.minSize(0x1000)
-	.maxSize(0xffffff)
-	.active(pid));
+    .minSize(0x1000)
+    .maxSize(0xffffff)
+    .active(pid));
 
 Vec<mf::Node<mf::Map, mf::Snapshot> snapshots = makeSnapshot.threaded(maps, pid).with(tp);
 Vec<mf::Node<mf::Map, mf::Snapshot> snapshots = maps.map({}.capture(pid));
@@ -334,4 +334,22 @@ Vec<float> floats = vecFullNodes.e.property("x");
 
 // possible undos?
 mg.pop();
+
+
+```
+
+# Testing
+
+```cpp
+// Testing interface
+// Each file has its own testing interface with a main in it.
+// In the main it has a configuration of some TestProgram with a list of features in it.
+// It consteval generates a function which is run.
+// StringBufferTest.cpp
+#include <rmf/include/test_helpers.hpp>
+int main {
+    consteval auto func = createTestProgram<
+        StaticStringBuffer<"hello world!">
+    >()();
+}
 ```

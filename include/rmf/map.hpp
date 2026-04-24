@@ -36,18 +36,25 @@ struct magic_enum::customize::enum_range<
 
 namespace RealtimeMemoryForensics
 {
+    namespace Detail
+    {
+        struct MapData
+        {
+            static std::shared_ptr<const std::string> defaultName;
+            // Default values for safety
+            uintptr_t                          parentAddress   = 0;
+            uintptr_t                          parentSize      = 0;
+            ptrdiff_t                          relativeAddress = 0;
+            ptrdiff_t                          relativeSize    = 0;
+            std::shared_ptr<const std::string> regionName_sp =
+                defaultName;
+            bool operator==(const MapData& other) const = default;
+        };
+    }
     template <typename Base>
     struct Map
     {
-        static std::shared_ptr<const std::string> defaultName;
-        // Default values for safety
-        uintptr_t                          parentAddress   = 0;
-        uintptr_t                          parentSize      = 0;
-        ptrdiff_t                          relativeAddress = 0;
-        ptrdiff_t                          relativeSize    = 0;
-        std::shared_ptr<const std::string> regionName_sp =
-            defaultName;
-
+        Detail::MapData map;
         using usesMap = std::true_type;
 
         Perms perms = Perms::None;
@@ -64,7 +71,6 @@ namespace RealtimeMemoryForensics
         // Returns the parent beginning
         constexpr uintptr_t pend() const;
                             operator std::string() const;
-        bool operator==(const Map& other) const = default;
 
         // oh my gah
         template <template <typename> typename... Features>
@@ -79,47 +85,41 @@ namespace RealtimeMemoryForensics
 
 namespace RealtimeMemoryForensics
 {
-    namespace Detail
-    {
-        inline std::shared_ptr<const std::string> defaultName =
-            std::make_shared<const std::string>("");
-    }
-
-    template <typename Base>
-    std::shared_ptr<const std::string> Map<Base>::defaultName =
-        Detail::defaultName;
-
     // Returns the address of the beginning of this region.
     template <typename Base>
     constexpr uintptr_t Map<Base>::tbegin() const
-    { return parentAddress + relativeAddress; }
+    { return map.parentAddress + map.relativeAddress; }
     // Returns the address of the end of this region (exclusive).
     template <typename Base>
     constexpr uintptr_t Map<Base>::tend() const
-    { return parentAddress + relativeAddress + relativeSize; }
+    {
+        return map.parentAddress + map.relativeAddress +
+            map.relativeSize;
+    }
     // Returns the relative beginning (relative to the parent)
     template <typename Base>
     constexpr uintptr_t Map<Base>::rbegin() const
-    { return relativeAddress; }
+    { return map.relativeAddress; }
     // Returns the relative beginning (relative to the parent)
     template <typename Base>
     constexpr uintptr_t Map<Base>::rend() const
-    { return relativeAddress + relativeSize; }
+    { return map.relativeAddress + map.relativeSize; }
     // Debugging use?
     template <typename Base>
     Map<Base>::operator std::string() const
     {
         using namespace RealtimeMemoryForensics::Utils::Literals;
         return "[{}] - Parent Region: [{}, {}) Actual Region: [{}, {})"_f
-            .fmt(*regionName_sp, pbegin(), pend(), tbegin(), tend());
+            .fmt(*map.regionName_sp, pbegin(), pend(), tbegin(),
+                 tend());
     }
     // Returns the parent beginning
     template <typename Base>
     constexpr uintptr_t Map<Base>::pbegin() const
-    { return parentAddress; }
+    { return map.parentAddress; }
     // Returns the parent beginning
     template <typename Base>
     constexpr uintptr_t Map<Base>::pend() const
-    { return parentAddress + parentSize; }
+    { return map.parentAddress + map.parentSize; }
 }
 #endif // map_hpp_INCLUDED

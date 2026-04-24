@@ -24,13 +24,13 @@ namespace RealtimeMemoryForensics
 
         // Difference is calculated as snap2 - snap1
         // Inclusive.
-        template <typename node_t, typename N>
+        template <typename N, typename node_t>
         Utils::Vec<Node<Map>> findNumChanged(const node_t& snap1,
                                              const node_t& snap2,
                                              const N& minDifference);
 
         // Inclusive.
-        template <typename node_t, typename N>
+        template <typename N, typename node_t>
         Utils::Vec<Node<Map>>
         findNumUnchanged(const node_t& snap1, const node_t& snap2,
                          const N& maxDifference);
@@ -43,12 +43,12 @@ namespace RealtimeMemoryForensics
         Utils::Vec<Node<Map>> findString(const node_t&          snap1,
                                          const std::string_view str);
 
-        template <typename node_t, typename N>
+        template <typename N, typename node_t>
         Utils::Vec<Node<Map>> findNumExact(const node_t& snap1,
                                            const N       number);
 
         // Inclusive.
-        template <typename node_t, typename N>
+        template <typename N, typename node_t>
         Utils::Vec<Node<Map>> findNumWithinRange(const node_t& snap1,
                                                  const N&      min,
                                                  const N&      max);
@@ -61,21 +61,21 @@ namespace RealtimeMemoryForensics
     template <typename node_t>
     constexpr auto findUnchanged =
         Utils::Function(Detail::findUnchanged<node_t>);
-    template <typename node_t, typename num_t>
+    template <typename num_t, typename node_t>
     constexpr auto findNumChanged =
-        Utils::Function(Detail::findNumChanged<node_t, num_t>);
-    template <typename node_t, typename num_t>
+        Utils::Function(Detail::findNumChanged<num_t, node_t>);
+    template <typename num_t, typename node_t>
     constexpr auto findNumUnchanged =
-        Utils::Function(Detail::findNumUnchanged<node_t, num_t>);
+        Utils::Function(Detail::findNumUnchanged<num_t, node_t>);
     template <typename node_t>
     constexpr auto findString =
         Utils::Function(Detail::findString<node_t>);
-    template <typename node_t, typename num_t>
+    template <typename num_t, typename node_t>
     constexpr auto findNumExact =
-        Utils::Function(Detail::findNumExact<node_t, num_t>);
-    template <typename node_t, typename num_t>
+        Utils::Function(Detail::findNumExact<num_t, node_t>);
+    template <typename num_t, typename node_t>
     constexpr auto findNumWithinRange =
-        Utils::Function(Detail::findNumWithinRange<node_t, num_t>);
+        Utils::Function(Detail::findNumWithinRange<num_t, node_t>);
 
     Utils::Vec<Node<Map>> getMaps(pid_t pid);
 }
@@ -100,7 +100,7 @@ namespace RealtimeMemoryForensics::Detail
 
     // Difference is calculated as snap2 - snap1
     // Inclusive.
-    template <typename node_t, typename N>
+    template <typename N, typename node_t>
     Utils::Vec<Node<Map>> findNumChanged(const node_t& snap1,
                                          const node_t& snap2,
                                          const N&      minDifference)
@@ -108,7 +108,7 @@ namespace RealtimeMemoryForensics::Detail
     }
 
     // Inclusive.
-    template <typename node_t, typename N>
+    template <typename N, typename node_t>
     Utils::Vec<Node<Map>> findNumUnchanged(const node_t& snap1,
                                            const node_t& snap2,
                                            const N& maxDifference)
@@ -125,12 +125,13 @@ namespace RealtimeMemoryForensics::Detail
     {
     }
 
-    template <typename node_t, typename N>
+    template <typename N, typename node_t>
     Utils::Vec<Node<Map>> findNumExact(const node_t& snap1,
                                        const N       number)
     {
-        auto                  span = snap1.getSpan();
-        Node<Map>&            mrp  = snap1;
+        auto span = snap1.span();
+        // Convert wider node into thinner node.
+        auto                  mrp = static_cast<Node<Map>>(snap1);
         Utils::Vec<Node<Map>> results;
         const size_t          alignment     = alignof(N);
         const size_t          size          = sizeof(N);
@@ -148,8 +149,8 @@ namespace RealtimeMemoryForensics::Detail
             if (value == number)
             {
                 auto newmrp = mrp;
-                newmrp.relativeAddress += bytesCompared;
-                newmrp.relativeSize = size;
+                newmrp.map.relativeAddress += bytesCompared;
+                newmrp.map.relativeSize = size;
                 results.push_back(newmrp);
             }
             bytesCompared += alignment;
@@ -158,12 +159,12 @@ namespace RealtimeMemoryForensics::Detail
     }
 
     // Inclusive.
-    template <typename node_t, typename N>
+    template <typename N, typename node_t>
     Utils::Vec<Node<Map>> findNumWithinRange(const node_t& snap1,
                                              const N&      min,
                                              const N&      max)
     {
-        auto                  span = snap1.getSpan();
+        auto                  span = snap1.span();
         const Node<Map>       mrp  = snap1;
         Utils::Vec<Node<Map>> results;
         const size_t          alignment     = alignof(N);
@@ -182,8 +183,8 @@ namespace RealtimeMemoryForensics::Detail
             if (min <= value && value <= max)
             {
                 auto newmrp = mrp;
-                newmrp.relativeAddress += bytesCompared;
-                newmrp.relativeSize = size;
+                newmrp.map.relativeAddress += bytesCompared;
+                newmrp.map.relativeSize = size;
                 results.push_back(newmrp);
             }
             bytesCompared += alignment;

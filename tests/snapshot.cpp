@@ -8,12 +8,15 @@
 #include <rmf/map.hpp>
 #include <rmf/snapshot.hpp>
 #include "helpers.hpp"
+#include "rmf/test_helpers.hpp"
 #include "rmf/utils/function.hpp"
+#include "rmf/op.hpp"
 
 using namespace std;
 namespace mf  = RealtimeMemoryForensics;
 namespace mfl = mf::Logging;
 namespace mfu = mf::Utils;
+namespace mft = mf::Tests;
 
 template <typename T>
 concept requiresMap = requires(T t) { t.wellFormed(); };
@@ -36,5 +39,72 @@ TEST(snapshot, fakeBuffer)
         Snapshot<Node<Snapshot, Map>>::fromBuffer(
             std::move(fakeBuffer));
     EXPECT_NO_THROW(value.wellFormed());
-    EXPECT_EQ(value.getSpan()[0], 0xff);
+    EXPECT_EQ(value.span()[0], 0xff);
+}
+
+TEST(snapshot, findString)
+{
+    const char       str[]   = "Hello world!";
+    constexpr size_t bufSize = 1024;
+    size_t           head    = 0;
+    auto             buffer  = mft::TestBuffer::makeZeroed(bufSize);
+    ssize_t          diff1   = 100;
+    EXPECT_EQ(static_cast<bool>(buffer.pushPadding(diff1)),
+              (head += diff1) < bufSize);
+    // println("Expected - diff: {}, head: {}, actualOffset: {}", diff1,
+    //         head, buffer.headOffset());
+    ssize_t diff2 = 1024;
+    EXPECT_EQ(static_cast<bool>(buffer.pushPadding(diff2)),
+              head + diff2 < bufSize);
+    // println("Expected - diff: {}, head: {}, actualOffset: {}", diff2,
+    //         head, buffer.headOffset());
+    ssize_t diff3 = sizeof(str);
+    EXPECT_EQ(static_cast<bool>(buffer.push(str)),
+              (head += diff3) < bufSize);
+    ssize_t diff4 = bufSize - head - 3;
+    // println("Expected - diff: {}, head: {}, actualOffset: {}", diff3,
+    //         head, buffer.headOffset());
+    EXPECT_EQ(static_cast<bool>(buffer.pushPadding(diff4)),
+              (head += diff4) < bufSize);
+    ssize_t diff5 = sizeof(str);
+    // println("Expected - diff: {}, head: {}, actualOffset: {}", diff4,
+    //         head, buffer.headOffset());
+    EXPECT_EQ(static_cast<bool>(buffer.push(str)),
+              (head += diff5) < bufSize);
+    // println("Expected - diff: {}, head: {}, actualOffset: {}", diff5,
+    //         head, buffer.headOffset());
+    EXPECT_LE(buffer.chead(), buffer.cend());
+    EXPECT_LE(buffer.chead(), buffer.cend());
+    // println("head: {}", buffer.chead() - buffer.cbegin());
+}
+TEST(snapshot, findNumExact)
+{
+    using namespace mf;
+    // TODO: Cleanup this and the above test.
+    uint64_t         num     = 0x1234567890abcdef;
+    constexpr size_t bufSize = 1024;
+    size_t           head    = 0;
+    auto             buffer  = mft::TestBuffer::makeZeroed(bufSize);
+    ssize_t          diff1   = 100;
+    EXPECT_EQ(static_cast<bool>(buffer.pushPadding(diff1)),
+              (head += diff1) < bufSize);
+    ssize_t diff2 = 1024;
+    EXPECT_EQ(static_cast<bool>(buffer.pushPadding(diff2)),
+              head + diff2 < bufSize);
+    ssize_t diff3 = sizeof(num);
+    EXPECT_EQ(static_cast<bool>(buffer.push(num)),
+              (head += diff3) < bufSize);
+    ssize_t diff4 = bufSize - head - 3;
+    EXPECT_EQ(static_cast<bool>(buffer.pushPadding(diff4)),
+              (head += diff4) < bufSize);
+    ssize_t diff5 = sizeof(num);
+    EXPECT_EQ(static_cast<bool>(buffer.push(num)),
+              (head += diff5) < bufSize);
+    EXPECT_LE(buffer.chead(), buffer.cend());
+    EXPECT_LE(buffer.chead(), buffer.cend());
+    auto snapshot = Snapshot<Node<Snapshot, Map>>::fromBuffer(
+        buffer.moveBuffer());
+    auto res =
+        findNumExact<uint64_t, decltype(snapshot)>(snapshot, num);
+    EXPECT_GT(res.size(), 0);
 }

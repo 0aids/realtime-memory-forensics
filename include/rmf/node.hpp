@@ -5,18 +5,23 @@
 namespace RealtimeMemoryForensics
 {
     // Very sus CRTP (curiosly recurring template pattern)
+    // I think I bit off more than i could chew...
     template <template <typename> typename... Args>
     class Node : public Args<Node<Args...>>...
     {
 
       public:
-        Node()                       = default;
-        Node(Node&&)                 = default;
-        Node(const Node&)            = default;
-        Node& operator=(Node&&)      = default;
-        Node& operator=(const Node&) = default;
-        using DerivedType            = Node<Args...>;
-        using SelfType               = Node;
+        Node() = default;
+        template <template <typename> typename... OtherArgs>
+        Node(Node<OtherArgs...>&&);
+        template <template <typename> typename... OtherArgs>
+        Node(const Node<OtherArgs...>&);
+        template <template <typename> typename... OtherArgs>
+        Node& operator=(Node<OtherArgs...>&&);
+        template <template <typename> typename... OtherArgs>
+        Node& operator=(const Node<OtherArgs...>&);
+        using DerivedType = Node<Args...>;
+        using SelfType    = Node;
              operator std::string() const;
         void wellFormed();
     };
@@ -35,4 +40,27 @@ namespace RealtimeMemoryForensics
     template <template <typename> typename... Args>
     void Node<Args...>::wellFormed()
     { static_assert(!std::is_polymorphic_v<SelfType>); }
+
+    template <template <typename> typename... Args>
+    template <template <typename> typename... OtherArgs>
+    Node<Args...>::Node(Node<OtherArgs...>&& other)
+    {
+    }
+    template <template <typename> typename... Args>
+    template <template <typename> typename... OtherArgs>
+    Node<Args...>::Node(const Node<OtherArgs...>& other)
+    {
+    }
+    template <template <typename> typename... Args>
+    template <template <typename> typename... OtherArgs>
+    Node<Args...>&
+    Node<Args...>::operator=(Node<OtherArgs...>&& other)
+    {
+    }
+    template <template <typename> typename... Args>
+    template <template <typename> typename... OtherArgs>
+    Node<Args...>&
+    Node<Args...>::operator=(const Node<OtherArgs...>& other)
+    {
+    }
 }

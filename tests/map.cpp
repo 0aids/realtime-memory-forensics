@@ -15,7 +15,7 @@ TEST(map, BasicRegion)
 {
     mf::Node<mf::Map> test1;
     mf::Node<mf::Map> test2;
-    println("{}", test1.regionName_sp.use_count());
+    println("{}", test1.map.regionName_sp.use_count());
     println("{}", std::string(test1));
-    EXPECT_EQ(test1, test2);
+    EXPECT_EQ(test1.map, test2.map);
 }

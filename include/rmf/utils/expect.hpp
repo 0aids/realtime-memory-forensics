@@ -7,8 +7,9 @@ namespace RealtimeMemoryForensics::Utils
 {
     enum class ErrorEnum
     {
-        MaxErrorDepthReached,
         TestError,
+        MaxErrorDepthReached,
+        TestBufferOverflow,
     };
 
     class Error;
@@ -50,21 +51,23 @@ namespace RealtimeMemoryForensics::Utils
 }
 
 #define rmf_retErr(exp)                                              \
+    do                                                               \
     {                                                                \
         if (!exp.has_value())                                        \
-            return exp;                                              \
-    }
+            return exp.error();                                      \
+    } while (0)
 
 #define rmf_updErr(exp, errc)                                        \
     exp.update(errc, __FILE__, __LINE__, __FUNCTION__)
 
 #define rmf_updRetErr(exp, errc)                                     \
+    do                                                               \
     {                                                                \
         if (!exp.has_value())                                        \
         {                                                            \
             return rmf_updErr(exp.error(), errc);                    \
         }                                                            \
-    }
+    } while (0)
 
 // Make an error
 #define rmf_mkErr(errc)                                              \
