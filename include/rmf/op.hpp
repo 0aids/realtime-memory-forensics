@@ -82,6 +82,10 @@ namespace RealtimeMemoryForensics
         };
     }
 
+    // problemo - How the fuck do i get filtering to work?
+    template <template <typename> typename... Features>
+    Node<Map, Features...> getMapsFromPid(pid_t pid);
+
     // Threadify functions.
     constexpr auto findChanged =
         Utils::Function(Detail::findChanged{});

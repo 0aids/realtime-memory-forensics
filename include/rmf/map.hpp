@@ -80,6 +80,23 @@ namespace RealtimeMemoryForensics
             std::function<Result_t()> func;
             Result_t                  operator()();
         };
+        template <typename BaseVec>
+        struct VecOp
+        {
+            // using InnerType = BaseVec::InnerType;
+            BaseVec& minSize(size_t) const;
+            BaseVec& maxSize(size_t) const;
+            BaseVec& chunkify(size_t) const;
+
+            // TODO: Move naming filters to regex.
+            BaseVec& exactName(const std::string_view) const;
+            BaseVec& subName(const std::string_view) const;
+
+            BaseVec& exactPerms(Perms) const;
+            BaseVec& hasPerms(Perms) const;
+            BaseVec& notPerms(Perms) const;
+            BaseVec& active(pid_t pid) const;
+        };
     };
 }
 

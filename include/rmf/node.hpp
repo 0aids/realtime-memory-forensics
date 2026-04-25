@@ -11,8 +11,12 @@ namespace RealtimeMemoryForensics
     template <template <typename> typename... Args>
     class Node : public Args<Node<Args...>>...
     {
-
       public:
+        template <typename BaseVec>
+        struct VecOp
+            : public Args<Node<Args...>>::template VecOp<BaseVec>...
+        {
+        };
         constexpr static inline bool IsNode = true;
         Node()                              = default;
         Node(Node&&)                        = default;

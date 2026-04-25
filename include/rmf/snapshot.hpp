@@ -25,9 +25,13 @@ namespace RealtimeMemoryForensics
         Detail::SnapshotData snap;
 
       public:
+        template <typename BaseVec>
+        struct VecOp
+        {
+        };
         using usesSnapshot = std::true_type;
-        // Factory methods for instantiation.
 
+        // Factory methods for instantiation.
         static Base makeSnapshot(pid_t pid, Base b);
         static Base fromBuffer(SnapshotBuffer&& b);
 
