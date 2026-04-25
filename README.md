@@ -32,7 +32,8 @@ the C++ type system.
             - [-] Chunking
             - [-] Filtering
         - [-] Snapshot generation. (threaded + non-threaded)
-        - [-] Generic operations
+        - [x] Generic operations
+    - [ ] Allow different nodes for binary operations.
     - [x] Add better testing features.
         - [x] custom buffers
         - [x] generating custom executables using functions
