@@ -17,10 +17,14 @@
       system:
       let
         pkgs = import nixpkgs {
-          system = "x86_64-linux";
+          inherit system;
           config.allowUnfree = true;
           config.cudaSupport = true;
         };
+
+        # Define the exact LLVM version we want to use
+        llvm = pkgs.llvmPackages_22;
+
         pythonEnv = pkgs.python313.withPackages (
           ps: with ps; [
             numpy
@@ -28,58 +32,46 @@
         );
       in
       {
-        devShell = pkgs.mkShell {
-          buildInputs = with pkgs; [
+        devShell = pkgs.mkShell.override { stdenv = llvm.stdenv; } {
+          packages = with pkgs; [
             gnumake
             ninja
-            clang_22
             cmake
-            xxd
-            clang-tools
             gdb
-            pkg-config
             bear
-            evtest
             rr
-            sdl3
-            SDL2
-            sdl3-image
-            sdl3-ttf
-            libx11
-            libxext
-            libGL
-            libGLU
-            libei
-            python313
-            libllvm
-            python313Packages.python-lsp-server
-            python313Packages.scalene
-            ruff
-            vulkan-tools
-            vulkan-headers
-            gtest
+            llvm.clang-tools
+            pythonEnv
             pre-commit
-            valgrind
-            kdePackages.kcachegrind
-            heaptrack
-            cling
-            gdbgui
+            ruff
+
+            # 1. Add the core LLVM package to get llvm-symbolizer
+            llvm.llvm
+            llvm.lldb
+
+            # 2. Wrap gtest in enableDebugging to prevent Nix from stripping symbols
+            (pkgs.enableDebugging gtest)
           ];
 
-          LD_LIBRARY_PATH = "${
-            pkgs.lib.makeLibraryPath [
-              pkgs.stdenv.cc.cc.lib
-              pkgs.stdenv.cc.libc # For standard C library headers
-              pkgs.zlib
-              pkgs.glib.out
-              pkgs.fontconfig
-            ]
-          }:$LD_LIBRARY_PATH";
+          LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath [
+            llvm.libcxx
+            # pkgs.stdenv.cc.cc.lib
+            # pkgs.stdenv.cc.libc
+            # pkgs.zlib
+            # pkgs.glib.out
+            # pkgs.fontconfig
+          ]}";
 
           shellHook = ''
             export PYTHONWARNINGS="ignore"
             export CXX=clang++
             export CC=clang
+
+            # 3. Explicitly tell AddressSanitizer where the symbolizer is
+            export ASAN_SYMBOLIZER_PATH="${llvm.llvm}/bin/llvm-symbolizer"
+
+            # 4. Ensure ASan is configured to actually use it
+            export ASAN_OPTIONS="symbolize=1"
           '';
         };
       }

@@ -2,8 +2,9 @@
 A realtime program memory debugger / reverse engineering tool with
 multi-threaded high-throughput scanning, interactive gui with python
 bindings/scripting support, allowing reproducible analysis of key data flow
-via node-graph visualisation, all done without analysing executed assembly.
-Done with a c++ API that is as developer friendly as possible by abusing
+via node-graph visualisation, all done without analysing executed assembly.\
+
+Done with a c++ API that is as developer friendly as possible by terribly abusing
 the C++ type system.
 
 (Ignore the mass amount of templating, I am in my metaprogramming phase)
@@ -22,11 +23,22 @@ the C++ type system.
     - [x] Tidy up function wrapper api
         - [x] Allow late evaluation of operator() for Utils::Function
         - [x] Allow late evaluation of threaded() for Utils::Function
+    - [ ] Fix copies and moves between different node types by removing
+          the base template, and instead use deducing this.
+          https://devblogs.microsoft.com/cppblog/cpp23-deducing-this/#crtp
+    - [ ] Apply node concept for all operation functors (otherwise deduction fails)
     - [-] Add back operations
-    - [-] Add better testing features.
+        - [-] Pid maps reading with nice API
+            - [-] Chunking
+            - [-] Filtering
+        - [-] Snapshot generation. (threaded + non-threaded)
+        - [-] Generic operations
+    - [x] Add better testing features.
         - [x] custom buffers
-        - [-] generating custom executables using functions
+        - [x] generating custom executables using functions
     - [ ] Auto flattening of threaded().with() for desirable functions.
+          Mark functors with an "using allowFlattening = std::true_type"
+          Mainly using functors for operations anyways.
     - [ ] Basic type parsing
     - [ ] Redone struct registry
     - [ ] Typed mixin for region
@@ -34,6 +46,10 @@ the C++ type system.
     - [ ] Figure out shit
 - [ ] Attempt a visualiser for memory graphs.
     - [ ] Opengl shader? Pure cpu rendering? Using which framework?
+- [ ] Test out multi-SPSC queues instead of SPMC queues for tasks? Or provide it as an alternative.
+      Literally was just a random thought but it seems like it would be faster. Apparently worse load balancing,
+      which might not be a problem in this case? the Go scheduler uses work stealing as well, which
+      might also be another interesting thing to consider. Cyclic arrays for queus are DEQUEs anyways.
 - [ ] Attempt a gui for scripting via cppyy or cling.
 - [ ] Attempt 2 at using cppyy for automatic template instantiation?
 - [ ] Consider serialisations
@@ -208,21 +224,22 @@ mf::Field vec3dY = sr["vec3d", "y"];
 /***************************************/
 ThreadPool tp(std::this_thread::hardware_concurrency()); // Multithreading
 pid_t pid = ...;
+using namespace mf;
 
 // Get our original maps.
-// The {} creates a maps modifier class.
-Vec<mf::Node<mf::Map>> maps = getMapsBy(pid)
+Vec<Node<Map>> maps = getMapsBy(pid)
     .minSize(0x1000)
     .maxSize(0xffffff)
     .active(pid);
 
-Vec<mf::Node<mf::Map, mf::Snapshot> snapshots = makeSnapshot.threaded(maps, pid).with(tp);
-Vec<mf::Node<mf::Map, mf::Snapshot> snapshots = maps.map({}.capture(pid));
+// Most pure operation functions provide a threaded method, which works multithreaded.
+Vec<Node<Map, Snapshot>> snapshots = makeSnapshot.threaded(maps, pid).with(tp);
+
+// For member methods, this is not the case.
+Vec<Node<Map, Snapshot>> snapshots = maps.capture(pid);
+
 // If we want to work on an individual node, we can do the following
-mf::Node<mf::Map, mf::Snapshot> snapshot = maps[0].capture(pid);
-// Which just calls
-mf::Node<mf::Map, mf::Snapshot> snapshot = (decltype(maps[0])){}.capture(maps[0], pid);
-Vec<mf::Node<mf::Map, mf::Snapshot> snapshots = maps.tmap({}.capture(pid));
+Node<Map, Snapshot> snapshot = maps[0].capture(pid);
 
 // Obviously we can just access the data raw
 mf::Node<mf::Map, mf::Snapshot> snap1 = snapshots.front();
@@ -371,3 +388,9 @@ int main {
     >()();
 }
 ```
+
+# Things I learnt so far
+- multithreading concepts
+- Mixins and CRTP
+- Memory layouts
+- DOD
