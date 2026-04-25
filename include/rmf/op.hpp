@@ -17,6 +17,7 @@ namespace RealtimeMemoryForensics
         struct findChanged
         {
             template <typename node_t>
+                requires IsNode<node_t>
             Utils::Vec<Node<Map>>
             operator()(const node_t& snap1, const node_t& snap2,
                        const uintptr_t& compareSize) const;
@@ -25,6 +26,7 @@ namespace RealtimeMemoryForensics
         struct findUnchanged
         {
             template <typename node_t>
+                requires IsNode<node_t>
             Utils::Vec<Node<Map>>
             operator()(const node_t& snap1, const node_t& snap2,
                        const uintptr_t& compareSize) const;
@@ -36,6 +38,7 @@ namespace RealtimeMemoryForensics
         struct findNumChanged
         {
             template <typename node_t, typename N>
+                requires IsNode<node_t>
             Utils::Vec<Node<Map>>
             operator()(const node_t& snap1, const node_t& snap2,
                        const N& minDifference) const;
@@ -46,6 +49,7 @@ namespace RealtimeMemoryForensics
         struct findNumUnchanged
         {
             template <typename node_t, typename N>
+                requires IsNode<node_t>
             Utils::Vec<Node<Map>>
             operator()(const node_t& snap1, const node_t& snap2,
                        const N& maxDifference) const;
@@ -58,6 +62,7 @@ namespace RealtimeMemoryForensics
         struct findString
         {
             template <typename node_t>
+                requires IsNode<node_t>
             Utils::Vec<Node<Map>>
             operator()(const node_t&          snap1,
                        const std::string_view str) const;
@@ -77,6 +82,7 @@ namespace RealtimeMemoryForensics
         struct findNumWithinRange
         {
             template <typename node_t, typename N>
+                requires IsNode<node_t>
             Utils::Vec<Node<Map>> operator()(const node_t& snap1,
                                              const N&      min,
                                              const N&      max) const;
@@ -116,6 +122,7 @@ namespace RealtimeMemoryForensics::Detail
     /* Binary Snapshot Operations */
     /******************************/
     template <typename node_t>
+        requires IsNode<node_t>
     Utils::Vec<Node<Map>>
     findChanged::operator()(const node_t& snap1, const node_t& snap2,
                             const uintptr_t& compareSize) const
@@ -123,6 +130,7 @@ namespace RealtimeMemoryForensics::Detail
     }
 
     template <typename node_t>
+        requires IsNode<node_t>
     Utils::Vec<Node<Map>>
     findUnchanged::operator()(const node_t&    snap1,
                               const node_t&    snap2,
@@ -133,6 +141,7 @@ namespace RealtimeMemoryForensics::Detail
     // Difference is calculated as snap2 - snap1
     // Inclusive.
     template <typename node_t, typename N>
+        requires IsNode<node_t>
     Utils::Vec<Node<Map>>
     findNumChanged::operator()(const node_t& snap1,
                                const node_t& snap2,
@@ -142,6 +151,7 @@ namespace RealtimeMemoryForensics::Detail
 
     // Inclusive.
     template <typename node_t, typename N>
+        requires IsNode<node_t>
     Utils::Vec<Node<Map>>
     findNumUnchanged::operator()(const node_t& snap1,
                                  const node_t& snap2,
@@ -154,6 +164,7 @@ namespace RealtimeMemoryForensics::Detail
     /*****************************/
 
     template <typename node_t>
+        requires IsNode<node_t>
     Utils::Vec<Node<Map>>
     findString::operator()(const node_t&          snap1,
                            const std::string_view str) const
@@ -198,6 +209,7 @@ namespace RealtimeMemoryForensics::Detail
 
     // Inclusive.
     template <typename node_t, typename N>
+        requires IsNode<node_t>
     Utils::Vec<Node<Map>>
     findNumWithinRange::operator()(const node_t& snap1, const N& min,
                                    const N& max) const

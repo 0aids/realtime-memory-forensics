@@ -23,10 +23,10 @@ the C++ type system.
     - [x] Tidy up function wrapper api
         - [x] Allow late evaluation of operator() for Utils::Function
         - [x] Allow late evaluation of threaded() for Utils::Function
-    - [ ] Fix copies and moves between different node types by removing
+    - [x] Fix copies and moves between different node types by removing
           the base template, and instead use deducing this.
           https://devblogs.microsoft.com/cppblog/cpp23-deducing-this/#crtp
-    - [ ] Apply node concept for all operation functors (otherwise deduction fails)
+    - [x] Apply node concept for all operation functors (otherwise deduction fails)
     - [-] Add back operations
         - [-] Pid maps reading with nice API
             - [-] Chunking
