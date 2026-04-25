@@ -51,7 +51,7 @@ namespace RealtimeMemoryForensics
             bool operator==(const MapData& other) const = default;
         };
     }
-    template <typename Base>
+
     struct Map
     {
         Detail::MapData map;
@@ -59,43 +59,52 @@ namespace RealtimeMemoryForensics
 
         Perms perms = Perms::None;
         // Returns the address of the beginning of this region.
-        constexpr uintptr_t tbegin() const;
+        template <class Self>
+        constexpr uintptr_t tbegin(this const Self& self);
         // Returns the address of the end of this region (exclusive).
-        constexpr uintptr_t tend() const;
+        template <class Self>
+        constexpr uintptr_t tend(this const Self& self);
         // Returns the relative beginning (relative to the parent)
-        constexpr uintptr_t rbegin() const;
+        template <class Self>
+        constexpr uintptr_t rbegin(this const Self& self);
         // Returns the relative beginning (relative to the parent)
-        constexpr uintptr_t rend() const;
+        template <class Self>
+        constexpr uintptr_t rend(this const Self& self);
         // Returns the parent beginning
-        constexpr uintptr_t pbegin() const;
+        template <class Self>
+        constexpr uintptr_t pbegin(this const Self& self);
         // Returns the parent beginning
-        constexpr uintptr_t pend() const;
-                            operator std::string() const;
+        template <class Self>
+        constexpr uintptr_t pend(this const Self& self);
+        template <class Self>
+        operator std::string(this const Self& self);
 
-        // oh my gah
-        template <template <typename> typename... Features>
-        struct Modifier
-        {
-            using Result_t = Node<Features...>;
-            std::function<Result_t()> func;
-            Result_t                  operator()();
-        };
-        template <typename BaseVec>
         struct VecOp
         {
             // using InnerType = BaseVec::InnerType;
-            BaseVec& minSize(size_t) const;
-            BaseVec& maxSize(size_t) const;
-            BaseVec& chunkify(size_t) const;
+
+            template <class Self>
+            Self& minSize(this Self& self, size_t);
+            template <class Self>
+            Self& maxSize(this Self& self, size_t);
+            template <class Self>
+            Self& chunkify(this Self& self, size_t);
 
             // TODO: Move naming filters to regex.
-            BaseVec& exactName(const std::string_view) const;
-            BaseVec& subName(const std::string_view) const;
 
-            BaseVec& exactPerms(Perms) const;
-            BaseVec& hasPerms(Perms) const;
-            BaseVec& notPerms(Perms) const;
-            BaseVec& active(pid_t pid) const;
+            template <class Self>
+            Self& exactName(this Self& self, const std::string_view);
+            template <class Self>
+            Self& subName(this Self& self, const std::string_view);
+
+            template <class Self>
+            Self& exactPerms(this Self& self, Perms);
+            template <class Self>
+            Self& hasPerms(this Self& self, Perms);
+            template <class Self>
+            Self& notPerms(this Self& self, Perms);
+            template <class Self>
+            Self& active(this Self& self, pid_t pid);
         };
     };
 }
@@ -103,40 +112,40 @@ namespace RealtimeMemoryForensics
 namespace RealtimeMemoryForensics
 {
     // Returns the address of the beginning of this region.
-    template <typename Base>
-    constexpr uintptr_t Map<Base>::tbegin() const
-    { return map.parentAddress + map.relativeAddress; }
+    template <class Self>
+    constexpr uintptr_t Map::tbegin(this const Self& self)
+    { return self.map.parentAddress + self.map.relativeAddress; }
     // Returns the address of the end of this region (exclusive).
-    template <typename Base>
-    constexpr uintptr_t Map<Base>::tend() const
+    template <class Self>
+    constexpr uintptr_t Map::tend(this const Self& self)
     {
-        return map.parentAddress + map.relativeAddress +
-            map.relativeSize;
+        return self.map.parentAddress + self.map.relativeAddress +
+            self.map.relativeSize;
     }
     // Returns the relative beginning (relative to the parent)
-    template <typename Base>
-    constexpr uintptr_t Map<Base>::rbegin() const
-    { return map.relativeAddress; }
+    template <class Self>
+    constexpr uintptr_t Map::rbegin(this const Self& self)
+    { return self.map.relativeAddress; }
     // Returns the relative beginning (relative to the parent)
-    template <typename Base>
-    constexpr uintptr_t Map<Base>::rend() const
-    { return map.relativeAddress + map.relativeSize; }
+    template <class Self>
+    constexpr uintptr_t Map::rend(this const Self& self)
+    { return self.map.relativeAddress + self.map.relativeSize; }
     // Debugging use?
-    template <typename Base>
-    Map<Base>::operator std::string() const
+    template <class Self>
+    Map::operator std::string(this const Self& self)
     {
         using namespace RealtimeMemoryForensics::Utils::Literals;
         return "[{}] - Parent Region: [{}, {}) Actual Region: [{}, {})"_f
-            .fmt(*map.regionName_sp, pbegin(), pend(), tbegin(),
-                 tend());
+            .fmt(*self.map.regionName_sp, self.pbegin(), self.pend(),
+                 self.tbegin(), self.tend());
     }
     // Returns the parent beginning
-    template <typename Base>
-    constexpr uintptr_t Map<Base>::pbegin() const
-    { return map.parentAddress; }
+    template <class Self>
+    constexpr uintptr_t Map::pbegin(this const Self& self)
+    { return self.map.parentAddress; }
     // Returns the parent beginning
-    template <typename Base>
-    constexpr uintptr_t Map<Base>::pend() const
-    { return map.parentAddress + map.parentSize; }
+    template <class Self>
+    constexpr uintptr_t Map::pend(this const Self& self)
+    { return self.map.parentAddress + self.map.parentSize; }
 }
 #endif // map_hpp_INCLUDED

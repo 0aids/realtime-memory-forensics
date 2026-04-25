@@ -12,6 +12,7 @@ using namespace std;
 namespace mf  = RealtimeMemoryForensics;
 namespace mfl = mf::Logging;
 namespace mfu = mf::Utils;
+
 TEST(map, BasicRegion)
 {
     mf::Node<mf::Map> test1;
@@ -32,7 +33,8 @@ TEST(map, MapSnapConversion)
         .regionName_sp   = name,
     };
     mf::Node<mf::Map, mf::Snapshot> test1;
-    mf::Node<mf::Map>               test2(test1);
+    test1.map = data;
+    mf::Node<mf::Map> test2(test1);
     // What in the holy heck.
     EXPECT_EQ(test1.map, test2.map);
 }
@@ -50,4 +52,27 @@ TEST(map, SnapMapConversion)
     mf::Node<mf::Map>               test1;
     mf::Node<mf::Map, mf::Snapshot> test2(test1);
     EXPECT_EQ(test1.map, test2.map);
+}
+
+TEST(map, mapInformationOperations)
+{
+    auto name = std::make_shared<const std::string>("hello world");
+    mf::Detail::MapData data = {
+        .parentAddress   = 0xff,
+        .parentSize      = 0xffff,
+        .relativeAddress = 0xaa,
+        .relativeSize    = 0xff,
+        .regionName_sp   = name,
+    };
+    mf::Node<mf::Map> test1;
+    test1.map = data;
+    EXPECT_EQ(test1.pbegin(), data.parentAddress);
+    EXPECT_EQ(test1.pend(), data.parentAddress + data.parentSize);
+    EXPECT_EQ(test1.tbegin(),
+              data.parentAddress + data.relativeAddress);
+    EXPECT_EQ(test1.tend(),
+              data.parentAddress + data.relativeAddress +
+                  data.relativeSize);
+    EXPECT_EQ(test1.rbegin(), data.relativeAddress);
+    EXPECT_EQ(test1.rend(), data.relativeAddress + data.relativeSize);
 }

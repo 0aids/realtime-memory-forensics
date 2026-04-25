@@ -22,7 +22,7 @@ namespace RealtimeMemoryForensics::Utils
         using type = DefaultOperator<DerivedVec>;
     };
 
-    template <template <typename> typename... Features>
+    template <typename... Features>
     struct VecOpTraits<Node<Features...>>
     {
         template <typename DerivedVec>

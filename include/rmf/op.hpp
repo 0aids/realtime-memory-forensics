@@ -4,6 +4,7 @@
 #include "rmf/map.hpp"
 #include "rmf/node.hpp"
 #include "rmf/utils/function.hpp"
+
 #include "rmf/utils/vec.hpp"
 #include <type_traits>
 namespace RealtimeMemoryForensics
@@ -64,8 +65,8 @@ namespace RealtimeMemoryForensics
 
         struct findNumExact
         {
-            template <template <typename> typename... Features,
-                      typename N, typename node_t = Node<Features...>>
+            template <typename... Features, typename N,
+                      typename node_t = Node<Features...>>
                 requires IsNode<node_t>
             Utils::Vec<Node<Map>> operator()(const node_t& snap1,
                                              const N number) const;
@@ -83,7 +84,7 @@ namespace RealtimeMemoryForensics
     }
 
     // problemo - How the fuck do i get filtering to work?
-    template <template <typename> typename... Features>
+    template <typename... Features>
     Node<Map, Features...> getMapsFromPid(pid_t pid);
 
     // Threadify functions.
@@ -159,8 +160,7 @@ namespace RealtimeMemoryForensics::Detail
     {
     }
 
-    template <template <typename> typename... Features, typename N,
-              typename node_t>
+    template <typename... Features, typename N, typename node_t>
         requires IsNode<node_t>
     Utils::Vec<Node<Map>>
     findNumExact::operator()(const node_t& snap1,

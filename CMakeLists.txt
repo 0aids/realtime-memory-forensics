@@ -10,7 +10,7 @@ add_compile_options(
     -fmacro-prefix-map=${CMAKE_SOURCE_DIR}=. 
     -fdiagnostics-color=always
     -fno-omit-frame-pointer
-    -g3
+    -ggdb
 )
 add_link_options(-g3)
 set(CXX_COMP_COMMANDS

@@ -36,8 +36,9 @@ TEST(snapshot, fakeBuffer)
 {
     using namespace mf;
     std::vector<uint8_t> fakeBuffer(0xffff, 0xff);
-    Node<Snapshot, Map>  value =
-        Node<Snapshot, Map>::fromBuffer(std::move(fakeBuffer));
+    println("Fake buffer size: {}", fakeBuffer.size());
+    Node<Snapshot, Map> value(
+        Snapshot::fromBuffer(std::move(fakeBuffer)));
     EXPECT_NO_THROW(value.wellFormed());
     EXPECT_EQ(value.span()[0], 0xff);
 }
