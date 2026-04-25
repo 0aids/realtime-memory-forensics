@@ -2,12 +2,17 @@
 #define test_helpers_hpp_INCLUDED
 // A collection of helpers for testing.
 #include <chrono>
+#include "rmf/logging/logging.hpp"
 #include "rmf/utils/expect.hpp"
 #include <concepts>
 #include <functional>
 #include <iterator>
 #include <span>
 #include <cstdint>
+#include <thread>
+#include <utility>
+#include <sys/prctl.h>
+#include <sys/signal.h>
 namespace RealtimeMemoryForensics::Tests
 {
     namespace Detail
@@ -19,37 +24,46 @@ namespace RealtimeMemoryForensics::Tests
         concept Feature = requires(T t) {
             // Setup initialises the feature.
             t.setup();
-
-            // Run runs the feature. This should be done when it is time to run it.
-            // It returns the next time it should be run.
-            { t.run() } -> same_as<time_point<steady_clock>>;
-
-            // It returns the next time it should be run.
-            { t.when() } -> same_as<time_point<steady_clock>>;
+            t.run();
         };
-        template <std::random_access_iterator T>
-        T alignIter(T t, size_t alignment);
     }
 
     using TestProgramFunc = void (*)();
 
     // Comptime generate a program with test data during comptime.
-    template <Detail::Feature... Features>
-    consteval TestProgramFunc createTestProgram();
+    // Polls the features every 10ms.
+    template <typename... Features>
+    consteval auto createTestProgram(Features&&... features);
 
     // A basic string buffer for use in the test program.
-    template <const char* string, size_t N = sizeof(string)>
+    template <size_t N>
     struct StaticStringBuffer
     {
-        using SelfType       = StaticStringBuffer<string, N>;
-        const char buffer[N] = string;
-        void       setup();
-        std::chrono::time_point<std::chrono::steady_clock> when();
-        consteval explicit StaticStringBuffer() = default;
-
-        static_assert(Detail::Feature<SelfType>,
-                      "Should conform to feature!");
+        volatile const char buffer[N] = {};
+        void                setup() const {};
+        void                run() const {};
     };
+    template <size_t N>
+    StaticStringBuffer(const char (&)[N]) -> StaticStringBuffer<N>;
+
+    template <typename Number, Number Value>
+    struct StaticNumberBuffer
+    {
+        volatile const Number num = Value;
+        void                  setup() const {};
+        void                  run() const {};
+        consteval explicit StaticNumberBuffer() = default;
+    };
+
+    // Just prints.
+    struct TestFeature
+    {
+        void setup() const
+        { rmf_Ok("setup"); };
+        void run() const { rmf_Ok("run!") };
+    };
+
+    pid_t forkFunc(auto&& func);
 
     // A buffer that can be constructed and then tested against.
     class TestBuffer
@@ -103,18 +117,42 @@ namespace RealtimeMemoryForensics::Tests
         }
     }
     // Comptime generate a program with test data during comptime.
-    template <Detail::Feature... Features>
-    consteval TestProgramFunc createTestProgram()
-    { static_assert(false, "Unimplemented!"); }
+    template <typename... Features>
+    consteval auto createTestProgram(Features&&... features)
+    {
+        return [... features = std::forward<Features>(features)]()
+        {
+            ([&]() { features.setup(); }(), ...);
+            while (true)
+            {
+                using namespace std::chrono_literals;
+                std::this_thread::sleep_for(10ms);
+                ([&]() { features.run(); }(), ...);
+            }
+        };
+    }
+    pid_t forkFunc(auto&& func)
+    {
+        using namespace std::chrono_literals;
+        pid_t pid = fork();
+        if (pid < 0)
+            throw std::runtime_error("Failed to fork test process!");
+        else if (pid > 0)
+        {
+            std::this_thread::sleep_for(100ms);
+            return pid;
+        }
 
-    template <const char* string, size_t N>
-    void StaticStringBuffer<string, N>::setup()
-    { static_assert(false, "Unimplemented!"); }
+        // Set it so we die on parent process death.
+        if (prctl(PR_SET_PDEATHSIG, SIGKILL) == -1)
+        {
+            perror("prctl failed");
+            exit(EXIT_FAILURE);
+        }
 
-    template <const char* string, size_t N>
-    std::chrono::time_point<std::chrono::steady_clock>
-    StaticStringBuffer<string, N>::when()
-    { static_assert(false, "Unimplemented!"); }
+        func();
+        exit(127);
+    }
 
     // Pushes a type into the buffer, ensuring alignment.
     template <typename T>

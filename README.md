@@ -3,6 +3,10 @@ A realtime program memory debugger / reverse engineering tool with
 multi-threaded high-throughput scanning, interactive gui with python
 bindings/scripting support, allowing reproducible analysis of key data flow
 via node-graph visualisation, all done without analysing executed assembly.
+Done with a c++ API that is as developer friendly as possible by abusing
+the C++ type system.
+
+(Ignore the mass amount of templating, I am in my metaprogramming phase)
 
 # TODO
 - [-] Massive refactor for the below API.
@@ -21,7 +25,8 @@ via node-graph visualisation, all done without analysing executed assembly.
     - [-] Add back operations
     - [-] Add better testing features.
         - [x] custom buffers
-        - [ ] generating custom executables using functions
+        - [-] generating custom executables using functions
+    - [ ] Auto flattening of threaded().with() for desirable functions.
     - [ ] Basic type parsing
     - [ ] Redone struct registry
     - [ ] Typed mixin for region
@@ -206,10 +211,10 @@ pid_t pid = ...;
 
 // Get our original maps.
 // The {} creates a maps modifier class.
-Vec<mf::Node<mf::Map>> maps = getMapsBy(pid).filter({}
+Vec<mf::Node<mf::Map>> maps = getMapsBy(pid)
     .minSize(0x1000)
     .maxSize(0xffffff)
-    .active(pid));
+    .active(pid);
 
 Vec<mf::Node<mf::Map, mf::Snapshot> snapshots = makeSnapshot.threaded(maps, pid).with(tp);
 Vec<mf::Node<mf::Map, mf::Snapshot> snapshots = maps.map({}.capture(pid));
