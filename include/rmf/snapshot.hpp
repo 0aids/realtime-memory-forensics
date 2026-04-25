@@ -33,8 +33,8 @@ namespace RealtimeMemoryForensics
         // Factory methods for instantiation.
 
         template <class... Features, class Other>
-        static Node<Map, Snapshot, Features...>
-        makeSnapshot(pid_t pid, Other b);
+        Node<Map, Snapshot, Features...> makeSnapshot(pid_t pid,
+                                                      Other b);
 
         template <class... Features>
         static Node<Map, Snapshot, Features...>

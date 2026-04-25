@@ -9,6 +9,7 @@
 
 #include "rmf/utils/vec.hpp"
 #include <type_traits>
+#include <fstream>
 namespace RealtimeMemoryForensics
 {
     namespace Detail
@@ -91,10 +92,6 @@ namespace RealtimeMemoryForensics
         };
     }
 
-    // problemo - How the fuck do i get filtering to work?
-    template <typename... Features>
-    Node<Map, Features...> getMapsFromPid(pid_t pid);
-
     // Threadify functions.
     constexpr auto findChanged =
         Utils::Function(Detail::findChanged{});
@@ -116,7 +113,8 @@ namespace RealtimeMemoryForensics
     constexpr auto findNumWithinRange =
         Utils::Function(Detail::findNumWithinRange{});
 
-    Utils::Vec<Node<Map>> getMaps(pid_t pid);
+    template <typename... Features>
+    Utils::Vec<Node<Map, Features...>> getMaps(pid_t pid);
 }
 namespace RealtimeMemoryForensics::Detail
 {
@@ -421,5 +419,76 @@ namespace RealtimeMemoryForensics::Detail
         }
         return results;
     }
+
+    namespace Detail
+    {
+        static Perms parsePerms(const std::string_view perms)
+        {
+            using namespace magic_enum::bitwise_operators;
+            Perms ps = Perms::None;
+            if (perms.contains('r'))
+            {
+                ps |= Perms::Read;
+            }
+            if (perms.contains('w'))
+            {
+                ps |= Perms::Write;
+            }
+            if (perms.contains('x'))
+            {
+                ps |= Perms::Execute;
+            }
+            if (perms.contains('s'))
+            {
+                ps |= Perms::Shared;
+            }
+            return ps;
+        }
+    }
+    template <typename... Features>
+    Utils::Vec<Node<Map, Features...>> getMaps(pid_t pid)
+    {
+        using NodeBase = Node<Map, Features...>;
+        using namespace Utils::Literals;
+        std::ifstream memoryMapFile("/proc/{}/maps"_f.fmt(pid));
+        std::string   line;
+        int           unnamedRegionNumber = 1;
+
+        Utils::Vec<NodeBase> regionProperties;
+
+        while (std::getline(memoryMapFile, line))
+        {
+            uintptr_t   startAddr, endAddr;
+            std::string perms;
+            perms.resize(4, '-');
+            std::string name;
+            name.resize(1024, 0);
+            sscanf(line.c_str(),
+                   "%lx-%lx %c%c%c%c %*s %*s %*s %[^\n]", &startAddr,
+                   &endAddr, &perms[0], &perms[1], &perms[2],
+                   &perms[3], name.data());
+            name.resize(strlen(name.c_str()));
+
+            if (name.size() == 0)
+            {
+                name = "UnnamedRegion-" +
+                    std::to_string(unnamedRegionNumber++);
+            }
+
+            MapData m = {
+                .parentAddress   = startAddr,
+                .parentSize      = endAddr - startAddr,
+                .relativeAddress = 0,
+                .relativeSize =
+                    static_cast<ptrdiff_t>(endAddr - startAddr),
+                .regionName_sp =
+                    std::make_shared<const std::string>(name),
+                .perms = Detail::parsePerms(perms),
+            };
+            regionProperties.push_back(std::move(m));
+        }
+        return regionProperties;
+    }
+
 }
 #endif // op_hpp_INCLUDED

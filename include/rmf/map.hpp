@@ -11,7 +11,6 @@
 namespace RealtimeMemoryForensics
 {
     enum class Perms : uint8_t;
-
 }
 
 enum class RealtimeMemoryForensics::Perms : uint8_t
@@ -48,7 +47,8 @@ namespace RealtimeMemoryForensics
             ptrdiff_t                          relativeSize    = 0;
             std::shared_ptr<const std::string> regionName_sp =
                 defaultName;
-            bool operator==(const MapData& other) const = default;
+            Perms perms = Perms::None;
+            bool  operator==(const MapData& other) const = default;
         };
     }
 
