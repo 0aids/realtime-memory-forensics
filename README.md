@@ -27,10 +27,10 @@ the C++ type system.
           the base template, and instead use deducing this.
           https://devblogs.microsoft.com/cppblog/cpp23-deducing-this/#crtp
     - [x] Apply node concept for all operation functors (otherwise deduction fails)
-    - [-] Add back operations
-        - [-] Pid maps reading with nice API
-            - [-] Chunking
-            - [-] Filtering
+    - [x] Add back operations
+        - [x] Pid maps reading with nice API
+            - [x] Chunking
+            - [x] Filtering
         - [-] Snapshot generation. (threaded + non-threaded)
         - [x] Generic operations
     - [ ] Allow different nodes for binary operations.
