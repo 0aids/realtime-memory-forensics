@@ -120,6 +120,13 @@ namespace RealtimeMemoryForensics
     Node<Args...>::Node(Node<OtherArgs...>&& other) :
         Args(Node<Args...>::move<Args>(other))...
     {
+        /* Possible solution for mixins that rely on other mixins.
+         * Just have to agree on the so called "stages" of initialisation.
+         * ( [&]() {
+         *   static_cast<Args&>(other).after();
+         * }(),
+         *  ...);
+         */
     }
     template <typename... Args>
     template <typename... OtherArgs>

@@ -33,6 +33,8 @@ the C++ type system.
             - [x] Filtering
         - [-] Snapshot generation. (threaded + non-threaded)
         - [x] Generic operations
+    - [ ] Write more tests!
+    - [ ] Get AI to write even even more tests!
     - [ ] Allow different nodes for binary operations.
     - [x] Add better testing features.
         - [x] custom buffers
@@ -47,14 +49,14 @@ the C++ type system.
     - [ ] Figure out shit
 - [ ] Attempt a visualiser for memory graphs.
     - [ ] Opengl shader? Pure cpu rendering? Using which framework?
+- [ ] Attempt 2 at using cppyy for automatic template instantiation?
+- [ ] Attempt a gui for scripting via cppyy or cling.
+- [ ] done for now?
+- [ ] Consider serialisations
 - [ ] Test out multi-SPSC queues instead of SPMC queues for tasks? Or provide it as an alternative.
       Literally was just a random thought but it seems like it would be faster. Apparently worse load balancing,
       which might not be a problem in this case? the Go scheduler uses work stealing as well, which
       might also be another interesting thing to consider. Cyclic arrays for queus are DEQUEs anyways.
-- [ ] Attempt a gui for scripting via cppyy or cling.
-- [ ] Attempt 2 at using cppyy for automatic template instantiation?
-- [ ] Consider serialisations
-- [ ] done for now?
 
 
 # Running tests
@@ -374,19 +376,104 @@ mg.pop();
 
 ```
 
-# Testing
-
+# Struct registry
+planned design
 ```cpp
-// Testing interface
-// Each file has its own testing interface with a main in it.
-// In the main it has a configuration of some TestProgram with a list of features in it.
-// It consteval generates a function which is run.
-// StringBufferTest.cpp
-#include <rmf/include/test_helpers.hpp>
-int main {
-    consteval auto func = createTestProgram<
-        StaticStringBuffer<"hello world!">
-    >()();
+StructRegistry sr;
+
+mf::Type testStruct = sr.struct_("struct_name")
+                    	  .field("type", "name")
+                    	  .field("char[10]", "chars")
+                      .end();
+mf::Type linkedList = sr.struct_("linkedList")
+							.field("struct_name", "gah")
+							.field("linkedList*", "next")
+							.union_("unimplemented")
+						.end();
+
+// Generic types in stdint, stddef exist as well.
+// So fields can point to other structs,
+// So we have a generic "type" which has methods.
+// All generic types have a type.
+// All structs are a type
+// Pointers etc are all types.
+mf::Type u8 = sr["u8"];
+mf::Type testStruct2 = sr["struct_name"];
+mf::Type testStruct_p = sr["struct_name*"];
+
+// So mf::Type underlying should be a variant of different types?
+// IE mf::Type is either a static array, pointer, struct or basic type.
+```
+
+# Memory graphs
+planned design
+```cpp
+// mf::field has an sptr underneath.
+// mgr stores nodes in a slotmap, not a vector, so we can
+// have invalidatable references if needed.
+// Adds stuff
+template <NodeContains<Map, Typed> node_t>
+class FieldLink
+{
+	mf::Field sourceField;
+	mfu::SMapRef<node_t> source;
+
+	mf::Field targetField;
+	mfu::SMapRef<node_t> target;
+}
+
+struct Typed {
+	mf::Type type;
+	// Relevant functions with deducing this.
+	// ...
+}
+
+// Another mixin for linked
+// Burning questions:
+// - How are we initialised?
+//     Consider an "after" block that happens for copy and move.
+// - How do we referecnce self or the head of a struct?
+//     No clue. Have custom fields representing the heads?
+// - What about partially identified structs?
+//     No clue. Have custom fields representing the unknown?
+template <NodeContains<Map, Typed> node_t>
+struct TypeLinked {
+	std::unordered_map<mf::Field, mfu::SMapRe<mf::FieldLink<node_t>>> outgoingLinks;
+	std::unordered_map<mf::Field, mfu::SMapRe<mf::FieldLink<node_t>>> incomingLinks;
+	mfu::SMapRe<node_t> selfRef;
+	// Relevant functions
+	// ...
+}
+
+// Custom links
+links.in(field) // returns the incoming link for that field
+links.out(field) // returns the outgoing link for that field
+
+// consider swapping from full node to something templated.
+class MemoryGraph
+{
+	struct MGData {
+    	mfu::SlotMap<mf::FullNode> nodeStorage;
+    	mfu::SlotMap<mf::FieldLink> linkStorage;
+	};
+	sptr<MGData> m_data;
+	// Relevant pushing and inspection and iteration functions.
+	// Has all the relevant filtering options, but returns
+	// map references instead.
+}
+
+class MemoryGraphPart
+{
+    // Memorygraphs use shared pointers to hold data.
+	MemoryGraph mg;
+	Vec<mfu::SMapRe<mf::FieldLink>> links;
+	Vec<mfu::SMapRe<mf::FullNode>> nodes;
+	// Similar but not the same? Only supports inspection, modification
+}
+
+// We only ever render using parts. The mg serves as the main storage and source of truth.
+void renderMemoryGraphPart(const MemoryGraphPart& mgp) {
+	// Raylib stuff.
 }
 ```
 
