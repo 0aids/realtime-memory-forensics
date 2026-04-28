@@ -19,6 +19,8 @@ namespace RealtimeMemoryForensics
             // Ensure that we have data about maps.
         };
     }
+    // We don't need to ensure that the buffer inside the snapshot
+    // has to be aligned perfectly the same as the others.
     class Snapshot
     {
       private:
@@ -144,7 +146,7 @@ namespace RealtimeMemoryForensics
     template <class Self>
     void Snapshot::wellFormed(this const Self&)
     {
-        static_assert(not std::is_base_of_v<Map, Self>,
+        static_assert(not NodeWithFeatures<Self, Map>,
                       "The base type must contain map!");
     }
 

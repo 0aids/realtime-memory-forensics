@@ -60,7 +60,7 @@ TEST(snapshot, findString)
     // println("Expected - diff: {}, head: {}, actualOffset: {}", diff2,
     //         head, buffer.headOffset());
     ssize_t diff3 = sizeof(str);
-    EXPECT_EQ(static_cast<bool>(buffer.push(str)),
+    EXPECT_EQ(static_cast<bool>(buffer.pushAligned(str)),
               (head += diff3) < bufSize);
     ssize_t diff4 = bufSize - head - 3;
     // println("Expected - diff: {}, head: {}, actualOffset: {}", diff3,
@@ -70,7 +70,7 @@ TEST(snapshot, findString)
     ssize_t diff5 = sizeof(str);
     // println("Expected - diff: {}, head: {}, actualOffset: {}", diff4,
     //         head, buffer.headOffset());
-    EXPECT_EQ(static_cast<bool>(buffer.push(str)),
+    EXPECT_EQ(static_cast<bool>(buffer.pushAligned(str)),
               (head += diff5) < bufSize);
     // println("Expected - diff: {}, head: {}, actualOffset: {}", diff5,
     //         head, buffer.headOffset());
@@ -89,13 +89,13 @@ TEST(snapshot, findNumExact)
     EXPECT_TRUE(static_cast<bool>(buffer.pushPadding(diff1)));
     ssize_t diff2 = 1024;
     EXPECT_FALSE(static_cast<bool>(buffer.pushPadding(diff2)));
-    EXPECT_TRUE(static_cast<bool>(buffer.push(num)));
+    EXPECT_TRUE(static_cast<bool>(buffer.pushAligned(num)));
     EXPECT_TRUE(static_cast<bool>(buffer.pushPadding(diff1)));
-    EXPECT_TRUE(static_cast<bool>(buffer.push(num)));
+    EXPECT_TRUE(static_cast<bool>(buffer.pushAligned(num)));
     EXPECT_LE(buffer.chead(), buffer.cend());
     EXPECT_LE(buffer.chead(), buffer.cend());
-    auto snapshot =
-        Node<Snapshot, Map>::fromBuffer(buffer.moveBuffer());
+    Node<Snapshot, Map> snapshot =
+        Snapshot::fromBuffer(buffer.moveBuffer());
     // copy
     auto snapshot1 = snapshot;
     // Figure out how to shorten this.

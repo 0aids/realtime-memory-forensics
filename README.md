@@ -288,7 +288,7 @@ mf::WideNode nodeWithCapture = node.capture(pid);
 mf::WideProperty wideProperty = nodeWithCapture.property("x");
 
 // Or equivalently with less capturing
-mf::Node<mf::Map, mf::Typed>Property nodeProperty = node.property("x");
+mf::Node<mf::Map, mf::Typed> nodeProperty = node.property("x");
 mf::WideProperty wideProperty = nodeProperty.capture(pid);
 
 // Not really sure about nested types.
@@ -379,30 +379,39 @@ mg.pop();
 # Struct registry
 planned design
 ```cpp
-StructRegistry sr;
+// Nodes is a special type which utilizes mixins for multiple different compile time features
+// It's goal is to be as efficient as possible while having a nice developer experience
+// The 2 main mixins currently used are Map, Snapshot, and this is supposed to be another one.
+// IE:
+Node<Map> map; // is a "node" that only contains information about memory.
+Node<Map, Snapshot> snap; // Is a "node" that contains information as well as a snapshot of the memory.
+// 4 main types of types.
+class Primitive;
+class Array;
+class Pointer;
+class Struct;
 
-mf::Type testStruct = sr.struct_("struct_name")
-                    	  .field("type", "name")
-                    	  .field("char[10]", "chars")
-                      .end();
-mf::Type linkedList = sr.struct_("linkedList")
-							.field("struct_name", "gah")
-							.field("linkedList*", "next")
-							.union_("unimplemented")
-						.end();
+// 1 designated mixin feature
+class Typed;
 
-// Generic types in stdint, stddef exist as well.
-// So fields can point to other structs,
-// So we have a generic "type" which has methods.
-// All generic types have a type.
-// All structs are a type
-// Pointers etc are all types.
-mf::Type u8 = sr["u8"];
-mf::Type testStruct2 = sr["struct_name"];
-mf::Type testStruct_p = sr["struct_name*"];
-
-// So mf::Type underlying should be a variant of different types?
-// IE mf::Type is either a static array, pointer, struct or basic type.
+// Then how do we expose a
+Node<Map, Typed> node;
+node.property("X") // ? It's not possible.
+// Unless we do remove the typed mixin and just use the 4 different types instead:
+Node<Map, Struct> node;
+Node<Map, Type> newNode = node.field("x");
+// Where the type could be an array, pointer, primitive or another struct.
+Node<Map, Array> node;
+node[1]; // Can index stuff like this, which is no available in a struct.
+// Eventually we would reach a primitive?
+Node<Map, Pointer> node;
+// Do we separate them? I think so
+// So a struct registry will have a list of all the different types
+// For each different category.
+// They do inherit from the same base, but there are no virtual methods.
+// But then what do we do for type traversal? We don't know what
+// type we're going to end up traversing to in the end. So then what?
+// Have a massive "type" that inherits from all.
 ```
 
 # Memory graphs

@@ -66,6 +66,8 @@ namespace RealtimeMemoryForensics::Tests
     pid_t forkFunc(auto&& func);
 
     // A buffer that can be constructed and then tested against.
+    // To be used with operations, not for anything else.
+    // Optionally aligns pushed structs for realism.
     class TestBuffer
     {
       public:
@@ -93,7 +95,10 @@ namespace RealtimeMemoryForensics::Tests
 
         // Pushes a type into the buffer, ensuring alignment.
         template <typename T>
-        Utils::ErrU<bool> push(const T& value);
+        Utils::ErrU<bool> pushAligned(const T& value);
+
+        template <typename T>
+        Utils::ErrU<bool> pushUnaligned(const T& value);
 
         // Push a number of bytes.
         Utils::ErrU<bool>    pushPadding(size_t numBytes);
@@ -156,13 +161,22 @@ namespace RealtimeMemoryForensics::Tests
 
     // Pushes a type into the buffer, ensuring alignment.
     template <typename T>
-    Utils::ErrU<bool> TestBuffer::push(const T& value)
+    Utils::ErrU<bool> TestBuffer::pushAligned(const T& value)
     {
         constexpr size_t alignment = alignof(T);
         constexpr size_t size      = sizeof(T);
         rmf_retErr(
             tryReplaceHead(Detail::alignIter(m_head, alignment)));
         auto oldHead = m_head;
+        rmf_retErr(tryReplaceHead(m_head + size));
+        memcpy(oldHead.base(), &value, size);
+        return true;
+    }
+    template <typename T>
+    Utils::ErrU<bool> TestBuffer::pushUnaligned(const T& value)
+    {
+        constexpr size_t size    = sizeof(T);
+        auto             oldHead = m_head;
         rmf_retErr(tryReplaceHead(m_head + size));
         memcpy(oldHead.base(), &value, size);
         return true;

@@ -56,6 +56,8 @@ namespace RealtimeMemoryForensics::Tests
     {
         std::vector<uint8_t> toReturn{};
         std::swap(toReturn, m_buffer);
+        // ignore warning here.
+        // Attempting to ensure that the buffer we receive is properly aligned.
         return std::move(toReturn);
     }
 

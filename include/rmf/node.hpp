@@ -7,8 +7,12 @@ namespace RealtimeMemoryForensics
 {
     template <typename T>
     concept IsNode = requires(T t) { T::IsNode; };
-    // Very sus CRTP (curiosly recurring template pattern)
-    // I think I bit off more than i could chew...
+    template <typename Node_t, typename... Features>
+    concept NodeWithFeatures = requires {
+        IsNode<Node_t>;
+        (std::is_base_of_v<Features, Node_t>, ...);
+    };
+
     template <typename... Args>
     class Node : public Args...
     {
