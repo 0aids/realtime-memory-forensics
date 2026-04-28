@@ -148,9 +148,10 @@ namespace RealtimeMemoryForensics
     Map::operator std::string(this const Self& self)
     {
         using namespace RealtimeMemoryForensics::Utils::Literals;
-        return "[{}] - Parent Region: [{}, {}) Actual Region: [{}, {})"_f
-            .fmt(*self.map.regionName_sp, self.pbegin(), self.pend(),
-                 self.tbegin(), self.tend());
+        return "[{}] - Parent Region: [{:p}, {:p}) Actual Region: [{:p}, {:p})"_f
+            .fmt(*self.map.regionName_sp, (void*)self.pbegin(),
+                 (void*)self.pend(), (void*)self.tbegin(),
+                 (void*)self.tend());
     }
     // Returns the parent beginning
     template <class Self>

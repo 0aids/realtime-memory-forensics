@@ -10,7 +10,6 @@
 namespace RealtimeMemoryForensics::Utils
 {
     // Mixins for providing vectorised operations.
-    template <typename T>
     class DefaultOperator
     {
     };
@@ -18,22 +17,18 @@ namespace RealtimeMemoryForensics::Utils
     template <typename T, typename = void>
     struct VecOpTraits
     {
-        template <typename DerivedVec>
-        using type = DefaultOperator<DerivedVec>;
+        using type = DefaultOperator;
     };
 
     template <typename... Features>
     struct VecOpTraits<Node<Features...>>
     {
-        template <typename DerivedVec>
-        using type = Node<Features...>::template VecOp<DerivedVec>;
+        using type = Node<Features...>::VecOp;
     };
 
-    template <typename T,
-              template <typename> typename Operator = DefaultOperator,
+    template <typename T, typename Operator = DefaultOperator,
               typename Allocator = std::allocator<T>>
-    class Vec : public std::vector<T, Allocator>,
-                public Operator<Vec<T, Operator, Allocator>>
+    class Vec : public std::vector<T, Allocator>, public Operator
     {
       public:
         using BaseType = std::vector<T, Allocator>;
@@ -53,8 +48,7 @@ namespace RealtimeMemoryForensics::Utils
 
 namespace RealtimeMemoryForensics::Utils
 {
-    template <typename T, template <typename> typename Operator,
-              typename Allocator>
+    template <typename T, typename Operator, typename Allocator>
     template <typename F, typename... Args>
     auto Vec<T, Operator, Allocator>::map(F&& f, Args&&... args)
     {
@@ -66,8 +60,7 @@ namespace RealtimeMemoryForensics::Utils
             std::ranges::to<Vec<ReturnType>>();
     }
 
-    template <typename T, template <typename> typename Operator,
-              typename Allocator>
+    template <typename T, typename Operator, typename Allocator>
     template <typename F, typename... Args>
         requires std::is_same_v<std::invoke_result_t<F, Args...>,
                                 bool>

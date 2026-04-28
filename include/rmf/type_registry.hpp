@@ -41,7 +41,7 @@ namespace RealtimeMemoryForensics
         Primitive,
         Array
     };
-    class Type;
+    class Typed;
 
     class TypeBase // base
     {
@@ -72,7 +72,7 @@ namespace RealtimeMemoryForensics
         struct Data
         {
             using FieldName = std::string;
-            std::unordered_map<FieldName, Type> fields;
+            std::unordered_map<FieldName, Typed> fields;
         };
         sptr<Data> m_data;
 
@@ -94,7 +94,7 @@ namespace RealtimeMemoryForensics
       public:
         constexpr static inline TypeKind selfKind = TypeKind::Pointer;
 
-        Type                             pointee();
+        Typed                            pointee();
         // mixin?
 
         // Self must be a node with a snapshot.
@@ -118,7 +118,7 @@ namespace RealtimeMemoryForensics
     {
       public:
         constexpr static inline TypeKind selfKind = TypeKind::Array;
-        Type                             memberType();
+        Typed                            memberType();
 
         // Useful for getting the exact node's map details at a certain ind.
         template <NodeWithFeatures<Map> Self>
@@ -131,7 +131,7 @@ namespace RealtimeMemoryForensics
         auto value(const Node_t& node);
     };
 
-    class Type
+    class Typed
         : public std::variant<Primitive, Pointer, Array, Struct>
     {
       public:
@@ -159,17 +159,17 @@ namespace RealtimeMemoryForensics
     class Field
     {
       private:
-        Type m_parentType;
-        Type m_innerType;
+        Typed m_parentType;
+        Typed m_innerType;
 
       public:
         size_t offset();
         size_t size();
-        Type   parentType();
-        Type   innerType();
+        Typed  parentType();
+        Typed  innerType();
 
-        template <typename T>
-            requires IsNode<T>
+        // Reshapes to a node with mf::Typed or something similar.
+        template <IsNode T>
         T reshapeNode(const T& node);
     };
 
@@ -192,7 +192,7 @@ namespace RealtimeMemoryForensics
         TypeBuilder struct_(const strview name);
 
         // search all. Use implicit conversion.
-        Utils::ErrU<Type> operator[](const strview name);
+        Utils::ErrU<Typed> operator[](const strview name);
 
         // Find a type by name.
         Utils::ErrU<Struct>    getStruct(const strview name);

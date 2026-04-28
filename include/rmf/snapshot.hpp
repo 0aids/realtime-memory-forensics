@@ -18,6 +18,7 @@ namespace RealtimeMemoryForensics
             sptr<SnapshotBuffer> m_data = nullptr;
             // Ensure that we have data about maps.
         };
+        SnapshotData readProcess(const MapData& map, pid_t pid);
     }
     // We don't need to ensure that the buffer inside the snapshot
     // has to be aligned perfectly the same as the others.
@@ -62,6 +63,8 @@ namespace RealtimeMemoryForensics
         // Returns a view into the data.
         template <class Self>
         std::span<uint8_t> span(this const Self& self);
+
+                           operator std::string() const;
     };
 }
 
@@ -83,62 +86,14 @@ namespace RealtimeMemoryForensics
     Node<Map, Snapshot, Features...> Snapshot::makeSnapshot(pid_t pid,
                                                             Other b)
     {
-        constexpr ptrdiff_t              chunkSize = 1 << 24;
-        Node<Map, Snapshot, Features...> node(b);
-
-        struct iovec                     localIovec[1];
-        struct iovec                     sourceIovec[1];
-
-        node.snap.m_data->resize(b.relativeAddress);
-        intptr_t totalBytesRead = 0;
-        while (totalBytesRead <
-               static_cast<intptr_t>(b.map.relativeSize))
-        {
-            uintptr_t bytesToRead =
-                (b.map.relativeSize - totalBytesRead > chunkSize) ?
-                chunkSize :
-                b.map.relativeSize - totalBytesRead;
-
-            sourceIovec[0].iov_base =
-                (void*)(b.tbegin() + totalBytesRead);
-            sourceIovec[0].iov_len = bytesToRead;
-
-            localIovec[0].iov_base =
-                node.snap.m_data->data() + totalBytesRead;
-            localIovec[0].iov_len = bytesToRead;
-
-            ssize_t nread = process_vm_readv(pid, localIovec, 1,
-                                             sourceIovec, 1, 0);
-
-            if (nread <= 0)
-            {
-                if (nread == -1 && totalBytesRead > 0)
-                {
-                    node.snap.m_data->clear();
-                    // rmf_Log(rmf_Error,
-                    //         "Read " << nread << "/"
-                    //                 << b.relativeRegionSize
-                    //                 << "bytes. Failed to read "
-                    //                    "all the bytes "
-                    //                    "from that region.");
-                    // rmf_Log(rmf_Error, "Error is below: ");
-                    perror("process_vm_readv");
-                    return node;
-                }
-                // rmf_Log(rmf_Error,
-                //         "Completely failed to read the region. "
-                //         "Error is below");
-                perror("process_vm_readv");
-                node.snap.m_data->resize(totalBytesRead);
-                return node;
-            }
-            totalBytesRead += nread;
-        }
         // rmf_Log(rmf_Debug,
         //         "Time taken for snapshot: "
         //             << std::chrono::duration_cast<
         //                    std::chrono::milliseconds>(after -
         //                                               before));
+        Node<Map, Snapshot, Features...> node;
+        node.map  = b.map;
+        node.snap = Detail::readProcess(b.map, pid);
 
         return node;
     }
@@ -153,5 +108,10 @@ namespace RealtimeMemoryForensics
     template <class Self>
     std::span<uint8_t> Snapshot::span(this const Self& self)
     { return *self.snap.m_data; }
+
+    template <class Self>
+    void Snapshot::capture(this Self& self, pid_t pid)
+    { self.snap = Detail::readProcess(self.map, pid); }
+
 }
 #endif // snapshot_hpp_INCLUDED

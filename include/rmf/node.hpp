@@ -77,20 +77,20 @@ namespace RealtimeMemoryForensics
         if constexpr (std::is_base_of_v<TargetFeature,
                                         CleanOtherNode>)
         {
-            rmf_Info("Compatible base copy construction: \n\t{} => "
-                     "{}\n\tBase: {}",
-                     typeid(CleanOtherNode).name(),
-                     typeid(TargetFeature).name(),
-                     typeid(Node<Args...>).name());
+            // rmf_Info("Compatible base copy construction: \n\t{} => "
+            //          "{}\n\tBase: {}",
+            //          typeid(CleanOtherNode).name(),
+            //          typeid(TargetFeature).name(),
+            //          typeid(Node<Args...>).name());
             return static_cast<const TargetFeature&>(other);
         }
         else
         {
-            rmf_Info("Incompatible base copy construction: \n\t{} => "
-                     "{}\n\tBase: {}",
-                     typeid(CleanOtherNode).name(),
-                     typeid(TargetFeature).name(),
-                     typeid(Node<Args...>).name());
+            // rmf_Info("Incompatible base copy construction: \n\t{} => "
+            //          "{}\n\tBase: {}",
+            //          typeid(CleanOtherNode).name(),
+            //          typeid(TargetFeature).name(),
+            //          typeid(Node<Args...>).name());
             return TargetFeature();
         }
     }

@@ -7,11 +7,14 @@
 #include <rmf/utils/str.hpp>
 #include <rmf/node.hpp>
 #include <rmf/map.hpp>
+#include <rmf/test_helpers.hpp>
+#include <rmf/op.hpp>
 
 using namespace std;
 namespace mf  = RealtimeMemoryForensics;
 namespace mfl = mf::Logging;
 namespace mfu = mf::Utils;
+namespace mft = mf::Tests;
 
 TEST(map, BasicRegion)
 {
@@ -75,4 +78,18 @@ TEST(map, mapInformationOperations)
                   data.relativeSize);
     EXPECT_EQ(test1.rbegin(), data.relativeAddress);
     EXPECT_EQ(test1.rend(), data.relativeAddress + data.relativeSize);
+}
+TEST(map, testProgramReading)
+{
+    using namespace mft;
+    pid_t                       pid  = forkFunc(createTestProgram(
+        StaticNumberBuffer<int, 0xfafaf>(), TestFeature{},
+        StaticStringBuffer{.buffer = "hello world"}));
+    mfu::Vec<mf::Node<mf::Map>> maps = mf::getMaps(pid);
+    EXPECT_GE(maps.size(), 0);
+    for (const auto& map : maps)
+    {
+        println("Map: {}", std::string(map));
+    }
+    // Attempt to filter
 }

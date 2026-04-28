@@ -7,11 +7,11 @@
 #include <rmf/node.hpp>
 #include <rmf/map.hpp>
 #include <rmf/snapshot.hpp>
-#include "helpers.hpp"
 #include "rmf/test_helpers.hpp"
 #include "rmf/utils/function.hpp"
 #include "rmf/op.hpp"
 #include "rmf/utils/threadpool.hpp"
+#include <rmf/test_helpers.hpp>
 
 using namespace std;
 namespace mf  = RealtimeMemoryForensics;
@@ -78,6 +78,7 @@ TEST(snapshot, findString)
     EXPECT_LE(buffer.chead(), buffer.cend());
     // println("head: {}", buffer.chead() - buffer.cbegin());
 }
+
 TEST(snapshot, findNumExact)
 {
     using namespace mf;
@@ -109,4 +110,32 @@ TEST(snapshot, findNumExact)
     auto res1 = findNumExact.threaded(snaps, num).with(tp);
     println("res1: {}", res1[0].size());
     EXPECT_EQ(res1[0].size(), res.size());
+}
+
+TEST(snapshot, testProgram)
+{
+    using namespace mft;
+    pid_t pid = forkFunc(createTestProgram(
+        StaticNumberBuffer<int, 0xfafaf>(), TestFeature{},
+        StaticStringBuffer{.buffer = "hello world"}));
+    mfu::Vec<mf::Node<mf::Map, mf::Snapshot>> maps =
+        mf::getMaps<mf::Snapshot>(pid);
+    EXPECT_GE(maps.size(), 0);
+    for (auto& map : maps)
+    {
+        println("Map: {}", std::string(map));
+        map.capture(pid);
+    }
+    // Attempt to find hello world!
+    mfu::ThreadPool tp(2);
+    auto            mapsWHello =
+        mf::findString.threaded(maps, "hello world").with(tp);
+    // Count
+    size_t count = 0;
+    for (const auto& map : mapsWHello)
+    {
+        count += map.size();
+    }
+    EXPECT_GE(count, 0);
+    println("Found {} 'hello world's!", count);
 }

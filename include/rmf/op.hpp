@@ -336,7 +336,7 @@ namespace RealtimeMemoryForensics::Detail
 
             if (std::memcmp(head, str.data(), str.size()) == 0)
             {
-                Node<Map> mrp           = nodeSnap();
+                Node<Map> mrp           = nodeSnap;
                 mrp.map.relativeAddress = head - begin;
                 mrp.map.relativeSize    = str.size();
                 results.push_back(mrp);
@@ -420,6 +420,9 @@ namespace RealtimeMemoryForensics::Detail
         return results;
     }
 
+}
+namespace RealtimeMemoryForensics
+{
     template <typename... Features>
     Utils::Vec<Node<Map, Features...>> getMaps(pid_t pid)
     {
@@ -450,7 +453,7 @@ namespace RealtimeMemoryForensics::Detail
                     std::to_string(unnamedRegionNumber++);
             }
 
-            MapData m = {
+            Detail::MapData m = {
                 .parentAddress   = startAddr,
                 .parentSize      = endAddr - startAddr,
                 .relativeAddress = 0,
@@ -460,10 +463,11 @@ namespace RealtimeMemoryForensics::Detail
                     std::make_shared<const std::string>(name),
                 .perms = Detail::parsePerms(perms),
             };
-            regionProperties.push_back(std::move(m));
+            NodeBase node;
+            node.map = m;
+            regionProperties.push_back(node);
         }
         return regionProperties;
     }
-
 }
 #endif // op_hpp_INCLUDED

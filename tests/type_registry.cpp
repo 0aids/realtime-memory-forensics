@@ -62,8 +62,8 @@ TEST(type_registry, registerTest)
     };
     t.next = &t;
 
-    // Make it reference itself? this won't actually work in the
-    // tests.
+    // Make it reference itself? This will work if we set the
+    // map to be from 0x00.
     auto buffer =
         mf::Tests::TestBuffer::makeZeroed(sizeof(TestStruct));
 
@@ -87,9 +87,10 @@ TEST(type_registry, registerTest)
     // Will throw if invalid however.
     mf::Field testStructField = testStruct.field("data").value();
 
+    mf::Node<mf::Map, mf::Snapshot, mf::Struct> coerced =
+        testStructField.reshapeNode(std::move(snap));
+
     // How nice, no lambda wrapping required.
     EXPECT_ANY_THROW(mf::Field invalidField =
                          testStruct["i don't exist"]);
-
-    mf::Array array = testStruct.field("array").value().innerType();
 }
