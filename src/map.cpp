@@ -1,4 +1,5 @@
 #include "rmf/map.hpp"
+#include <magic_enum/magic_enum_flags.hpp>
 namespace mf  = RealtimeMemoryForensics;
 namespace mfd = mf::Detail;
 namespace RealtimeMemoryForensics
@@ -34,4 +35,14 @@ namespace RealtimeMemoryForensics
 
     std::shared_ptr<const std::string> Detail::MapData::defaultName =
         Detail::defaultName;
+
+    // Debugging use?
+    Map::operator std::string()
+    {
+        using namespace RealtimeMemoryForensics::Utils::Literals;
+        return "[{}] - Parent Region: [{:p}, {:p}) Actual Region: [{:p}, {:p}) perms: {}"_f
+            .fmt(*map.regionName_sp, (void*)pbegin(), (void*)pend(),
+                 (void*)tbegin(), (void*)tend(),
+                 magic_enum::enum_flags_name(map.perms));
+    }
 }

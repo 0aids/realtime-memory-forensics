@@ -62,60 +62,58 @@ namespace RealtimeMemoryForensics
     {
         Detail::MapData map;
         using usesMap = std::true_type;
-
-        Perms perms = Perms::None;
         // Returns the address of the beginning of this region.
-        template <class Self>
+        template <NodeWithFeatures<Map> Self>
         constexpr uintptr_t tbegin(this const Self& self);
         // Returns the address of the end of this region (exclusive).
-        template <class Self>
+        template <NodeWithFeatures<Map> Self>
         constexpr uintptr_t tend(this const Self& self);
         // Returns the relative beginning (relative to the parent)
-        template <class Self>
+        template <NodeWithFeatures<Map> Self>
         constexpr uintptr_t rbegin(this const Self& self);
         // Returns the relative beginning (relative to the parent)
-        template <class Self>
+        template <NodeWithFeatures<Map> Self>
         constexpr uintptr_t rend(this const Self& self);
         // Returns the parent beginning
-        template <class Self>
+        template <NodeWithFeatures<Map> Self>
         constexpr uintptr_t pbegin(this const Self& self);
         // Returns the parent beginning
-        template <class Self>
+        template <NodeWithFeatures<Map> Self>
         constexpr uintptr_t pend(this const Self& self);
-        template <class Self>
-        operator std::string(this const Self& self);
+
+                            operator std::string();
 
         struct VecOp
         {
             // using InnerType = BaseVec::InnerType;
 
-            template <class Self>
+            template <NodeWithFeatures<Map> Self>
             Self minSize(this const Self& self, size_t);
-            template <class Self>
+            template <NodeWithFeatures<Map> Self>
             Self maxSize(this const Self& self, size_t);
-            template <class Self>
+            template <NodeWithFeatures<Map> Self>
             Self chunkify(this const Self& self, size_t chunkSize,
                           size_t overlapSize);
 
             // TODO: Move naming filters to regex.
 
-            template <class Self>
+            template <NodeWithFeatures<Map> Self>
             Self exactName(this const Self& self,
                            const std::string_view);
-            template <class Self>
+            template <NodeWithFeatures<Map> Self>
             Self subName(this const Self& self,
                          const std::string_view);
 
-            template <class Self>
+            template <NodeWithFeatures<Map> Self>
             Self exactPerms(this const Self&       self,
                             const std::string_view perms);
-            template <class Self>
+            template <NodeWithFeatures<Map> Self>
             Self hasPerms(this const Self&       self,
                           const std::string_view perms);
-            template <class Self>
+            template <NodeWithFeatures<Map> Self>
             Self notPerms(this const Self&       self,
                           const std::string_view perms);
-            template <class Self>
+            template <NodeWithFeatures<Map> Self>
             Self active(this const Self& self, pid_t pid);
         };
     };
@@ -125,51 +123,41 @@ namespace RealtimeMemoryForensics
 {
     using namespace magic_enum::bitwise_operators;
     // Returns the address of the beginning of this region.
-    template <class Self>
+    template <NodeWithFeatures<Map> Self>
     constexpr uintptr_t Map::tbegin(this const Self& self)
     { return self.map.parentAddress + self.map.relativeAddress; }
     // Returns the address of the end of this region (exclusive).
-    template <class Self>
+    template <NodeWithFeatures<Map> Self>
     constexpr uintptr_t Map::tend(this const Self& self)
     {
         return self.map.parentAddress + self.map.relativeAddress +
             self.map.relativeSize;
     }
     // Returns the relative beginning (relative to the parent)
-    template <class Self>
+    template <NodeWithFeatures<Map> Self>
     constexpr uintptr_t Map::rbegin(this const Self& self)
     { return self.map.relativeAddress; }
     // Returns the relative beginning (relative to the parent)
-    template <class Self>
+    template <NodeWithFeatures<Map> Self>
     constexpr uintptr_t Map::rend(this const Self& self)
     { return self.map.relativeAddress + self.map.relativeSize; }
-    // Debugging use?
-    template <class Self>
-    Map::operator std::string(this const Self& self)
-    {
-        using namespace RealtimeMemoryForensics::Utils::Literals;
-        return "[{}] - Parent Region: [{:p}, {:p}) Actual Region: [{:p}, {:p})"_f
-            .fmt(*self.map.regionName_sp, (void*)self.pbegin(),
-                 (void*)self.pend(), (void*)self.tbegin(),
-                 (void*)self.tend());
-    }
     // Returns the parent beginning
-    template <class Self>
+    template <NodeWithFeatures<Map> Self>
     constexpr uintptr_t Map::pbegin(this const Self& self)
     { return self.map.parentAddress; }
     // Returns the parent beginning
-    template <class Self>
+    template <NodeWithFeatures<Map> Self>
     constexpr uintptr_t Map::pend(this const Self& self)
     { return self.map.parentAddress + self.map.parentSize; }
     // using InnerType = BaseVec::InnerType;
 
-    template <class Self>
+    template <NodeWithFeatures<Map> Self>
     Self Map::VecOp::minSize(this const Self& self, size_t minSize)
     {
         Self rl;
         for (size_t i = 0; i < self.size(); i++)
         {
-            if (self.at(i).relativeRegionSize >= minSize)
+            if (self.at(i).map.relativeSize >= minSize)
             {
                 rl.push_back(self.at(i));
             }
@@ -178,13 +166,13 @@ namespace RealtimeMemoryForensics
         return rl;
     }
 
-    template <class Self>
+    template <NodeWithFeatures<Map> Self>
     Self Map::VecOp::maxSize(this const Self& self, size_t maxSize)
     {
         Self rl;
         for (size_t i = 0; i < self.size(); i++)
         {
-            if (self.at(i).relativeRegionSize <= maxSize)
+            if (self.at(i).map.relativeSize <= maxSize)
             {
                 rl.push_back(self.at(i));
             }
@@ -192,7 +180,7 @@ namespace RealtimeMemoryForensics
 
         return rl;
     }
-    template <class Self>
+    template <NodeWithFeatures<Map> Self>
     Self Map::VecOp::chunkify(this const Self& self, size_t chunkSize,
                               size_t overlapSize)
     {
@@ -200,15 +188,15 @@ namespace RealtimeMemoryForensics
         uintptr_t overallSize = 0;
         for (const auto& mrp : self)
         {
-            overallSize += mrp.relativeRegionSize;
+            overallSize += mrp.map.relativeSize;
         }
 
         res.reserve(overallSize / chunkSize + 1);
 
         for (const auto& mrp : self)
         {
-            uintptr_t       ptrHead = mrp.relativeRegionAddress;
-            const uintptr_t end     = mrp.relativeEnd();
+            uintptr_t       ptrHead = mrp.map.relativeAddress;
+            const uintptr_t end     = mrp.map.relativeEnd();
 
             while (ptrHead < end)
             {
@@ -216,8 +204,8 @@ namespace RealtimeMemoryForensics
                     (end - ptrHead > chunkSize) ? chunkSize :
                                                   end - ptrHead;
                 res.push_back(mrp);
-                res.back().relativeRegionSize    = actualChunkSize;
-                res.back().relativeRegionAddress = ptrHead;
+                res.back().map.relativeSize    = actualChunkSize;
+                res.back().map.relativeAddress = ptrHead;
                 ptrHead += actualChunkSize;
                 if (ptrHead >= end)
                     break;
@@ -229,14 +217,14 @@ namespace RealtimeMemoryForensics
         return res;
     }
 
-    template <class Self>
+    template <NodeWithFeatures<Map> Self>
     Self Map::VecOp::exactName(this const Self&       self,
                                const std::string_view string)
     {
         Self rl;
         for (size_t i = 0; i < self.size(); i++)
         {
-            if (*(self.at(i).regionName_sp) == string)
+            if (*(self.at(i).map.regionName_sp) == string)
             {
                 rl.push_back(self.at(i));
             }
@@ -244,14 +232,14 @@ namespace RealtimeMemoryForensics
 
         return rl;
     }
-    template <class Self>
+    template <NodeWithFeatures<Map> Self>
     Self Map::VecOp::subName(this const Self&       self,
                              const std::string_view string)
     {
         Self rl;
         for (size_t i = 0; i < self.size(); i++)
         {
-            if (self.at(i).regionName_sp->contains(string))
+            if (self.at(i).map.regionName_sp->contains(string))
             {
                 rl.push_back(self.at(i));
             }
@@ -260,7 +248,7 @@ namespace RealtimeMemoryForensics
         return rl;
     }
 
-    template <class Self>
+    template <NodeWithFeatures<Map> Self>
     Self Map::VecOp::exactPerms(this const Self&       self,
                                 const std::string_view perms)
     {
@@ -268,7 +256,7 @@ namespace RealtimeMemoryForensics
         Self  rl;
         for (size_t i = 0; i < self.size(); i++)
         {
-            const Perms p = self.at(i).perms;
+            const Perms p = self.at(i).map.perms;
             if (p == permsToMatch)
             {
                 rl.push_back(self.at(i));
@@ -276,7 +264,7 @@ namespace RealtimeMemoryForensics
         }
         return rl;
     }
-    template <class Self>
+    template <NodeWithFeatures<Map> Self>
     Self Map::VecOp::hasPerms(this const Self&       self,
                               const std::string_view perms)
     {
@@ -284,7 +272,7 @@ namespace RealtimeMemoryForensics
         Self  rl;
         for (size_t i = 0; i < self.size(); i++)
         {
-            const Perms p = self.at(i).perms;
+            const Perms p = self.at(i).map.perms;
             if ((p & permsToMatch) == permsToMatch)
             {
                 rl.push_back(self.at(i));
@@ -292,7 +280,7 @@ namespace RealtimeMemoryForensics
         }
         return rl;
     }
-    template <class Self>
+    template <NodeWithFeatures<Map> Self>
     Self Map::VecOp::notPerms(this const Self&       self,
                               const std::string_view perms)
     {
@@ -300,7 +288,7 @@ namespace RealtimeMemoryForensics
         Self  rl;
         for (size_t i = 0; i < self.size(); i++)
         {
-            const Perms p = self.at(i).perms;
+            const Perms p = self.at(i).map.perms;
             if ((p & permsToMatch) != permsToMatch)
             {
                 rl.push_back(self.at(i));
@@ -309,7 +297,7 @@ namespace RealtimeMemoryForensics
         return rl;
     }
 
-    template <class Self>
+    template <NodeWithFeatures<Map> Self>
     Self Map::VecOp::active(this const Self& self, pid_t pid)
     {
         using namespace Utils::Literals;
@@ -322,7 +310,8 @@ namespace RealtimeMemoryForensics
         Self              regions;
         long              pageSize    = sysconf(_SC_PAGE_SIZE);
         const std::string pagemapPath = "/proc/{}/pagemap"_f.fmt(pid);
-        int               fd = open(pagemapPath.c_str(), O_RDONLY);
+        rmf_Info("Reading pagemap: {}", pagemapPath);
+        int fd = open(pagemapPath.c_str(), O_RDONLY);
         if (fd < 0)
         {
             rmf_Error("Failed to open the pageMap!!!!");
@@ -332,7 +321,7 @@ namespace RealtimeMemoryForensics
         for (const auto& mrp : self)
         {
             for (uintptr_t addr = mrp.tbegin();
-                 addr < mrp.tbegin() + mrp.relativeSize;
+                 addr < mrp.tbegin() + mrp.map.relativeSize;
                  addr += pageSize)
             {
                 // Multiply by 8 because each 8 byte chunk represents a page.
@@ -345,10 +334,18 @@ namespace RealtimeMemoryForensics
                 }
 
                 uint64_t entry;
-                if (read(fd, &entry, 8) != 8)
+                ssize_t  readResult = read(fd, &entry, 8);
+                if (readResult == (ssize_t)-1)
                 {
                     rmf_Error("Failed to READ the pagemap!");
                     perror("failed to read pagemap");
+                    continue;
+                }
+
+                else if (readResult < (ssize_t)sizeof(entry))
+                {
+                    rmf_Warning("Read only {}/{} bytes!", readResult,
+                                sizeof(entry));
                     continue;
                 }
 
@@ -356,22 +353,23 @@ namespace RealtimeMemoryForensics
                 {
                     if (regions.size() > 0 &&
                         regions.back().rend() ==
-                            addr - mrp.parentAddress)
+                            addr - mrp.map.parentAddress)
                     {
-                        regions.back().relativeSize += pageSize;
+                        regions.back().map.relativeSize += pageSize;
                     }
                     else
                     {
                         typename Self::InnerType newMrp = mrp;
-                        newMrp.relativeSize             = pageSize;
-                        newMrp.relativeAddress =
-                            addr - mrp.parentAddress;
+                        newMrp.map.relativeSize         = pageSize;
+                        newMrp.map.relativeAddress =
+                            addr - mrp.map.parentAddress;
                         regions.push_back(newMrp);
                     }
                 }
             }
         }
         close(fd);
+        rmf_Info("Active regions: {}", regions.size());
         return regions;
     }
 }

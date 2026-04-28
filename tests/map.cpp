@@ -79,6 +79,7 @@ TEST(map, mapInformationOperations)
     EXPECT_EQ(test1.rbegin(), data.relativeAddress);
     EXPECT_EQ(test1.rend(), data.relativeAddress + data.relativeSize);
 }
+
 TEST(map, testProgramReading)
 {
     using namespace mft;
@@ -92,4 +93,34 @@ TEST(map, testProgramReading)
         println("Map: {}", std::string(map));
     }
     // Attempt to filter
+    size_t size    = 0x1000;
+    auto   newMaps = maps.minSize(size);
+    for (const auto& map : newMaps)
+    {
+        EXPECT_GE(map.map.relativeSize, size);
+    }
+}
+TEST(map, aggressiveFiltering)
+{
+    using namespace mft;
+    pid_t                       pid  = forkFunc(createTestProgram(
+        StaticNumberBuffer<int, 0xfafaf>(), TestFeature{},
+        StaticStringBuffer{.buffer = "hello world"}));
+    mfu::Vec<mf::Node<mf::Map>> maps = mf::getMaps(pid);
+    EXPECT_GT(maps.size(), 0);
+    for (const auto& map : maps)
+    {
+        println("Map: {}", std::string(map));
+    }
+    // Attempt to filter
+    auto newMaps = maps.active(pid);
+    EXPECT_GT(newMaps.size(), 0);
+    auto newMaps1 = maps.hasPerms("r");
+    EXPECT_GT(newMaps1.size(), 0);
+    auto newMaps2 = maps.exactPerms("r");
+    EXPECT_GT(newMaps2.size(), 0);
+    auto newMaps3 = maps.notPerms("r");
+    EXPECT_GT(newMaps3.size(), 0);
+    auto newMaps4 = maps.subName("stack");
+    EXPECT_GT(newMaps4.size(), 0);
 }

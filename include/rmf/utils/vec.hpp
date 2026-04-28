@@ -26,7 +26,7 @@ namespace RealtimeMemoryForensics::Utils
         using type = Node<Features...>::VecOp;
     };
 
-    template <typename T, typename Operator = DefaultOperator,
+    template <typename T, typename Operator = VecOpTraits<T>::type,
               typename Allocator = std::allocator<T>>
     class Vec : public std::vector<T, Allocator>, public Operator
     {
