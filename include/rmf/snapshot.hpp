@@ -64,7 +64,7 @@ namespace RealtimeMemoryForensics
         template <class Self>
         std::span<uint8_t> span(this const Self& self);
 
-                           operator std::string() const;
+        operator std::string() const;
     };
 }
 
@@ -107,11 +107,15 @@ namespace RealtimeMemoryForensics
 
     template <class Self>
     std::span<uint8_t> Snapshot::span(this const Self& self)
-    { return *self.snap.m_data; }
+    {
+        return *self.snap.m_data;
+    }
 
     template <class Self>
     void Snapshot::capture(this Self& self, pid_t pid)
-    { self.snap = Detail::readProcess(self.map, pid); }
+    {
+        self.snap = Detail::readProcess(self.map, pid);
+    }
 
 }
 #endif // snapshot_hpp_INCLUDED

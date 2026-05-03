@@ -67,7 +67,9 @@ TEST(function, stdfunction)
 }
 
 size_t doubleNum(size_t num)
-{ return num * 2; }
+{
+    return num * 2;
+}
 
 TEST(function, withInputs)
 {
@@ -101,7 +103,9 @@ struct MoveOnlyType
     MoveOnlyType(const MoveOnlyType&)            = delete;
     MoveOnlyType& operator=(const MoveOnlyType&) = delete;
     MoveOnlyType(MoveOnlyType&& other) : value(other.value)
-    { other.value = 0; }
+    {
+        other.value = 0;
+    }
     MoveOnlyType& operator=(MoveOnlyType&& other)
     {
         value       = other.value;
@@ -156,7 +160,9 @@ TEST(function, Function_threader)
 }
 
 size_t moveTests(StructorTest&& T)
-{ return T.numCopies; }
+{
+    return T.numCopies;
+}
 
 TEST(function, Function_structors)
 {
@@ -257,7 +263,9 @@ struct MoveTracker
     MoveTracker() = default;
     MoveTracker(int v) : value(v) {}
     MoveTracker(const MoveTracker& other) : value(other.value)
-    { numCopies++; }
+    {
+        numCopies++;
+    }
     MoveTracker(MoveTracker&& other) noexcept : value(other.value)
     {
         other.value = 0;

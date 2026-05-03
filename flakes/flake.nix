@@ -57,6 +57,8 @@
             llvm.clang-tools
             # llvm.lldb
             gtest
+            pre-commit
+            ruff
             # root
           ];
         };

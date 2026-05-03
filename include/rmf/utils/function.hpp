@@ -189,7 +189,9 @@ namespace RealtimeMemoryForensics::Utils
     template <typename F, typename FT>
     template <typename... Args>
     auto Function<F, FT>::operator()(Args&&... args) const
-    { return m_func(std::forward<Args>(args)...); }
+    {
+        return m_func(std::forward<Args>(args)...);
+    }
 
     template <typename F, typename FT>
     template <typename InputsTuple, typename... Args, size_t N>

@@ -59,7 +59,9 @@ namespace RealtimeMemoryForensics::Tests
     struct TestFeature
     {
         void setup() const
-        { rmf_Ok("setup"); };
+        {
+            rmf_Ok("setup");
+        };
         void run() const { rmf_Ok("run!") };
     };
 

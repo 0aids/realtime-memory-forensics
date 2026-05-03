@@ -62,7 +62,9 @@ namespace RealtimeMemoryForensics
         const std::string_view           name();
         template <typename Self>
         bool isSelf(this const Self& s)
-        { return Self::selfKind == s.selfKind; }
+        {
+            return Self::selfKind == s.selfKind;
+        }
     };
 
     class Struct : public TypeBase

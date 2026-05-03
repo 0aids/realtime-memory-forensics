@@ -32,15 +32,17 @@ namespace RealtimeMemoryForensics::Logging
     extern LogLevels LogLevel;
     void             setLogLevel(LogLevels level);
 
-    std::string formatPreamble(LogLevels   level,
-                               const std::string_view threadName,
-                               const std::string_view filename,
-                               size_t      lineNumber,
-                               const std::string_view functionName);
+    std::string      formatPreamble(LogLevels              level,
+                                    const std::string_view threadName,
+                                    const std::string_view filename,
+                                    size_t                 lineNumber,
+                                    const std::string_view functionName);
 
     template <typename... Args>
-    void stderrAndFmt(LogLevels level, const std::string_view filename,
-                      size_t lineNumber, const std::string_view functionName,
+    void stderrAndFmt(LogLevels                   level,
+                      const std::string_view      filename,
+                      size_t                      lineNumber,
+                      const std::string_view      functionName,
                       std::format_string<Args...> fmtString,
                       Args&&... args)
     {
@@ -51,9 +53,8 @@ namespace RealtimeMemoryForensics::Logging
         const auto postamble =
             std::format(fmtString, std::forward<Args>(args)...);
         const auto f = std::format("{} {}{}", preamble, postamble,
-               Detail::StringColors[Reset]);
+                                   Detail::StringColors[Reset]);
         std::cerr << f << std::endl;
-
     }
 }
 

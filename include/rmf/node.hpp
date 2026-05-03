@@ -38,7 +38,7 @@ namespace RealtimeMemoryForensics
         Node& operator=(const Node<OtherArgs...>&);
         using DerivedType = Node<Args...>;
         using SelfType    = Node;
-             operator std::string() const;
+        operator std::string() const;
         void wellFormed();
 
       private:
@@ -53,12 +53,16 @@ namespace RealtimeMemoryForensics
 {
     template <typename... Args>
     Node<Args...>::operator std::string() const
-    { return (... + std::string(static_cast<Args>(*this))); }
+    {
+        return (... + std::string(static_cast<Args>(*this)));
+    }
 
     // Ensure that we're not being stupid.
     template <typename... Args>
     void Node<Args...>::wellFormed()
-    { static_assert(!std::is_polymorphic_v<SelfType>); }
+    {
+        static_assert(!std::is_polymorphic_v<SelfType>);
+    }
 
     // IDK why but these conversions are working without me defining them?
     // My guess is that the compiler can use this templated conversions
@@ -141,10 +145,14 @@ namespace RealtimeMemoryForensics
     template <typename... OtherArgs>
     Node<Args...>&
     Node<Args...>::operator=(Node<OtherArgs...>&& other)
-    { return std::move(static_cast<Node<Args...>>(other)); }
+    {
+        return std::move(static_cast<Node<Args...>>(other));
+    }
     template <typename... Args>
     template <typename... OtherArgs>
     Node<Args...>&
     Node<Args...>::operator=(const Node<OtherArgs...>& other)
-    { return static_cast<Node<Args...>>(other); }
+    {
+        return static_cast<Node<Args...>>(other);
+    }
 }

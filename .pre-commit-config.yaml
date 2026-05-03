@@ -15,7 +15,7 @@ repos:
 
       - id: nix-format
         name: "Format flake.nix"
-        entry: "nixfmt flake.nix"
+        entry: "nixfmt flakes/flake.nix"
         language: system
         pass_filenames: false
 

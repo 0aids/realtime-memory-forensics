@@ -24,7 +24,9 @@ std::string mfu::Error::generateSubseqMsg(ErrorEnum    e,
 
 mfu::Error::Error(ErrorEnum e, const char* file, lineNumber_t line,
                   const char* function) : m_what()
-{ m_what = generateMsg(e, file, line, function); }
+{
+    m_what = generateMsg(e, file, line, function);
+}
 
 mfu::Error&& mfu::Error::update(ErrorEnum e, const char* file,
                                 lineNumber_t line,
@@ -36,4 +38,6 @@ mfu::Error&& mfu::Error::update(ErrorEnum e, const char* file,
 }
 
 const char* mfu::Error::what() const noexcept
-{ return m_what.c_str(); }
+{
+    return m_what.c_str();
+}
