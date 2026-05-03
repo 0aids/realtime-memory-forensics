@@ -1,20 +1,19 @@
 #pragma once
-#include <print>
 #include <iostream>
 #include <pthread.h>
-#include <string_view>
-#include <thread>
+#include <print>
+#include <format>
 
 namespace RealtimeMemoryForensics::Logging
 {
     namespace Detail
     {
-        constexpr std::array<std::string, 7> StringColors = {
+        constexpr std::array<const char*, 7> StringColors = {
             "\033[31m", // Corresponds the the above loglevels
             "\033[33m", "\033[32m", "\033[34m",
             "\033[37m", "\033[90m", "\033[0m",
         };
-        constexpr std::array<std::string, 7> LogLevelNames = {
+        constexpr std::array<const char*, 7> LogLevelNames = {
             "Erro", // Corresponds the the above loglevels
             "Warn", " OK ", "Info", "Verb", "Debu", "How?",
         };
@@ -33,23 +32,15 @@ namespace RealtimeMemoryForensics::Logging
     extern LogLevels LogLevel;
     void             setLogLevel(LogLevels level);
 
-    template <typename... Args>
-    void stdout(std::format_string<Args...> fmtString, Args&&... args)
-    { println(fmtString, args...); }
-
-    template <typename... Args>
-    void stderr(std::format_string<Args...> fmtString, Args&&... args)
-    { println(std::cerr, fmtString, args...); }
-
     std::string formatPreamble(LogLevels   level,
-                               const char* threadName,
-                               const char* filename,
+                               const std::string_view threadName,
+                               const std::string_view filename,
                                size_t      lineNumber,
-                               const char* functionName);
+                               const std::string_view functionName);
 
     template <typename... Args>
-    void stderrAndFmt(LogLevels level, const char* filename,
-                      size_t lineNumber, const char* functionName,
+    void stderrAndFmt(LogLevels level, const std::string_view filename,
+                      size_t lineNumber, const std::string_view functionName,
                       std::format_string<Args...> fmtString,
                       Args&&... args)
     {
@@ -59,8 +50,10 @@ namespace RealtimeMemoryForensics::Logging
             level, threadname, filename, lineNumber, functionName);
         const auto postamble =
             std::format(fmtString, std::forward<Args>(args)...);
-        stderr("{} {}{}", preamble, postamble,
+        const auto f = std::format("{} {}{}", preamble, postamble,
                Detail::StringColors[Reset]);
+        std::cerr << f << std::endl;
+
     }
 }
 

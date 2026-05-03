@@ -56,6 +56,18 @@ target_compile_options(librmf PUBLIC ${CXX_COMP_COMMANDS})
 target_link_options(librmf PUBLIC ${CXX_LINK_COMMANDS})
 target_include_directories(librmf PUBLIC "include")
 
+add_library(librmf_so SHARED ${librmf_src_files})
+target_link_libraries(librmf_so PUBLIC
+    magic_enum::magic_enum
+)
+target_compile_options(librmf_so PUBLIC ${CXX_COMP_COMMANDS})
+target_link_options(librmf_so PUBLIC ${CXX_LINK_COMMANDS})
+target_include_directories(librmf_so PUBLIC "include")
+set_target_properties(librmf_so PROPERTIES
+	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/rmfpy"
+)
+
+
 option(tests "Compile tests" ON)
 if(tests)
     enable_testing()

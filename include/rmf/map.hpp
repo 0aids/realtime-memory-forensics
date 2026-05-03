@@ -63,25 +63,19 @@ namespace RealtimeMemoryForensics
         Detail::MapData map;
         using usesMap = std::true_type;
         // Returns the address of the beginning of this region.
-        template <NodeWithFeatures<Map> Self>
-        constexpr uintptr_t tbegin(this const Self& self);
+        constexpr uintptr_t tbegin() const;
         // Returns the address of the end of this region (exclusive).
-        template <NodeWithFeatures<Map> Self>
-        constexpr uintptr_t tend(this const Self& self);
+        constexpr uintptr_t tend() const;
         // Returns the relative beginning (relative to the parent)
-        template <NodeWithFeatures<Map> Self>
-        constexpr uintptr_t rbegin(this const Self& self);
+        constexpr uintptr_t rbegin() const;
         // Returns the relative beginning (relative to the parent)
-        template <NodeWithFeatures<Map> Self>
-        constexpr uintptr_t rend(this const Self& self);
+        constexpr uintptr_t rend() const;
         // Returns the parent beginning
-        template <NodeWithFeatures<Map> Self>
-        constexpr uintptr_t pbegin(this const Self& self);
+        constexpr uintptr_t pbegin() const;
         // Returns the parent beginning
-        template <NodeWithFeatures<Map> Self>
-        constexpr uintptr_t pend(this const Self& self);
+        constexpr uintptr_t pend() const;
 
-                            operator std::string();
+        operator std::string();
 
         struct VecOp
         {
@@ -123,32 +117,36 @@ namespace RealtimeMemoryForensics
 {
     using namespace magic_enum::bitwise_operators;
     // Returns the address of the beginning of this region.
-    template <NodeWithFeatures<Map> Self>
-    constexpr uintptr_t Map::tbegin(this const Self& self)
-    { return self.map.parentAddress + self.map.relativeAddress; }
-    // Returns the address of the end of this region (exclusive).
-    template <NodeWithFeatures<Map> Self>
-    constexpr uintptr_t Map::tend(this const Self& self)
+    constexpr uintptr_t Map::tbegin() const
     {
-        return self.map.parentAddress + self.map.relativeAddress +
-            self.map.relativeSize;
+        return map.parentAddress + map.relativeAddress;
     }
-    // Returns the relative beginning (relative to the parent)
-    template <NodeWithFeatures<Map> Self>
-    constexpr uintptr_t Map::rbegin(this const Self& self)
-    { return self.map.relativeAddress; }
-    // Returns the relative beginning (relative to the parent)
-    template <NodeWithFeatures<Map> Self>
-    constexpr uintptr_t Map::rend(this const Self& self)
-    { return self.map.relativeAddress + self.map.relativeSize; }
+    // Returns the address of the end of this region (exclusive). const
+    constexpr uintptr_t Map::tend() const
+    {
+        return map.parentAddress + map.relativeAddress +
+            map.relativeSize;
+    }
+    // Returns the relative beginning (relative to the parent) const
+    constexpr uintptr_t Map::rbegin() const
+    {
+        return map.relativeAddress;
+    }
+    // Returns the relative beginning (relative to the parent) const
+    constexpr uintptr_t Map::rend() const
+    {
+        return map.relativeAddress + map.relativeSize;
+    }
     // Returns the parent beginning
-    template <NodeWithFeatures<Map> Self>
-    constexpr uintptr_t Map::pbegin(this const Self& self)
-    { return self.map.parentAddress; }
+    constexpr uintptr_t Map::pbegin() const
+    {
+        return map.parentAddress;
+    }
     // Returns the parent beginning
-    template <NodeWithFeatures<Map> Self>
-    constexpr uintptr_t Map::pend(this const Self& self)
-    { return self.map.parentAddress + self.map.parentSize; }
+    constexpr uintptr_t Map::pend() const
+    {
+        return map.parentAddress + map.parentSize;
+    }
     // using InnerType = BaseVec::InnerType;
 
     template <NodeWithFeatures<Map> Self>
