@@ -94,35 +94,32 @@ namespace RealtimeMemoryForensics
 
     // Threadify functions.
     constexpr auto findChanged =
-        Utils::Function<Detail::findChanged, Detail::findChanged,
-                        true>(Detail::findChanged{});
+        Utils::Function<Detail::findChanged{}, Detail::findChanged{},
+                        true>();
 
     constexpr auto findUnchanged =
-        Utils::Function<Detail::findUnchanged, Detail::findUnchanged,
-                        true>(Detail::findUnchanged{});
+        Utils::Function<Detail::findUnchanged{},
+                        Detail::findUnchanged{}, true>();
 
     constexpr auto findNumChanged =
-        Utils::Function<Detail::findNumChanged,
-                        Detail::findNumChanged, true>(
-            Detail::findNumChanged{});
+        Utils::Function<Detail::findNumChanged{},
+                        Detail::findNumChanged{}, true>();
 
     constexpr auto findNumUnchanged =
-        Utils::Function<Detail::findNumUnchanged,
-                        Detail::findNumUnchanged, true>(
-            Detail::findNumUnchanged{});
+        Utils::Function<Detail::findNumUnchanged{},
+                        Detail::findNumUnchanged{}, true>();
 
     constexpr auto findString =
-        Utils::Function<Detail::findString, Detail::findString, true>(
-            Detail::findString{});
+        Utils::Function<Detail::findString{}, Detail::findString{},
+                        true>();
 
     constexpr auto findNumExact =
-        Utils::Function<Detail::findNumExact, Detail::findNumExact,
-                        true>(Detail::findNumExact{});
+        Utils::Function<Detail::findNumExact{},
+                        Detail::findNumExact{}, true>();
 
     constexpr auto findNumWithinRange =
-        Utils::Function<Detail::findNumWithinRange,
-                        Detail::findNumWithinRange, true>(
-            Detail::findNumWithinRange{});
+        Utils::Function<Detail::findNumWithinRange{},
+                        Detail::findNumWithinRange{}, true>();
 
     template <typename... Features>
     Utils::Vec<Node<Map, Features...>> getMaps(pid_t pid);

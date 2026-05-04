@@ -120,10 +120,12 @@ namespace RealtimeMemoryForensics::Utils::Detail
         m_data[produceIndex % size] = std::move(value);
         m_produceIndex.store(produceIndex + 1,
                              std::memory_order_release);
+#ifdef LOG_THREADPOOL
         rmf_Debug("Enqueued, notifying one...");
         rmf_Debug("Last indices were: Consumer - {}, Producer - "
                   "{}",
                   consumeIndex, produceIndex + 1);
+#endif
         m_semaphore.release();
 
         return true;
@@ -156,10 +158,12 @@ namespace RealtimeMemoryForensics::Utils::Detail
         m_data[produceIndex % size] = std::move(value);
         m_produceIndex.store(produceIndex + 1,
                              std::memory_order_release);
+#ifdef LOG_THREADPOOL
         rmf_Debug("Enqueued, notifying one...");
         rmf_Debug("Last indices were: Consumer - {}, Producer - "
                   "{}",
                   consumeIndex, produceIndex + 1);
+#endif
         m_semaphore.release();
     }
 
@@ -186,8 +190,10 @@ namespace RealtimeMemoryForensics::Utils::Detail
 
         auto data = std::move(m_data[consumeIndex % size]);
         m_consumeCommitIndex.fetch_add(1, std::memory_order_release);
+#ifdef LOG_THREADPOOL
         rmf_Debug("Successful dequeue.");
         rmf_Debug("Last indices were: Consumer - {}", consumeIndex);
+#endif
         return data;
     }
 
@@ -206,8 +212,10 @@ namespace RealtimeMemoryForensics::Utils::Detail
 
         auto data = std::move(m_data[consumeIndex % size]);
         m_consumeCommitIndex.fetch_add(1, std::memory_order_release);
+#ifdef LOG_THREADPOOL
         rmf_Debug("Successful dequeue.");
         rmf_Debug("Last indices were: Consumer - {}", consumeIndex);
+#endif
 
         return data;
     }

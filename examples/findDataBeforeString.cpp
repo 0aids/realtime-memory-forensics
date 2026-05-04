@@ -61,9 +61,6 @@ int main(int argc, const char* argv[])
     // Search for the string
     auto newMaps = findString.threaded(maps, strToFind).with(tp);
 
-    println("Found: {} instances of string '{}'", newMaps.size(),
-            strToFind);
-
     for (auto& map : newMaps)
     {
         println("{}", string(map));
@@ -72,4 +69,6 @@ int main(int argc, const char* argv[])
         map.capture(PID);
         println("Bytes: {::02x}", map.span());
     }
+    println("Found: {} instances of string '{}'", newMaps.size(),
+            strToFind);
 }

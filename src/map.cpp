@@ -40,7 +40,7 @@ namespace RealtimeMemoryForensics
     Map::operator std::string()
     {
         using namespace RealtimeMemoryForensics::Utils::Literals;
-        return "[{}] - Parent Region: [{:p}, {:p}) Actual Region: [{:p}, {:p}) perms: {}"_f
+        return "\"{}\" - parent: [{:p}, {:p}) actual: [{:p}, {:p}) perms: {}"_f
             .fmt(*map.regionName_sp, (void*)pbegin(), (void*)pend(),
                  (void*)tbegin(), (void*)tend(),
                  magic_enum::enum_flags_name(map.perms));

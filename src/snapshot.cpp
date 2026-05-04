@@ -1,6 +1,8 @@
 #include "rmf/snapshot.hpp"
 #include "rmf/map.hpp"
 #include "rmf/node.hpp"
+#include "rmf/utils/function.hpp"
+#include <type_traits>
 
 namespace RealtimeMemoryForensics
 {

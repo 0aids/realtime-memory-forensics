@@ -95,7 +95,7 @@ TEST(snapshot, findNumExact)
     EXPECT_TRUE(static_cast<bool>(buffer.pushAligned(num)));
     EXPECT_LE(buffer.chead(), buffer.cend());
     EXPECT_LE(buffer.chead(), buffer.cend());
-    Node<Snapshot, Map> snapshot =
+    Node<Map, Snapshot> snapshot =
         Snapshot::fromBuffer(buffer.moveBuffer());
     // copy
     auto snapshot1 = snapshot;
@@ -108,8 +108,8 @@ TEST(snapshot, findNumExact)
     auto              snaps = mfu::Vec<decltype(snapshot)>{snapshot};
     println("inputs: {}", snaps.size());
     auto res1 = findNumExact.threaded(snaps, num).with(tp);
-    println("res1: {}", res1[0].size());
-    EXPECT_EQ(res1[0].size(), res.size());
+    println("res1: {}", res1.size());
+    EXPECT_EQ(res1.size(), res.size());
 }
 
 TEST(snapshot, testProgram)
@@ -130,12 +130,17 @@ TEST(snapshot, testProgram)
     mfu::ThreadPool tp(2);
     auto            mapsWHello =
         mf::findString.threaded(maps, "hello world").with(tp);
-    // Count
-    size_t count = 0;
-    for (const auto& map : mapsWHello)
-    {
-        count += map.size();
-    }
-    EXPECT_GE(count, 0);
-    println("Found {} 'hello world's!", count);
+    EXPECT_GE(mapsWHello.size(), 0);
+    println("Found {} 'hello world's!", mapsWHello.size());
+}
+
+TEST(snapshot, threadedCapture)
+{
+    using namespace mfu;
+    using namespace mf;
+    using namespace mft;
+    pid_t                    pid  = forkFunc(createTestProgram(
+        StaticNumberBuffer<int, 0xfafaf>(), TestFeature{},
+        StaticStringBuffer{.buffer = "hello world"}));
+    Vec<Node<Map, Snapshot>> maps = getMaps<Snapshot>(pid);
 }

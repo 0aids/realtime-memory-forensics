@@ -123,7 +123,8 @@ namespace RealtimeMemoryForensics::Tests
             return t;
         }
     }
-    // Comptime generate a program with test data during comptime.
+
+    // Comptime generate a program with test data during.
     template <typename... Features>
     consteval auto createTestProgram(Features&&... features)
     {
@@ -134,6 +135,8 @@ namespace RealtimeMemoryForensics::Tests
             {
                 using namespace std::chrono_literals;
                 std::this_thread::sleep_for(10ms);
+                // For some reason this fails to compile under g++?
+                // But compiles perfectly fine under clang?
                 ([&]() { features.run(); }(), ...);
             }
         };

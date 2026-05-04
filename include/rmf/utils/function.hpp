@@ -14,11 +14,10 @@
 namespace RealtimeMemoryForensics::Utils
 {
     // Consider nttp here instead?
-    template <typename F, typename FT = F, bool Flatten = false>
+    template <auto Func, auto FuncThreaded = Func,
+              bool Flatten = false>
     class Function
     {
-        F  m_func;
-        FT m_mtFunc;
         template <typename InputsTuple, typename... Args,
                   size_t N = std::tuple_size_v<std::tuple<Args...>>>
         auto threaderImpl(Args&&... args) const;
@@ -34,8 +33,7 @@ namespace RealtimeMemoryForensics::Utils
         constexpr auto templateThreaded(Args&&... args) const;
 
       public:
-        constexpr Function(F implFunction);
-        constexpr Function(F implFunction, FT threadedFunction);
+        constexpr Function()                = default;
         Function(Function&&)                = delete;
         Function(const Function&)           = delete;
         Function operator=(const Function&) = delete;
@@ -181,23 +179,20 @@ namespace RealtimeMemoryForensics::Utils
         using InvokeAndUnwrap_t =
             typename InvokeAndUnwrap<Func, Tuple>::Type;
     }
-    template <typename F, typename FT, bool Flatten>
-    constexpr Function<F, FT, Flatten>::Function(F implFunction) :
-        m_func(implFunction), m_mtFunc(implFunction)
-    {
-    }
 
     // fucking disgusting for cleaner code.
-    template <typename F, typename FT, bool Flatten>
+    template <auto Func, auto FuncThreaded, bool Flatten>
     template <typename... Args>
-    auto Function<F, FT, Flatten>::operator()(Args&&... args) const
+    auto Function<Func, FuncThreaded, Flatten>::operator()(
+        Args&&... args) const
     {
-        return m_func(std::forward<Args>(args)...);
+        return Func(std::forward<Args>(args)...);
     }
 
-    template <typename F, typename FT, bool Flatten>
+    template <auto Func, auto FuncThreaded, bool Flatten>
     template <typename InputsTuple, typename... Args, size_t N>
-    auto Function<F, FT, Flatten>::threaderImpl(Args&&... args) const
+    auto Function<Func, FuncThreaded, Flatten>::threaderImpl(
+        Args&&... args) const
     {
         // Detail::TypePrinter<VecArgsTuple, InputsTuple>  Gah;
         using VecArgsTuple = typename std::tuple<Args&&...>;
@@ -250,7 +245,9 @@ namespace RealtimeMemoryForensics::Utils
                 }(),
                 ...);
         }.template operator()(idxSeq);
-        using Output = Detail::InvokeAndUnwrap_t<FT, InputsTuple>;
+        using Output =
+            Detail::InvokeAndUnwrap_t<decltype(FuncThreaded),
+                                      InputsTuple>;
         if (!isValid)
         {
             rmf_Error(
@@ -296,10 +293,9 @@ namespace RealtimeMemoryForensics::Utils
             // rmf_Debug("Tuple generated: {}", tup);
 
             inputs.push_back(
-                [mt_func = std::move(m_mtFunc),
-                 tup     = std::move(tup)]() mutable
+                [tup = std::move(tup)]() mutable
                 {
-                    return std::apply(std::move(mt_func),
+                    return std::apply(std::move(FuncThreaded),
                                       std::move(tup));
                 });
             // Create lambda applying those elements.
@@ -310,15 +306,17 @@ namespace RealtimeMemoryForensics::Utils
         };
     }
 
-    template <typename F, typename FT, bool Flatten>
+    template <auto Func, auto FuncThreaded, bool Flatten>
     template <typename... Args, size_t N>
         requires(N > 0)
     constexpr auto
-    Function<F, FT, Flatten>::templateThreaded(Args&&... args) const
+    Function<Func, FuncThreaded, Flatten>::templateThreaded(
+        Args&&... args) const
     {
         // Run the compile-time search tree to find the correct unwrapping path!
         using InputsTuple = typename Detail::SignatureSearcher<
-            FT, std::tuple<>, std::tuple<Args&&...>>::type;
+            decltype(FuncThreaded), std::tuple<>,
+            std::tuple<Args&&...>>::type;
 
         // If SFINAE fails to find a path, the user gets a clean error message.
         static_assert(!std::is_same_v<InputsTuple, void>,
@@ -330,28 +328,29 @@ namespace RealtimeMemoryForensics::Utils
         return threaderImpl<InputsTuple>(std::forward<Args>(args)...);
     }
 
-    template <typename F, typename FT, bool Flatten>
+    template <auto Func, auto FuncThreaded, bool Flatten>
     template <typename... Args, size_t N>
         requires(N > 0)
     constexpr auto
-    Function<F, FT, Flatten>::defaultThreaded(Args&&... args) const
+    Function<Func, FuncThreaded, Flatten>::defaultThreaded(
+        Args&&... args) const
     {
         // We cannot use threaded if operator() is templated, as this
         // would mean that we cannot determine the inputs without evaluating
         // our inputs. So we need to somehow create a valid operator() in order
         // to get the inputs. But we can't do that without evaluating operator(),
         // unless we try every combination of Args and unwrapped Args.
-        using FTTraits    = Detail::FuncTraits<FT>;
+        using FTTraits = Detail::FuncTraits<decltype(FuncThreaded)>;
         using InputsTuple = typename FTTraits::InputsTuple;
         return threaderImpl<InputsTuple>(std::forward<Args>(args)...);
     }
-    template <typename F, typename FT, bool Flatten>
+    template <auto Func, auto FuncThreaded, bool Flatten>
     template <typename... Args, size_t N>
         requires(N > 0)
-    constexpr auto
-    Function<F, FT, Flatten>::threaded(Args&&... args) const
+    constexpr auto Function<Func, FuncThreaded, Flatten>::threaded(
+        Args&&... args) const
     {
-        if constexpr (Detail::ValidSignature<FT>)
+        if constexpr (Detail::ValidSignature<decltype(FuncThreaded)>)
         {
             return defaultThreaded(std::forward<Args>(args)...);
         }

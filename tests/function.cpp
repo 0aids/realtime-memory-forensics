@@ -48,23 +48,24 @@ size_t testFuncReturnsInt()
 
 TEST(function, testFunction)
 {
-    constexpr auto newFunc = mfu::Function(testFuncReturnsInt);
+    constexpr auto newFunc = mfu::Function<testFuncReturnsInt>();
     println("Result: {}", newFunc());
 }
 
 TEST(function, lambda)
 {
     auto           lambda  = []() { return 10; };
-    constexpr auto newFunc = mfu::Function(lambda);
+    constexpr auto newFunc = mfu::Function<lambda>();
     println("Result: {}", newFunc());
 }
 
-TEST(function, stdfunction)
-{
-    auto lambda  = std::function([]() { return 10; });
-    auto newFunc = mfu::Function(lambda);
-    println("Result: {}", newFunc());
-}
+// NTTP schema for function threading is not compatible with std::function.
+// TEST(function, stdfunction)
+// {
+//     auto lambda  = std::function([]() { return 10; });
+//     auto newFunc = mfu::Function<lambda>();
+//     println("Result: {}", newFunc());
+// }
 
 size_t doubleNum(size_t num)
 {
@@ -73,7 +74,7 @@ size_t doubleNum(size_t num)
 
 TEST(function, withInputs)
 {
-    constexpr auto newFunc = mfu::Function(doubleNum);
+    constexpr auto newFunc = mfu::Function<doubleNum>();
     EXPECT_EQ(newFunc(10), doubleNum(10));
 }
 
@@ -82,14 +83,14 @@ TEST(function, perfectForwarding)
     static size_t  _i = 0;
     auto           a  = [](StructorTest&& t) { return t.numCopies; };
 
-    constexpr auto newFunc = mfu::Function(a);
+    constexpr auto newFunc = mfu::Function<a>();
     newFunc(StructorTest{});
     EXPECT_EQ(_i, 0);
 }
 
 TEST(function, Function_noCopySemantics)
 {
-    constexpr auto func = mfu::Function(+[]() { return 42; });
+    constexpr auto func = mfu::Function<+[]() { return 42; }>();
     static_assert(!std::is_copy_constructible_v<decltype(func)>,
                   "Function should not be copy constructible");
     static_assert(!std::is_copy_assignable_v<decltype(func)>,
@@ -117,7 +118,7 @@ struct MoveOnlyType
 TEST(function, Function_moveOnlyCallable)
 {
     constexpr auto func =
-        mfu::Function(+[](MoveOnlyType m) { return m.value; });
+        mfu::Function<+[](MoveOnlyType m) { return m.value; }>();
     MoveOnlyType mobj(42);
     EXPECT_EQ(func(std::move(mobj)), 42);
     EXPECT_EQ(mobj.value, 0);
@@ -125,10 +126,11 @@ TEST(function, Function_moveOnlyCallable)
 
 TEST(function, Function_returnTypeCorrect)
 {
-    constexpr auto intFunc = mfu::Function(+[]() { return 42; });
+    constexpr auto intFunc = mfu::Function<+[]() { return 42; }>();
     constexpr auto strFunc =
-        mfu::Function(+[]() { return std::string("hello"); });
-    constexpr auto doubleFunc = mfu::Function(+[]() { return 3.14; });
+        mfu::Function<+[]() { return std::string("hello"); }>();
+    constexpr auto doubleFunc =
+        mfu::Function<+[]() { return 3.14; }>();
 
     EXPECT_EQ(intFunc(), 42);
     EXPECT_EQ(strFunc(), std::string("hello"));
@@ -138,11 +140,11 @@ TEST(function, Function_returnTypeCorrect)
 TEST(function, Function_variousArgTypes)
 {
     constexpr auto funcInt =
-        mfu::Function(+[](int x) { return x * 2; });
-    constexpr auto funcStr =
-        mfu::Function(+[](const std::string& s) { return s.size(); });
+        mfu::Function<+[](int x) { return x * 2; }>();
+    constexpr auto funcStr = mfu::Function<+[](const std::string& s)
+                                           { return s.size(); }>();
     constexpr auto funcFloat =
-        mfu::Function(+[](double d) { return d + 1.0; });
+        mfu::Function<+[](double d) { return d + 1.0; }>();
 
     EXPECT_EQ(funcInt(5), 10);
     EXPECT_EQ(funcStr(std::string("hello")), 5);
@@ -152,7 +154,7 @@ TEST(function, Function_variousArgTypes)
 TEST(function, Function_threader)
 {
     constexpr auto funcInt =
-        mfu::Function([](int x) { return x * 2; });
+        mfu::Function<[](int x) { return x * 2; }>();
     mfu::ThreadPool tp(1);
     vector<int>     a = {1, 2, 3, 4, 5};
     funcInt.threaded(a).with(tp);
@@ -166,7 +168,7 @@ size_t moveTests(StructorTest&& T)
 
 TEST(function, Function_structors)
 {
-    constexpr auto       funcInt = mfu::Function(moveTests);
+    constexpr auto       funcInt = mfu::Function<moveTests>();
     mfu::ThreadPool      tp(1);
     vector<StructorTest> start;
     start.emplace_back();
@@ -179,7 +181,7 @@ TEST(function, Function_structors)
 TEST(function, Function_singleCopy)
 {
     auto            copy = [](StructorTest T) { return T.numCopies; };
-    constexpr auto  funcInt = mfu::Function(copy);
+    constexpr auto  funcInt = mfu::Function<copy>();
     mfu::ThreadPool tp(1);
     vector<StructorTest> start;
     for (size_t i = 0; i < 100; i++)
@@ -194,7 +196,7 @@ TEST(function, Function_singleCopy)
 TEST(function, threaded_returnsCorrectValues)
 {
     constexpr auto funcInt =
-        mfu::Function([](int x) { return x * 2; });
+        mfu::Function<[](int x) { return x * 2; }>();
     mfu::ThreadPool tp(1);
     vector<int>     a        = {1, 2, 3, 4, 5};
     auto            r        = funcInt.threaded(a).with(tp);
@@ -209,7 +211,7 @@ TEST(function, threaded_returnsCorrectValues)
 TEST(function, threaded_emptyVector)
 {
     constexpr auto funcInt =
-        mfu::Function([](int x) { return x * 2; });
+        mfu::Function<[](int x) { return x * 2; }>();
     mfu::ThreadPool tp(1);
     vector<int>     a = {};
     auto            r = funcInt.threaded(a).with(tp);
@@ -219,7 +221,7 @@ TEST(function, threaded_emptyVector)
 TEST(function, threaded_singleElement)
 {
     constexpr auto funcInt =
-        mfu::Function([](int x) { return x * 2; });
+        mfu::Function<[](int x) { return x * 2; }>();
     mfu::ThreadPool tp(1);
     vector<int>     a = {42};
     auto            r = funcInt.threaded(a).with(tp);
@@ -230,8 +232,8 @@ TEST(function, threaded_singleElement)
 TEST(function, threaded_mixedVectorAndScalar)
 {
     constexpr auto func =
-        mfu::Function([](int x, const string& prefix)
-                      { return prefix + to_string(x); });
+        mfu::Function<[](int x, const string& prefix)
+                      { return prefix + to_string(x); }>();
     mfu::ThreadPool tp(1);
     vector<int>     nums = {1, 2, 3};
     auto            r = func.threaded(nums, string("num_")).with(tp);
@@ -244,7 +246,7 @@ TEST(function, threaded_mixedVectorAndScalar)
 TEST(function, threaded_multipleVectors_sameLength)
 {
     constexpr auto func =
-        mfu::Function([](int x, int y) { return x + y; });
+        mfu::Function<[](int x, int y) { return x + y; }>();
     mfu::ThreadPool tp(1);
     vector<int>     a = {1, 2, 3};
     vector<int>     b = {10, 20, 30};
@@ -289,7 +291,7 @@ struct MoveTracker
 TEST(function, threaded_perfectForwarding_byValue)
 {
     constexpr auto func =
-        mfu::Function([](MoveTracker t) { return t.value; });
+        mfu::Function<[](MoveTracker t) { return t.value; }>();
     mfu::ThreadPool     tp(1);
     vector<MoveTracker> items;
     for (int i = 0; i < 5; i++)
@@ -310,7 +312,7 @@ TEST(function, threaded_perfectForwarding_byValue)
 TEST(function, threaded_perfectForwarding_lvalueRef)
 {
     constexpr auto func =
-        mfu::Function([](const MoveTracker& t) { return t.value; });
+        mfu::Function<[](const MoveTracker& t) { return t.value; }>();
     mfu::ThreadPool     tp(1);
     vector<MoveTracker> items;
     for (int i = 0; i < 5; i++)
@@ -328,7 +330,7 @@ TEST(function, threaded_perfectForwarding_lvalueRef)
 TEST(function, threaded_unequalVectorLengths)
 {
     constexpr auto func =
-        mfu::Function([](int x, int y) { return x + y; });
+        mfu::Function<[](int x, int y) { return x + y; }>();
     mfu::ThreadPool tp(1);
     vector<int>     a        = {1, 2, 3};
     vector<int>     b        = {10, 20};
@@ -348,7 +350,7 @@ concept can_thread_empty = requires(T t) { t.template threaded<>(); };
 */
 TEST(function, threaded_emptyThreader_with)
 {
-    constexpr auto  func = mfu::Function([](int x) { return x; });
+    constexpr auto  func = mfu::Function<[](int x) { return x; }>();
     mfu::ThreadPool tp(1);
     // Direct, generic, and readable.
     // Checks if calling func.threaded() with no arguments is well-formed.
