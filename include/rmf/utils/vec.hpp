@@ -1,6 +1,8 @@
 #pragma once
 #include "rmf/node.hpp"
+#include "rmf/utils/function.hpp"
 #include <algorithm>
+#include <concepts>
 #include <functional>
 #include <iterator>
 #include <ranges>
@@ -43,6 +45,9 @@ namespace RealtimeMemoryForensics::Utils
             requires std::is_same_v<std::invoke_result_t<F, Args...>,
                                     bool>
         Vec<T> filter(F&& f, Args&&... args);
+
+        template <typename InnerInnerType>
+        Vec<InnerInnerType> flatten();
     };
 }
 
@@ -71,5 +76,20 @@ namespace RealtimeMemoryForensics::Utils
                 [&](T& t) -> bool
                 { return std::invoke(f, t, std::forward(args)...); });
         return Vec<T>(a.begin(), a.end());
+    }
+
+    template <typename T, typename Operator, typename Allocator>
+    template <typename InnerInnerType>
+    Vec<InnerInnerType> Vec<T, Operator, Allocator>::flatten()
+    {
+        Vec<InnerInnerType> result;
+        for (auto& inner : *this)
+        {
+            for (auto& innerInner : inner)
+            {
+                result.emplace_back(std::move(innerInner));
+            }
+        }
+        return result;
     }
 }

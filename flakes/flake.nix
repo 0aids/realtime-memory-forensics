@@ -1,5 +1,5 @@
 {
-  description = "A basic flake with a shell (Clang + libc++)";
+  description = "";
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     systems.url = "github:nix-systems/default";
@@ -40,22 +40,21 @@
           # ];
         };
 
-        llvm = pkgs.llvmPackages_20;
         pythonVer = pkgs.python313Packages;
         pythonEnv = with pythonVer; [
           numpy
         ];
+        llvm = pkgs.llvmPackages_22;
       in
       {
         devShell = llvm.stdenv.mkDerivation {
-          name = "llvm devshell";
+          name = "rmf shell";
           hardeningDisable = [ "all" ];
           nativeBuildInputs = with pkgs; [
             pythonEnv
             cmake
             ninja
             llvm.clang-tools
-            # llvm.lldb
             gtest
             pre-commit
             ruff

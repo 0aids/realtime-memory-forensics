@@ -66,7 +66,7 @@ namespace RealtimeMemoryForensics
         {
             template <typename node_t>
                 requires IsNode<node_t>
-            Utils::Vec<Node<Map>>
+            Utils::Vec<node_t>
             operator()(const node_t&          snap1,
                        const std::string_view str) const;
         };
@@ -76,8 +76,8 @@ namespace RealtimeMemoryForensics
             template <typename... Features, typename N,
                       typename node_t = Node<Features...>>
                 requires IsNode<node_t>
-            Utils::Vec<Node<Map>> operator()(const node_t& snap1,
-                                             const N number) const;
+            Utils::Vec<node_t> operator()(const node_t& snap1,
+                                          const N       number) const;
         };
 
         // Inclusive.
@@ -94,24 +94,35 @@ namespace RealtimeMemoryForensics
 
     // Threadify functions.
     constexpr auto findChanged =
-        Utils::Function(Detail::findChanged{});
+        Utils::Function<Detail::findChanged, Detail::findChanged,
+                        true>(Detail::findChanged{});
 
     constexpr auto findUnchanged =
-        Utils::Function(Detail::findUnchanged{});
+        Utils::Function<Detail::findUnchanged, Detail::findUnchanged,
+                        true>(Detail::findUnchanged{});
 
     constexpr auto findNumChanged =
-        Utils::Function(Detail::findNumChanged{});
+        Utils::Function<Detail::findNumChanged,
+                        Detail::findNumChanged, true>(
+            Detail::findNumChanged{});
 
     constexpr auto findNumUnchanged =
-        Utils::Function(Detail::findNumUnchanged{});
+        Utils::Function<Detail::findNumUnchanged,
+                        Detail::findNumUnchanged, true>(
+            Detail::findNumUnchanged{});
 
-    constexpr auto findString = Utils::Function(Detail::findString{});
+    constexpr auto findString =
+        Utils::Function<Detail::findString, Detail::findString, true>(
+            Detail::findString{});
 
     constexpr auto findNumExact =
-        Utils::Function(Detail::findNumExact{});
+        Utils::Function<Detail::findNumExact, Detail::findNumExact,
+                        true>(Detail::findNumExact{});
 
     constexpr auto findNumWithinRange =
-        Utils::Function(Detail::findNumWithinRange{});
+        Utils::Function<Detail::findNumWithinRange,
+                        Detail::findNumWithinRange, true>(
+            Detail::findNumWithinRange{});
 
     template <typename... Features>
     Utils::Vec<Node<Map, Features...>> getMaps(pid_t pid);
@@ -317,12 +328,12 @@ namespace RealtimeMemoryForensics::Detail
 
     template <typename node_t>
         requires IsNode<node_t>
-    Utils::Vec<Node<Map>>
+    Utils::Vec<node_t>
     findString::operator()(const node_t&          nodeSnap,
                            const std::string_view str) const
     {
-        Utils::Vec<Node<Map>> results;
-        auto                  span = nodeSnap.span();
+        Utils::Vec<node_t> results;
+        auto               span = nodeSnap.span();
         const char* head = reinterpret_cast<const char*>(span.data());
         const char* begin = head;
         const char* end   = head + span.size();
@@ -336,7 +347,7 @@ namespace RealtimeMemoryForensics::Detail
 
             if (std::memcmp(head, str.data(), str.size()) == 0)
             {
-                Node<Map> mrp           = nodeSnap;
+                node_t mrp              = nodeSnap;
                 mrp.map.relativeAddress = head - begin;
                 mrp.map.relativeSize    = str.size();
                 results.push_back(mrp);
@@ -349,17 +360,17 @@ namespace RealtimeMemoryForensics::Detail
 
     template <typename... Features, typename N, typename node_t>
         requires IsNode<node_t>
-    Utils::Vec<Node<Map>>
+    Utils::Vec<node_t>
     findNumExact::operator()(const node_t& nodeSnap,
                              const N       number) const
     {
         using num_t             = std::decay_t<N>;
         std::span<uint8_t> span = nodeSnap.span();
         // Convert wider node into thinner node.
-        Utils::Vec<Node<Map>> results;
-        const size_t          alignment     = alignof(N);
-        const size_t          size          = sizeof(N);
-        uintptr_t             bytesCompared = 0;
+        Utils::Vec<node_t> results;
+        const size_t       alignment     = alignof(N);
+        const size_t       size          = sizeof(N);
+        uintptr_t          bytesCompared = 0;
         if ((nodeSnap.tbegin() / alignment) * alignment <
             nodeSnap.tend())
         {
@@ -374,7 +385,7 @@ namespace RealtimeMemoryForensics::Detail
             memcpy(&value, span.data() + bytesCompared, size);
             if (value == number)
             {
-                Node<Map> node = nodeSnap;
+                node_t node = nodeSnap;
                 node.map.relativeAddress += bytesCompared;
                 node.map.relativeSize = size;
                 results.push_back(node);

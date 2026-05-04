@@ -5,18 +5,50 @@
 
 namespace RealtimeMemoryForensics
 {
+    template <typename... Args>
+    class Node;
     template <typename T>
-    concept IsNode = requires(T t) { T::IsNode; };
+    concept IsNode = requires(T t) { std::decay_t<T>::IsNode; };
     template <typename Node_t, typename... Features>
     concept NodeWithFeatures = requires {
         IsNode<Node_t>;
         (std::is_base_of_v<Features, Node_t>, ...);
     };
+    class Map;
+    class Snapshot;
+    class Typed;
+    class Struct;
+    class Pointer;
 
+    // Consider forcing a sort of strict order using enable if
+    // like
     template <typename... Args>
     class Node : public Args...
+    // class Node:
+    //      public std::enable_if<std::disjunction_v<std::is_same<Map, Args>...>, Map>
+    //      public std::enable_if<std::disjunction_v<std::is_same<Snapshot, Args>...>, Snapshot>
+    //      public std::enable_if<std::disjunction_v<std::is_same<Typed, Args>...>, Typed>
+    //      public std::enable_if<std::disjunction_v<std::is_same<Struct, Args>...>, Struct>
+    //      public std::enable_if<std::disjunction_v<std::is_same<Pointer, Args>...>, Pointer>
     {
       public:
+        // Only adds the feature if it doesn't exist.
+        template <typename T>
+        using AddFeature = Node<
+            Args...,
+            std::enable_if<
+                !std::disjunction_v<std::is_same<Args, T>...>, T>>;
+
+        // Removes the feature if it exists
+        template <typename ToRemove>
+        using WithoutFeature = Node<
+            std::enable_if<!std::same_as<Args, ToRemove>, Args>...>;
+
+        template <typename ToRemove, typename ToAdd>
+        using SwapFeature =
+            Node<std::conditional<std::same_as<Args, ToRemove>, ToAdd,
+                                  Args>...>;
+
         struct VecOp : public Args::VecOp...
         {
         };
@@ -64,14 +96,6 @@ namespace RealtimeMemoryForensics
         static_assert(!std::is_polymorphic_v<SelfType>);
     }
 
-    // IDK why but these conversions are working without me defining them?
-    // My guess is that the compiler can use this templated conversions
-    // to use the move and copy features of non-templated data structs.
-
-    // TODO: Copying and moving doesn't do anything right now...
-    // Need to fix by only instantiating mixins that are present
-    // in both.
-    // TODO: Implement for copying!!!
     template <typename... Args>
     template <typename TargetFeature, typename OtherNode>
     TargetFeature Node<Args...>::copy(const OtherNode& other)
@@ -80,20 +104,10 @@ namespace RealtimeMemoryForensics
         if constexpr (std::is_base_of_v<TargetFeature,
                                         CleanOtherNode>)
         {
-            // rmf_Info("Compatible base copy construction: \n\t{} => "
-            //          "{}\n\tBase: {}",
-            //          typeid(CleanOtherNode).name(),
-            //          typeid(TargetFeature).name(),
-            //          typeid(Node<Args...>).name());
             return static_cast<const TargetFeature&>(other);
         }
         else
         {
-            // rmf_Info("Incompatible base copy construction: \n\t{} => "
-            //          "{}\n\tBase: {}",
-            //          typeid(CleanOtherNode).name(),
-            //          typeid(TargetFeature).name(),
-            //          typeid(Node<Args...>).name());
             return TargetFeature();
         }
     }
@@ -105,20 +119,10 @@ namespace RealtimeMemoryForensics
         if constexpr (std::is_base_of_v<TargetFeature,
                                         CleanOtherNode>)
         {
-            rmf_Info("Compatible base move construction: \n\t{} => "
-                     "{}\n\tBase: {}",
-                     typeid(CleanOtherNode).name(),
-                     typeid(TargetFeature).name(),
-                     typeid(Node<Args...>).name());
             return std::move(static_cast<TargetFeature&>(other));
         }
         else
         {
-            rmf_Info("Incompatible base move construction: \n\t{} => "
-                     "{}\n\tBase: {}",
-                     typeid(CleanOtherNode).name(),
-                     typeid(TargetFeature).name(),
-                     typeid(Node<Args...>).name());
             return TargetFeature();
         }
     }

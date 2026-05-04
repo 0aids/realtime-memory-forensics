@@ -5,6 +5,7 @@
 #include "rmf/utils/threadpool.hpp"
 #include "rmf/logging/logging.hpp"
 #include <functional>
+#include <iterator>
 #include <ranges>
 #include <tuple>
 #include <type_traits>
@@ -12,7 +13,8 @@
 
 namespace RealtimeMemoryForensics::Utils
 {
-    template <typename F, typename FT = F>
+    // Consider nttp here instead?
+    template <typename F, typename FT = F, bool Flatten = false>
     class Function
     {
         F  m_func;
@@ -100,12 +102,12 @@ namespace RealtimeMemoryForensics::Utils
             requires { std::function{std::declval<T>()}; };
 
         // A temporary object that holds the information
-        template <typename Output>
+        template <typename Output, bool Flatten>
         struct Threader
         {
             Vec<std::move_only_function<Output()>> funcVec = {};
 
-            Vec<Output>                            with(ThreadPool&);
+            auto                                   with(ThreadPool&);
         };
 
         // Helper to unwrap one level of a range, preserving references.
@@ -179,23 +181,23 @@ namespace RealtimeMemoryForensics::Utils
         using InvokeAndUnwrap_t =
             typename InvokeAndUnwrap<Func, Tuple>::Type;
     }
-    template <typename F, typename FT>
-    constexpr Function<F, FT>::Function(F implFunction) :
+    template <typename F, typename FT, bool Flatten>
+    constexpr Function<F, FT, Flatten>::Function(F implFunction) :
         m_func(implFunction), m_mtFunc(implFunction)
     {
     }
 
     // fucking disgusting for cleaner code.
-    template <typename F, typename FT>
+    template <typename F, typename FT, bool Flatten>
     template <typename... Args>
-    auto Function<F, FT>::operator()(Args&&... args) const
+    auto Function<F, FT, Flatten>::operator()(Args&&... args) const
     {
         return m_func(std::forward<Args>(args)...);
     }
 
-    template <typename F, typename FT>
+    template <typename F, typename FT, bool Flatten>
     template <typename InputsTuple, typename... Args, size_t N>
-    auto Function<F, FT>::threaderImpl(Args&&... args) const
+    auto Function<F, FT, Flatten>::threaderImpl(Args&&... args) const
     {
         // Detail::TypePrinter<VecArgsTuple, InputsTuple>  Gah;
         using VecArgsTuple = typename std::tuple<Args&&...>;
@@ -203,7 +205,6 @@ namespace RealtimeMemoryForensics::Utils
         auto   idxSeq      = std::make_index_sequence<N>();
         size_t length      = 0;
         bool   isValid     = true;
-        // List of bools to indicate which types are vectorised.
         [&]<size_t... Is>(std::index_sequence<Is...>) mutable
         {
             (
@@ -254,7 +255,7 @@ namespace RealtimeMemoryForensics::Utils
         {
             rmf_Error(
                 "Unequal vectorized vector inputs to function!");
-            return Detail::Threader<Output>{};
+            return Detail::Threader<Output, Flatten>{};
         }
 
         // For each arg, get the underlying argument if it's a container that's not
@@ -304,16 +305,16 @@ namespace RealtimeMemoryForensics::Utils
             // Create lambda applying those elements.
             // Push said lambda
         }
-        return Detail::Threader<Output>{
+        return Detail::Threader<Output, Flatten>{
             .funcVec = std::move(inputs),
         };
     }
 
-    template <typename F, typename FT>
+    template <typename F, typename FT, bool Flatten>
     template <typename... Args, size_t N>
         requires(N > 0)
     constexpr auto
-    Function<F, FT>::templateThreaded(Args&&... args) const
+    Function<F, FT, Flatten>::templateThreaded(Args&&... args) const
     {
         // Run the compile-time search tree to find the correct unwrapping path!
         using InputsTuple = typename Detail::SignatureSearcher<
@@ -329,11 +330,11 @@ namespace RealtimeMemoryForensics::Utils
         return threaderImpl<InputsTuple>(std::forward<Args>(args)...);
     }
 
-    template <typename F, typename FT>
+    template <typename F, typename FT, bool Flatten>
     template <typename... Args, size_t N>
         requires(N > 0)
     constexpr auto
-    Function<F, FT>::defaultThreaded(Args&&... args) const
+    Function<F, FT, Flatten>::defaultThreaded(Args&&... args) const
     {
         // We cannot use threaded if operator() is templated, as this
         // would mean that we cannot determine the inputs without evaluating
@@ -344,10 +345,11 @@ namespace RealtimeMemoryForensics::Utils
         using InputsTuple = typename FTTraits::InputsTuple;
         return threaderImpl<InputsTuple>(std::forward<Args>(args)...);
     }
-    template <typename F, typename FT>
+    template <typename F, typename FT, bool Flatten>
     template <typename... Args, size_t N>
         requires(N > 0)
-    constexpr auto Function<F, FT>::threaded(Args&&... args) const
+    constexpr auto
+    Function<F, FT, Flatten>::threaded(Args&&... args) const
     {
         if constexpr (Detail::ValidSignature<FT>)
         {
@@ -361,19 +363,33 @@ namespace RealtimeMemoryForensics::Utils
 
     namespace Detail
     {
-        template <typename Output>
-        Vec<Output> Threader<Output>::with(ThreadPool& tp)
+        template <typename Output, bool Flatten>
+        auto Threader<Output, Flatten>::with(ThreadPool& tp)
         {
-            Vec<std::future<Output>> results;
-            results.reserve(funcVec.size());
+            Vec<std::future<Output>> futures;
+            futures.reserve(funcVec.size());
             for (auto&& f : funcVec)
             {
-                results.push_back(tp.pushTask(std::move(f)));
+                futures.push_back(tp.pushTask(std::move(f)));
             }
-            tp.awaitTasks();
-            rmf_Info("Number results: {}", results.size());
+            rmf_Info("Number results: {}", futures.size());
             rmf_Info("Number tasks: {}", funcVec.size());
-            return results.map(&std::future<Output>::get);
+            if constexpr (Flatten)
+            {
+                // Use the host thread to flatten constantly as results are gotten.
+                using UnderlyingType =
+                    std::ranges::range_value_t<Output>;
+                Vec<UnderlyingType> result;
+                for (auto& rFut : futures)
+                {
+                    auto value = rFut.get();
+                    std::move(value.begin(), value.end(),
+                              std::back_inserter(result));
+                }
+                return result;
+            }
+            else
+                return futures.map(&std::future<Output>::get);
         }
     }
 }
