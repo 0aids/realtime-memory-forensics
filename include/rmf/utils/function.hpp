@@ -1,7 +1,6 @@
 #ifndef functions_hpp_INCLUDED
 #define functions_hpp_INCLUDED
 // Custom function wrapper for threaded and mapping.
-#include "rmf/utils/vec.hpp"
 #include "rmf/utils/threadpool.hpp"
 #include "rmf/logging/logging.hpp"
 #include <functional>
@@ -10,9 +9,23 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
+#include "rmf/utils/meta.hpp"
 
 namespace RealtimeMemoryForensics::Utils
 {
+    namespace Detail
+    {
+
+        // A temporary object that holds the information
+        template <typename Output, bool Flatten>
+        struct Threader
+        {
+            std::vector<std::move_only_function<Output()>> funcVec =
+                {};
+
+            auto with(ThreadPool&);
+        };
+    }
     // Consider nttp here instead?
     template <auto Func, auto FuncThreaded = Func,
               bool Flatten = false>
@@ -61,140 +74,20 @@ namespace RealtimeMemoryForensics::Utils
 
 namespace RealtimeMemoryForensics::Utils
 {
-    namespace Detail
-    {
-        template <typename... T>
-        struct TypePrinter;
-
-        template <typename T>
-        struct FunctionTraitsGetter
-        {
-            using Valid = std::false_type;
-            // static_assert(
-            //     false,
-            //     "Type T is not a function, or not decoded via "
-            //     "a FunctionDecoder!");
-        };
-
-        template <typename R, typename... Args>
-        struct FunctionTraitsGetter<std::function<R(Args...)>>
-        {
-            using Valid              = std::true_type;
-            using Base               = std::function<R(Args...)>;
-            using InputsTuple        = std::tuple<Args...>;
-            using ForwardInputsTuple = std::tuple<Args&&...>;
-            using Output             = R;
-            using Signature          = R(Args...);
-            using FuncPtr            = R (*)(Args...);
-        };
-
-        template <typename F>
-        using FunctionDecoder =
-            decltype(std::function{std::declval<F>()});
-
-        template <typename F>
-        using FuncTraits = FunctionTraitsGetter<FunctionDecoder<F>>;
-
-        template <typename T>
-        concept ValidSignature =
-            requires { std::function{std::declval<T>()}; };
-
-        // A temporary object that holds the information
-        template <typename Output, bool Flatten>
-        struct Threader
-        {
-            Vec<std::move_only_function<Output()>> funcVec = {};
-
-            auto                                   with(ThreadPool&);
-        };
-
-        // Helper to unwrap one level of a range, preserving references.
-        // If we unwrap Vec<int>&, we get int&.
-        template <typename T>
-        struct UnwrapArg
-        {
-            using type = T;
-        };
-
-        template <std::ranges::range T>
-        struct UnwrapArg<T>
-        {
-            using type =
-                std::ranges::range_reference_t<std::decay_t<T>>;
-        };
-
-        template <typename Functor, typename AccTuple,
-                  typename RemTuple>
-        struct SignatureSearcher;
-
-        // Base case: No more arguments left. Test if the combination is valid.
-        template <typename Functor, typename... Acc>
-        struct SignatureSearcher<Functor, std::tuple<Acc...>,
-                                 std::tuple<>>
-        {
-            static constexpr bool is_valid =
-                std::is_invocable_v<Functor, Acc...>;
-            using type = std::conditional_t<is_valid,
-                                            std::tuple<Acc...>, void>;
-        };
-
-        // Recursive case: Branch on the next argument
-        template <typename Functor, typename... Acc, typename NextArg,
-                  typename... Rest>
-        struct SignatureSearcher<Functor, std::tuple<Acc...>,
-                                 std::tuple<NextArg, Rest...>>
-        {
-
-            // Branch 1: Try treating the argument as a scalar/direct pass
-            using TryDirect = typename SignatureSearcher<
-                Functor, std::tuple<Acc..., NextArg>,
-                std::tuple<Rest...>>::type;
-
-            // Branch 2: Try treating the argument as a vector to be unwrapped
-            using UnwrappedType =
-                typename UnwrapArg<std::decay_t<NextArg>>::type;
-
-            using TryUnwrapped = std::conditional_t<
-                std::is_same_v<std::decay_t<NextArg>,
-                               std::decay_t<UnwrappedType>>,
-                void, // Skip Branch 2 if it's not actually a range
-                typename SignatureSearcher<
-                    Functor, std::tuple<Acc..., UnwrappedType>,
-                    std::tuple<Rest...>>::type>;
-
-            // Return the first valid signature (Direct takes priority over Unwrapped)
-            using type =
-                std::conditional_t<!std::is_same_v<TryDirect, void>,
-                                   TryDirect, TryUnwrapped>;
-        };
-        template <typename Func, typename Tuple>
-        struct InvokeAndUnwrap;
-
-        template <typename Func, typename... Inputs>
-        struct InvokeAndUnwrap<Func, std::tuple<Inputs...>>
-        {
-            using Type = std::invoke_result_t<Func, Inputs...>;
-        };
-        template <typename Func, typename Tuple>
-        using InvokeAndUnwrap_t =
-            typename InvokeAndUnwrap<Func, Tuple>::Type;
-    }
 
     // fucking disgusting for cleaner code.
     template <auto Func, auto FuncThreaded, bool Flatten>
     template <typename... Args>
     auto Function<Func, FuncThreaded, Flatten>::operator()(
         Args&&... args) const
-    {
-        return Func(std::forward<Args>(args)...);
-    }
+    { return Func(std::forward<Args>(args)...); }
 
     template <auto Func, auto FuncThreaded, bool Flatten>
     template <typename InputsTuple, typename... Args, size_t N>
     auto Function<Func, FuncThreaded, Flatten>::threaderImpl(
         Args&&... args) const
     {
-        // Detail::TypePrinter<VecArgsTuple, InputsTuple>  Gah;
+        // Meta::TypePrinter<VecArgsTuple, InputsTuple>  Gah;
         using VecArgsTuple = typename std::tuple<Args&&...>;
         auto   vat         = std::forward_as_tuple(args...);
         auto   idxSeq      = std::make_index_sequence<N>();
@@ -245,9 +138,8 @@ namespace RealtimeMemoryForensics::Utils
                 }(),
                 ...);
         }.template operator()(idxSeq);
-        using Output =
-            Detail::InvokeAndUnwrap_t<decltype(FuncThreaded),
-                                      InputsTuple>;
+        using Output = Meta::InvokeAndUnwrap_t<decltype(FuncThreaded),
+                                               InputsTuple>;
         if (!isValid)
         {
             rmf_Error(
@@ -257,7 +149,7 @@ namespace RealtimeMemoryForensics::Utils
 
         // For each arg, get the underlying argument if it's a container that's not
         // an argument of FT.
-        Vec<std::move_only_function<Output()>> inputs = {};
+        std::vector<std::move_only_function<Output()>> inputs = {};
         inputs.reserve(length);
         rmf_Info("Length of vector: {}", length);
 
@@ -313,17 +205,15 @@ namespace RealtimeMemoryForensics::Utils
         Args&&... args) const
     {
         // Run the compile-time search tree to find the correct unwrapping path!
-        using InputsTuple = typename Detail::SignatureSearcher<
+        using InputsTuple = typename Meta::SignatureSearcher<
             decltype(FuncThreaded), std::tuple<>,
             std::tuple<Args&&...>>::type;
 
         // If SFINAE fails to find a path, the user gets a clean error message.
         static_assert(!std::is_same_v<InputsTuple, void>,
                       "Could not find a valid combination of direct "
-                      "or unwrapped arguments! "
-                      "(Did you constrain your operator() with a "
-                      "trailing return type?)");
-        // Detail::TypePrinter<InputsTuple> gah;
+                      "or unwrapped arguments! ");
+        // Meta::TypePrinter<InputsTuple> gah;
         return threaderImpl<InputsTuple>(std::forward<Args>(args)...);
     }
 
@@ -339,7 +229,7 @@ namespace RealtimeMemoryForensics::Utils
         // our inputs. So we need to somehow create a valid operator() in order
         // to get the inputs. But we can't do that without evaluating operator(),
         // unless we try every combination of Args and unwrapped Args.
-        using FTTraits = Detail::FuncTraits<decltype(FuncThreaded)>;
+        using FTTraits    = Meta::FuncTraits<decltype(FuncThreaded)>;
         using InputsTuple = typename FTTraits::InputsTuple;
         return threaderImpl<InputsTuple>(std::forward<Args>(args)...);
     }
@@ -349,7 +239,7 @@ namespace RealtimeMemoryForensics::Utils
     constexpr auto Function<Func, FuncThreaded, Flatten>::threaded(
         Args&&... args) const
     {
-        if constexpr (Detail::ValidSignature<decltype(FuncThreaded)>)
+        if constexpr (Meta::ValidSignature<decltype(FuncThreaded)>)
         {
             return defaultThreaded(std::forward<Args>(args)...);
         }
@@ -364,7 +254,7 @@ namespace RealtimeMemoryForensics::Utils
         template <typename Output, bool Flatten>
         auto Threader<Output, Flatten>::with(ThreadPool& tp)
         {
-            Vec<std::future<Output>> futures;
+            std::vector<std::future<Output>> futures;
             futures.reserve(funcVec.size());
             for (auto&& f : funcVec)
             {
@@ -382,7 +272,7 @@ namespace RealtimeMemoryForensics::Utils
                 // Use the host thread to flatten constantly as results are gotten.
                 using UnderlyingType =
                     std::ranges::range_value_t<Output>;
-                Vec<UnderlyingType> result;
+                std::vector<UnderlyingType> result;
                 for (auto& rFut : futures)
                 {
                     auto value = rFut.get();
@@ -392,7 +282,10 @@ namespace RealtimeMemoryForensics::Utils
                 return result;
             }
             else
-                return futures.map(&std::future<Output>::get);
+                return futures |
+                    std::views::transform([](auto& f)
+                                          { return f.get(); }) |
+                    std::ranges::to<std::vector<Output>>();
         }
     }
 }

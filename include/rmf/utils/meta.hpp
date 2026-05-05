@@ -1,0 +1,116 @@
+#ifndef meta_hpp_INCLUDED
+#define meta_hpp_INCLUDED
+
+#include <type_traits>
+#include <functional>
+
+namespace RealtimeMemoryForensics::Utils::Meta
+{
+    template <typename... T>
+    struct TypePrinter;
+
+    template <typename T>
+    struct FunctionTraitsGetter
+    {
+        using Valid = std::false_type;
+        // static_assert(
+        //     false,
+        //     "Type T is not a function, or not decoded via "
+        //     "a FunctionDecoder!");
+    };
+
+    template <typename R, typename... Args>
+    struct FunctionTraitsGetter<std::function<R(Args...)>>
+    {
+        using Valid              = std::true_type;
+        using Base               = std::function<R(Args...)>;
+        using InputsTuple        = std::tuple<Args...>;
+        using ForwardInputsTuple = std::tuple<Args&&...>;
+        using Output             = R;
+        using Signature          = R(Args...);
+        using FuncPtr            = R (*)(Args...);
+    };
+
+    template <typename F>
+    using FunctionDecoder =
+        decltype(std::function{std::declval<F>()});
+
+    template <typename F>
+    using FuncTraits = FunctionTraitsGetter<FunctionDecoder<F>>;
+
+    template <typename T>
+    concept ValidSignature =
+        requires { std::function{std::declval<T>()}; };
+
+    // Helper to unwrap one level of a range, preserving references.
+    // If we unwrap std::vector<int>&, we get int&.
+    template <typename T>
+    struct UnwrapArg
+    {
+        using type = T;
+    };
+
+    template <std::ranges::range T>
+    struct UnwrapArg<T>
+    {
+        using type = std::ranges::range_reference_t<std::decay_t<T>>;
+    };
+
+    template <typename Functor, typename AccTuple, typename RemTuple>
+    struct SignatureSearcher;
+
+    // Base case: No more arguments left. Test if the combination is valid.
+    template <typename Functor, typename... Acc>
+    struct SignatureSearcher<Functor, std::tuple<Acc...>,
+                             std::tuple<>>
+    {
+        static constexpr bool is_valid =
+            std::is_invocable_v<Functor, Acc...>;
+        using type =
+            std::conditional_t<is_valid, std::tuple<Acc...>, void>;
+    };
+
+    // Recursive case: Branch on the next argument
+    template <typename Functor, typename... Acc, typename NextArg,
+              typename... Rest>
+    struct SignatureSearcher<Functor, std::tuple<Acc...>,
+                             std::tuple<NextArg, Rest...>>
+    {
+
+        // Branch 1: Try treating the argument as a scalar/direct pass
+        using TryDirect =
+            typename SignatureSearcher<Functor,
+                                       std::tuple<Acc..., NextArg>,
+                                       std::tuple<Rest...>>::type;
+
+        // Branch 2: Try treating the argument as a vector to be unwrapped
+        using UnwrappedType =
+            typename UnwrapArg<std::decay_t<NextArg>>::type;
+
+        using TryUnwrapped = std::conditional_t<
+            std::is_same_v<std::decay_t<NextArg>,
+                           std::decay_t<UnwrappedType>>,
+            void, // Skip Branch 2 if it's not actually a range
+            typename SignatureSearcher<
+                Functor, std::tuple<Acc..., UnwrappedType>,
+                std::tuple<Rest...>>::type>;
+
+        // Return the first valid signature (Direct takes priority over Unwrapped)
+        using type =
+            std::conditional_t<!std::is_same_v<TryDirect, void>,
+                               TryDirect, TryUnwrapped>;
+    };
+    template <typename Func, typename Tuple>
+    struct InvokeAndUnwrap;
+
+    template <typename Func, typename... Inputs>
+    struct InvokeAndUnwrap<Func, std::tuple<Inputs...>>
+    {
+        using Type = std::invoke_result_t<Func, Inputs...>;
+    };
+    template <typename Func, typename Tuple>
+    using InvokeAndUnwrap_t =
+        typename InvokeAndUnwrap<Func, Tuple>::Type;
+}
+
+#endif // meta_hpp_INCLUDED
