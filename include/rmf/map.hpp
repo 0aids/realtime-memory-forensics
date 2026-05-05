@@ -1,10 +1,12 @@
 #ifndef map_hpp_INCLUDED
 #define map_hpp_INCLUDED
+#include "rmf/mixin_helpers.hpp"
 #include <cstddef>
 #include <magic_enum/magic_enum.hpp>
 #include <cstdint>
 #include <memory>
 #include <type_traits>
+#include "rmf/utils/expect.hpp"
 #include "rmf/utils/str.hpp"
 #include "rmf/node.hpp"
 extern "C"
@@ -63,19 +65,22 @@ namespace RealtimeMemoryForensics
         Detail::MapData map;
         using usesMap = std::true_type;
         // Returns the address of the beginning of this region.
-        constexpr uintptr_t tbegin() const;
+        constexpr uintptr_t MIXIN_METHOD(tbegin, () const);
         // Returns the address of the end of this region (exclusive).
-        constexpr uintptr_t tend() const;
+        constexpr uintptr_t MIXIN_METHOD(tend, () const);
         // Returns the relative beginning (relative to the parent)
-        constexpr uintptr_t rbegin() const;
+        constexpr uintptr_t MIXIN_METHOD(rbegin, () const);
         // Returns the relative beginning (relative to the parent)
-        constexpr uintptr_t rend() const;
+        constexpr uintptr_t MIXIN_METHOD(rend, () const);
         // Returns the parent beginning
-        constexpr uintptr_t pbegin() const;
+        constexpr uintptr_t MIXIN_METHOD(pbegin, () const);
         // Returns the parent beginning
-        constexpr uintptr_t pend() const;
+        constexpr uintptr_t MIXIN_METHOD(pend, () const);
 
-        operator std::string();
+        template <typename T>
+        Utils::ErrU<bool> MIXIN_METHOD(modify, ());
+
+                          operator std::string();
 
         struct VecOp
         {
@@ -118,9 +123,7 @@ namespace RealtimeMemoryForensics
     using namespace magic_enum::bitwise_operators;
     // Returns the address of the beginning of this region.
     constexpr uintptr_t Map::tbegin() const
-    {
-        return map.parentAddress + map.relativeAddress;
-    }
+    { return map.parentAddress + map.relativeAddress; }
     // Returns the address of the end of this region (exclusive). const
     constexpr uintptr_t Map::tend() const
     {
@@ -129,24 +132,16 @@ namespace RealtimeMemoryForensics
     }
     // Returns the relative beginning (relative to the parent) const
     constexpr uintptr_t Map::rbegin() const
-    {
-        return map.relativeAddress;
-    }
+    { return map.relativeAddress; }
     // Returns the relative beginning (relative to the parent) const
     constexpr uintptr_t Map::rend() const
-    {
-        return map.relativeAddress + map.relativeSize;
-    }
+    { return map.relativeAddress + map.relativeSize; }
     // Returns the parent beginning
     constexpr uintptr_t Map::pbegin() const
-    {
-        return map.parentAddress;
-    }
+    { return map.parentAddress; }
     // Returns the parent beginning
     constexpr uintptr_t Map::pend() const
-    {
-        return map.parentAddress + map.parentSize;
-    }
+    { return map.parentAddress + map.parentSize; }
     // using InnerType = BaseVec::InnerType;
 
     template <NodeWithFeatures<Map> Self>

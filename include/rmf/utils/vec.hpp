@@ -37,9 +37,11 @@ namespace RealtimeMemoryForensics::Utils
         using BaseType::BaseType;
         using InnerType = T;
 
-        // TODO: Threaded wrapper.
         template <typename F, typename... Args>
         auto map(F&& f, Args&&... args);
+
+        template <auto F, typename... Args>
+        auto mapThreaded(Args&&... args);
 
         template <typename F, typename... Args>
             requires std::is_same_v<std::invoke_result_t<F, Args...>,
@@ -58,11 +60,21 @@ namespace RealtimeMemoryForensics::Utils
     auto Vec<T, Operator, Allocator>::map(F&& f, Args&&... args)
     {
         using ReturnType = std::invoke_result_t<F, T&, Args...>;
-        return *this |
-            std::views::transform(
-                [&](T& item)
-                { return std::invoke(f, item, args...); }) |
-            std::ranges::to<Vec<ReturnType>>();
+        if constexpr (std::same_as<ReturnType, void>)
+        {
+            // hmmm.
+            for (auto& m : *this)
+            {
+                // hmm forward doesn't work here?
+                f(m, std::forward<Args>(args)...);
+            }
+        }
+        else
+            return *this |
+                std::views::transform(
+                    [&](T& item)
+                    { return std::invoke(f, item, args...); }) |
+                std::ranges::to<Vec<ReturnType>>();
     }
 
     template <typename T, typename Operator, typename Allocator>
@@ -91,5 +103,14 @@ namespace RealtimeMemoryForensics::Utils
             }
         }
         return result;
+    }
+
+    // Threaded wrapper!
+    template <typename T, typename Operator, typename Allocator>
+    template <auto F, typename... Args>
+    auto Vec<T, Operator, Allocator>::mapThreaded(Args&&... args)
+    {
+        return Utils::Function<F, F, false>().threaded(
+            *this, std::forward<Args>(args)...);
     }
 }
