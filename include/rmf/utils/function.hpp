@@ -279,14 +279,13 @@ namespace RealtimeMemoryForensics::Utils
                         if constexpr (std::is_convertible_v<
                                           VecArg, InputType>)
                         {
-                            if constexpr (std::is_rvalue_reference_v<
-                                              VecArg>)
-                                return std::move(std::get<Is>(vat));
-                            return std::move(std::get<Is>(vat));
+                            return std::forward<InputType>(
+                                std::get<Is>(vat));
                         }
                         else
                         {
-                            return std::move(std::get<Is>(vat)[i]);
+                            return std::forward<InputType>(
+                                std::get<Is>(vat)[i]);
                         }
                     }()...);
             }.template operator()(idxSeq);
@@ -296,7 +295,7 @@ namespace RealtimeMemoryForensics::Utils
                 [tup = std::move(tup)]() mutable
                 {
                     return std::apply(std::move(FuncThreaded),
-                                      std::move(tup));
+                                      std::forward<InputsTuple>(tup));
                 });
             // Create lambda applying those elements.
             // Push said lambda
@@ -373,7 +372,12 @@ namespace RealtimeMemoryForensics::Utils
             }
             rmf_Info("Number results: {}", futures.size());
             rmf_Info("Number tasks: {}", funcVec.size());
-            if constexpr (Flatten)
+            if constexpr (std::same_as<void, Output>)
+            {
+                tp.awaitTasks();
+                return;
+            }
+            else if constexpr (Flatten)
             {
                 // Use the host thread to flatten constantly as results are gotten.
                 using UnderlyingType =

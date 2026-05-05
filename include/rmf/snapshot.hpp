@@ -31,8 +31,8 @@ namespace RealtimeMemoryForensics
       public:
         struct VecOp
         {
-            template <class vecSelf>
-            void capture(this vecSelf& self, pid_t pid);
+            // template <class vecSelf>
+            // void capture(this vecSelf& self, pid_t pid);
         };
         using usesSnapshot = std::true_type;
 
@@ -120,14 +120,14 @@ namespace RealtimeMemoryForensics
         self.snap = Detail::readProcess(self.map, pid);
     }
 
-    template <class vecSelf>
-    void Snapshot::VecOp::capture(this vecSelf& self, pid_t pid)
-    {
-        for (auto& node : self)
-        {
-            node.capture(pid);
-        }
-    }
+    // template <class vecSelf>
+    // void Snapshot::VecOp::capture(this vecSelf& self, pid_t pid)
+    // {
+    //     for (auto& node : self)
+    //     {
+    //         node.capture(pid);
+    //     }
+    // }
 
 }
 #endif // snapshot_hpp_INCLUDED

@@ -5,6 +5,7 @@
 #include <cstring>
 #include "rmf/map.hpp"
 #include "rmf/node.hpp"
+#include "rmf/snapshot.hpp"
 #include "rmf/utils/function.hpp"
 
 #include "rmf/utils/vec.hpp"
@@ -90,6 +91,12 @@ namespace RealtimeMemoryForensics
                                              const N&      min,
                                              const N&      max) const;
         };
+        struct captureNodes
+        {
+            template <typename node_t>
+                requires IsNode<node_t>
+            void operator()(node_t& node, pid_t pid) const;
+        };
     }
 
     // Threadify functions.
@@ -120,6 +127,10 @@ namespace RealtimeMemoryForensics
     constexpr auto findNumWithinRange =
         Utils::Function<Detail::findNumWithinRange{},
                         Detail::findNumWithinRange{}, true>();
+
+    constexpr auto captureNodes =
+        Utils::Function<Detail::captureNodes{},
+                        Detail::captureNodes{}, false>();
 
     template <typename... Features>
     Utils::Vec<Node<Map, Features...>> getMaps(pid_t pid);
@@ -426,6 +437,12 @@ namespace RealtimeMemoryForensics::Detail
             bytesCompared += alignment;
         }
         return results;
+    }
+    template <typename node_t>
+        requires IsNode<node_t>
+    void captureNodes::operator()(node_t& node, pid_t pid) const
+    {
+        node.capture(pid);
     }
 
 }

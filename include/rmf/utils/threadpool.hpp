@@ -224,7 +224,8 @@ namespace RealtimeMemoryForensics::Utils::Detail
 namespace RealtimeMemoryForensics::Utils
 {
     // A task is a function wrapper, which holds a promise and a void function that fulfills the promise.
-    // This is a packaged task?
+    // Consider having threads capture a slot in the queue, and doesn't move the data out,
+    // rather using references to said data to reduce the need for moves.
     template <typename Func, typename... Args, typename ReturnType>
     std::future<ReturnType> ThreadPool::pushTask(Func func,
                                                  Args&&... args)

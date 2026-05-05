@@ -56,7 +56,14 @@ int main(int argc, const char* argv[])
         getMaps<Snapshot>(PID).hasPerms("r");
 
     // Capture everything
-    maps.capture(PID);
+    // TODO Not really sure about adding this as a vecop. Only temporarily for now.
+    // Ideally I would like some sort of application like
+    // maps.applyMethod(&Snapshot::Capture, PID);
+    // maps.applyMethod.threaded(&Snapshot::Capture, PID).with(tp);
+    // but unfortunately I can't figure out how to get syntax like this to work.
+    // Stupid stuff with the c++ templates.
+    // Vecops are normally for filtering.
+    captureNodes.threaded(maps, PID).with(tp);
 
     // Search for the string
     auto newMaps = findString.threaded(maps, strToFind).with(tp);

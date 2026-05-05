@@ -264,25 +264,33 @@ struct MoveTracker
     int value;
     MoveTracker() = default;
     MoveTracker(int v) : value(v) {}
-    MoveTracker(const MoveTracker& other) : value(other.value)
+    MoveTracker(const MoveTracker& other)
     {
+        numCopies = other.numCopies;
+        numMoves  = other.numMoves;
+        value     = other.value;
         numCopies++;
     }
-    MoveTracker(MoveTracker&& other) noexcept : value(other.value)
+    MoveTracker(MoveTracker&& other) noexcept
     {
-        other.value = 0;
+        numCopies = other.numCopies;
+        numMoves  = other.numMoves;
+        value     = other.value;
         numMoves++;
     }
     MoveTracker& operator=(const MoveTracker& other)
     {
-        value = other.value;
+        numCopies = other.numCopies;
+        numMoves  = other.numMoves;
+        value     = other.value;
         numCopies++;
         return *this;
     }
     MoveTracker& operator=(MoveTracker&& other) noexcept
     {
-        value       = other.value;
-        other.value = 0;
+        numCopies = other.numCopies;
+        numMoves  = other.numMoves;
+        value     = other.value;
         numMoves++;
         return *this;
     }
@@ -291,22 +299,36 @@ struct MoveTracker
 TEST(function, threaded_perfectForwarding_byValue)
 {
     constexpr auto func =
-        mfu::Function<[](MoveTracker t) { return t.value; }>();
+        mfu::Function<[](MoveTracker t) { return t; }>();
     mfu::ThreadPool     tp(1);
     vector<MoveTracker> items;
     for (int i = 0; i < 5; i++)
         items.emplace_back(i * 10);
     auto r = func.threaded(items).with(tp);
     ASSERT_EQ(r.size(), 5);
-    EXPECT_EQ(r[0], 0);
-    EXPECT_EQ(r[1], 10);
-    EXPECT_EQ(r[2], 20);
-    EXPECT_EQ(r[3], 30);
-    EXPECT_EQ(r[4], 40);
-    for (auto& item : items)
+    EXPECT_EQ(r[0].value, 0);
+    EXPECT_EQ(r[1].value, 10);
+    EXPECT_EQ(r[2].value, 20);
+    EXPECT_EQ(r[3].value, 30);
+    EXPECT_EQ(r[4].value, 40);
+    for (auto& r1 : r)
     {
-        EXPECT_EQ(item.value, 0);
+        EXPECT_LE(r1.numCopies, 1);
+        // This fails, as data MUST be moved, unless we only store references to data.
+        // It moves about 6 or so times (previously was double that).
+        // The moves (according to gdb) are from:
+        // 0. (not sure, doesn't show on gdb but would make sense) vector members moved to
+        // 		temporary vector for holding tasks.
+        // 1. The threadpool consuming data moves it.
+        // 2. Capturing and returning the result moves.
+        // 3. Other moves I am not aware of, I have honestly no clue where
+        // 		the rest of the moves are coming from.
+        // EXPECT_EQ(r1.numMoves, 0);
     }
+    // for (auto& item : items)
+    // {
+    //     // EXPECT_EQ(item.value, 0);
+    // }
 }
 
 TEST(function, threaded_perfectForwarding_lvalueRef)

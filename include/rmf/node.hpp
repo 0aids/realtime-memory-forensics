@@ -14,11 +14,11 @@ namespace RealtimeMemoryForensics
         IsNode<Node_t>;
         (std::is_base_of_v<Features, Node_t>, ...);
     };
-    class Map;
-    class Snapshot;
-    class Typed;
-    class Struct;
-    class Pointer;
+    // class Map;
+    // class Snapshot;
+    // class Typed;
+    // class Struct;
+    // class Pointer;
 
     // Consider forcing a sort of strict order using enable if
     // like

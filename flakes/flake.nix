@@ -58,6 +58,7 @@
             gtest
             pre-commit
             ruff
+            gdb
             # root
           ];
         };
