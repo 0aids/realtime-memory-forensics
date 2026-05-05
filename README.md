@@ -238,78 +238,64 @@ Vec<Node<Map>> maps = getMapsBy(pid)
 // Most pure operation functions provide a threaded method, which works multithreaded.
 Vec<Node<Map, Snapshot>> snapshots = makeSnapshot.threaded(maps, pid).with(tp);
 
-// For member methods, this is not the case.
-Vec<Node<Map, Snapshot>> snapshots = maps.capture(pid);
+// Alternatively
+Vec<Node<Map, Snapshot>> snapshots = maps.map.threaded(&Snapshot::Make).with(tp);
 
 // If we want to work on an individual node, we can do the following
 Node<Map, Snapshot> snapshot = maps[0].capture(pid);
 
 // Obviously we can just access the data raw
-mf::Node<mf::Map, mf::Snapshot> snap1 = snapshots.front();
+mf::Node<Map, Snapshot> snap1 = snapshots.front();
 
 // find* are static classes that support operator(), or a .threaded version which takes in an analyzer.
 // For templated functions, use something like the following
 // template <Numeral T>
 // constexpr auto findNumInRange<T> = mfu::function(implFunc<T>);
-Vec<mf::Map> stringInSnap = findStr.threaded(snapshots, "RandomString!").with(tp);
-Vec<mf::Map> floatYRanges = findNumInRange<float>.threaded(snapshots, 0.99, 1.01).with(tp);
-Vec<mf::Map> numCloseTo = findNumCloseTo<double>.threaded(snapshots, 1e5, 0.5).with(tp);
-Vec<mf::Map> strLike = findStrLike.threaded(snapshots).with(tp);
-Vec<mf::Map> exactNum = findNum<uint32_t>.threaded(snapshots, 1000).with(tp);
+Vec<mf::Node<Map>> stringInSnap = findStr.threaded(snapshots, "RandomString!").with(tp);
+Vec<mf::Node<Map>> floatYRanges = findNumInRange<float>.threaded(snapshots, 0.99, 1.01).with(tp);
+Vec<mf::Node<Map>> numCloseTo = findNumCloseTo<double>.threaded(snapshots, 1e5, 0.5).with(tp);
+Vec<mf::Node<Map>> strLike = findStrLike.threaded(snapshots).with(tp);
+Vec<mf::Node<Map>> exactNum = findNum<uint32_t>.threaded(snapshots, 1000).with(tp);
 
 // We can also mass resize or get the names of all the maps.
-Vec<mf::sptr<mf::str>> names = vecMaps.map(mf::Node<mf::Map>::getName);
-Vec<mf::Node<mf::Map>> resized = vecMaps.map(mf::Node<mf::Map>::);
+// We use thie implementations which are the capital letter'd versions.
+Vec<mf::sptr<mf::str>> names = vecMaps.map();
+
+Vec<mf::Node<Map>> resized = vecMaps.map<&Map::Resize>(MapDelta{.offset=-0xff, .deltaSize=0xff});
 
 // You can coerce results and then extract values.
 // Say for example our floats we found are expected to be Y values in a vec3d.
 // mfu::vec has specialisations for certain types that automatically parallelise.
-Vec<mf::Node<mf::Map>> vec3dMap = floatYRanges.fromField(vec3dY);
+Vec<mf::Node<Map, Typed>> vec3dMap = floatYRanges.applyMethod<Field::FromField>(vec3dY);
+
 // Alternatively
-Vec<mf::Node<mf::Map>> vec3dMap = vec3dY.applyTo(floatYRanges);
-// mfu::vec also has implicit conversions to std::vector, as it inherits from it.
-
-// Or we can turn them into nodes, which holds type information as well.
-Vec<mf::Node<mf::Map, mf::Typed>> vec3dNodes = floatYRanges.fromField(vec3dY);
-Vec<mf::Node<mf::Map, mf::Typed>> vec3dNodes = vec3dMap.fromType(vec3d);
-// These will move properties of vec3dy such that it assumes that the field vec3dy is the one that
-// has been found, and will resize around that fact.
-
-// This is done by making fromField return a Vec<rmf::Node<mf::Map, mf::Typed>>, which can be implicitly converted into Vec<rmf::Node<mf::Map, mf::Typed><mf::Map>>
-// Polymorphism is not used here, rather concepts and templating which works because some comptime condition
-// "Map_compatible" is satisfied.
+Vec<mf::Node<Map, Typed>> vec3dMap = vec3dY.nodify(floatYRanges);
 
 // We can also access data of nodes.
 mf::Node<mf::Map, mf::Typed> node = vec3dNodes.front();
 
-// Abusing the type system ;)
 // A node that owns snapshot data from pid.
-mf::WideNode nodeWithCapture = node.capture(pid);
-mf::WideProperty wideProperty = nodeWithCapture.property("x");
+mf::Node<Map, Snapshot, Typed> nodeWithCapture = node.capture(pid);
+mf::Node<Map, Snapshot, Typed> nodeProperty = nodeWithCapture.property("x");
 
 // Or equivalently with less capturing
-mf::Node<mf::Map, mf::Typed> nodeProperty = node.property("x");
-mf::WideProperty wideProperty = nodeProperty.capture(pid);
+mf::Node<Map, Typed> nodeProperty = node.property("x");
+mf::Node<Map, Snapshot, Typed> wideProperty = nodeProperty.capture(pid);
 
-// Not really sure about nested types.
-float f = wideProperty.as<float>();
+// Entire schema to view a field
+float xValue = StructType
+                .getField("x")
+                .nodify(node)
+                .capture(pid)
+                .typedAs<Primitive>()
+                .as<float>();
 
-mf::Info("value x of node: {}", node.capture(pid).property("x").as<float>());
-
-mf::Info("value x of node: {}", node.property("x").capture(pid).as<float>());
-// decltype(value) is some contiguous random access container of uint8_t, with the data() method,
-// who's true type depends on the order of operations. The size is the size of the property, in bytes.
-// The .as method is available for converting into the correct type.
-auto value = node.property("x").capture(pid);
-
-
-// You can also capture a large amount of data by applying the parallel to the capture part.
-// Might have to use monads or smth for this.
-// The static functions build a monad that is run by map?
-// And then all class methods are just run the static method generated "monads"?
-Vec<float> parallelised_capture = vec3dNodes.map(vec3dNodes::property("x").capture(pid).as<float>());
-Vec<float> parallelised_capture = vec3dNodes.map.threaded(vec3dNodes::property("x").capture(pid).as<float>()).with(tp);
-
+// Similar.
+float yValue = StructType
+                .nodify(node.capture(pid))
+                .nodeAtField(vec3dy)
+                .typedAs<Primitive>()
+                .as<float>();
 
 /***************************************/
 /******* Memory graph operations *******/
