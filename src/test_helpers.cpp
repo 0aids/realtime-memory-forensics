@@ -38,19 +38,13 @@ namespace RealtimeMemoryForensics::Tests
     }
 
     TestBuffer TestBuffer::make(size_t size)
-    {
-        return TestBuffer(size, false, sizeof(void*));
-    }
+    { return TestBuffer(size, false, sizeof(void*)); }
 
     TestBuffer TestBuffer::makeZeroed(size_t size)
-    {
-        return TestBuffer(size, true, sizeof(void*));
-    }
+    { return TestBuffer(size, true, sizeof(void*)); }
 
     std::span<uint8_t> TestBuffer::alignedBuffer()
-    {
-        return m_alignedSpan;
-    }
+    { return m_alignedSpan; }
 
     Utils::ErrU<bool> TestBuffer::pushPadding(size_t numBytes)
     {
@@ -68,21 +62,13 @@ namespace RealtimeMemoryForensics::Tests
     }
 
     TestBuffer::citer TestBuffer::chead() const
-    {
-        return m_head;
-    }
+    { return m_head; }
 
     TestBuffer::citer TestBuffer::cend() const
-    {
-        return m_alignedSpan.end();
-    }
+    { return m_alignedSpan.end(); }
 
     TestBuffer::citer TestBuffer::cbegin() const
-    {
-        return m_alignedSpan.begin();
-    }
+    { return m_alignedSpan.begin(); }
     size_t TestBuffer::headOffset() const
-    {
-        return chead() - cbegin();
-    }
+    { return chead() - cbegin(); }
 }

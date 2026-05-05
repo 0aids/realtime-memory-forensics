@@ -91,12 +91,12 @@ namespace RealtimeMemoryForensics
                                              const N&      min,
                                              const N&      max) const;
         };
-        struct captureNodes
-        {
-            template <typename node_t>
-                requires IsNode<node_t>
-            void operator()(node_t& node, pid_t pid) const;
-        };
+        // struct captureNodes
+        // {
+        //     template <typename node_t>
+        //         requires IsNode<node_t>
+        //     void operator()(node_t& node, pid_t pid) const;
+        // };
     }
 
     // Threadify functions.
@@ -128,9 +128,9 @@ namespace RealtimeMemoryForensics
         Utils::Function<Detail::findNumWithinRange{},
                         Detail::findNumWithinRange{}, true>();
 
-    constexpr auto captureNodes =
-        Utils::Function<Detail::captureNodes{},
-                        Detail::captureNodes{}, false>();
+    // constexpr auto captureNodes =
+    //     Utils::Function<Detail::captureNodes{},
+    //                     Detail::captureNodes{}, false>();
 
     template <typename... Features>
     Utils::Vec<Node<Map, Features...>> getMaps(pid_t pid);
@@ -438,12 +438,17 @@ namespace RealtimeMemoryForensics::Detail
         }
         return results;
     }
-    template <typename node_t>
-        requires IsNode<node_t>
-    void captureNodes::operator()(node_t& node, pid_t pid) const
-    {
-        node.capture(pid);
-    }
+
+    // Boilerplate, but can't find any other way to do it.
+    // Explicit object param + templates is not compatible with
+    // being threaded, nor compatible with being passed as function
+    // parameters.
+    // template <typename node_t>
+    //     requires IsNode<node_t>
+    // void captureNodes::operator()(node_t& node, pid_t pid) const
+    // {
+    //     node.capture(pid);
+    // }
 
 }
 namespace RealtimeMemoryForensics

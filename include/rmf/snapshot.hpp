@@ -2,6 +2,7 @@
 #define snapshot_hpp_INCLUDED
 
 #include "rmf/map.hpp"
+#include "rmf/mixin_helpers.hpp"
 #include "rmf/utils/function.hpp"
 #include <cstddef>
 #include <type_traits>
@@ -56,18 +57,20 @@ namespace RealtimeMemoryForensics
         // For testing, allow inserting other buffers that we generate ourselves.
         template <class Self>
         void insertBuffer(this Self& self, SnapshotBuffer&& buffer);
+
         template <class Self>
         void insertBuffer(this Self&            self,
                           const SnapshotBuffer& buffer);
 
         // Creates another capture.
         template <class Self>
-        void capture(this Self& self, pid_t pid);
+        void MIXIN_METHOD(capture, (this Self & self, pid_t pid));
+
         // Returns a view into the data.
         template <class Self>
         std::span<uint8_t> span(this const Self& self);
 
-        operator std::string() const;
+                           operator std::string() const;
     };
 }
 
@@ -110,15 +113,11 @@ namespace RealtimeMemoryForensics
 
     template <class Self>
     std::span<uint8_t> Snapshot::span(this const Self& self)
-    {
-        return *self.snap.m_data;
-    }
+    { return *self.snap.m_data; }
 
     template <class Self>
     void Snapshot::capture(this Self& self, pid_t pid)
-    {
-        self.snap = Detail::readProcess(self.map, pid);
-    }
+    { self.snap = Detail::readProcess(self.map, pid); }
 
     // template <class vecSelf>
     // void Snapshot::VecOp::capture(this vecSelf& self, pid_t pid)

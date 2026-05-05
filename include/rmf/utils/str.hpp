@@ -34,9 +34,7 @@ namespace RealtimeMemoryForensics::Utils
     template <size_t N>
     constexpr Detail::FixedSizeStr<N>::FixedSizeStr(
         const char (&str)[N])
-    {
-        std::copy_n(str, N, data);
-    }
+    { std::copy_n(str, N, data); }
 
     template <Detail::FixedSizeStr str>
     template <typename... Args>
@@ -50,8 +48,6 @@ namespace RealtimeMemoryForensics::Utils
     {
         template <Detail::FixedSizeStr str>
         constexpr auto operator""_f()
-        {
-            return Detail::FormatLiteral<str>{};
-        }
+        { return Detail::FormatLiteral<str>{}; }
     }
 }

@@ -85,6 +85,4 @@ TEST(Logging, logWithStringFormat)
 }
 
 TEST(Logging, logWithFloatFormat)
-{
-    rmf_Info("pi={}", 3.14);
-}
+{ rmf_Info("pi={}", 3.14); }

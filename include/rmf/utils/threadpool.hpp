@@ -66,9 +66,9 @@ namespace RealtimeMemoryForensics::Utils
         std::atomic<uint64_t>    m_numRunning  = 0;
 
         static void              threadFunction(
-                         const std::atomic<bool>&                            alive,
-                         Detail::SPMCQueue<std::move_only_function<void()>>& queue,
-                         std::atomic<uint64_t>& m_numRunning);
+            const std::atomic<bool>&                            alive,
+            Detail::SPMCQueue<std::move_only_function<void()>>& queue,
+            std::atomic<uint64_t>& m_numRunning);
 
       public:
         constexpr static size_t DefaultQueueSize = 2 << 20;
@@ -92,15 +92,11 @@ namespace RealtimeMemoryForensics::Utils::Detail
 {
     template <typename T, ptrdiff_t MaxThreads>
     uint64_t SPMCQueue<T, MaxThreads>::getConsumeIndex() const
-    {
-        return m_consumeCommitIndex.load();
-    }
+    { return m_consumeCommitIndex.load(); }
 
     template <typename T, ptrdiff_t MaxThreads>
     SPMCQueue<T, MaxThreads>::SPMCQueue(size_t _size) : size(_size)
-    {
-        m_data.resize(size);
-    }
+    { m_data.resize(size); }
 
     template <typename T, ptrdiff_t MaxThreads>
     bool SPMCQueue<T, MaxThreads>::tryEnqueue(T&& value)

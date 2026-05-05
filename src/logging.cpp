@@ -7,11 +7,11 @@ namespace mfld = mf::Logging::Detail;
 // Default log level is debug
 mfl::LogLevels mfl::LogLevel = mfl::Debug;
 
-std::string    mfl::formatPreamble(mfl::LogLevels         level,
-                                   const std::string_view threadName,
-                                   const std::string_view filename,
-                                   size_t                 lineNumber,
-                                   const std::string_view functionName)
+std::string mfl::formatPreamble(mfl::LogLevels         level,
+                                const std::string_view threadName,
+                                const std::string_view filename,
+                                size_t                 lineNumber,
+                                const std::string_view functionName)
 {
     return std::format("{}[{}][{}:{} - {}]",
                        mfld::StringColors[level],
@@ -19,6 +19,4 @@ std::string    mfl::formatPreamble(mfl::LogLevels         level,
                        lineNumber, functionName);
 }
 void mfl::setLogLevel(LogLevels level)
-{
-    mfl::LogLevel = level;
-}
+{ mfl::LogLevel = level; }

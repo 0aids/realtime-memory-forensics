@@ -7,9 +7,7 @@
 namespace RealtimeMemoryForensics
 {
     Snapshot::operator std::string() const
-    {
-        return "";
-    }
+    { return ""; }
 
     namespace Detail
     {

@@ -32,11 +32,11 @@ namespace RealtimeMemoryForensics::Logging
     extern LogLevels LogLevel;
     void             setLogLevel(LogLevels level);
 
-    std::string      formatPreamble(LogLevels              level,
-                                    const std::string_view threadName,
-                                    const std::string_view filename,
-                                    size_t                 lineNumber,
-                                    const std::string_view functionName);
+    std::string formatPreamble(LogLevels              level,
+                               const std::string_view threadName,
+                               const std::string_view filename,
+                               size_t                 lineNumber,
+                               const std::string_view functionName);
 
     template <typename... Args>
     void stderrAndFmt(LogLevels                   level,
