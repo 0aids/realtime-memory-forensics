@@ -64,7 +64,14 @@ namespace RealtimeMemoryForensics
 
         // Creates another capture.
         template <class Self>
-        void MIXIN_METHOD(capture, (this Self & self, pid_t pid));
+        Self& MIXIN_METHOD(capture, (this Self & self, pid_t pid));
+
+        struct captureF
+        {
+            template <class Self, typename... Args>
+            auto operator()(Self& self, Args&&... args)
+            { captureM(self, args...); }
+        };
 
         // Returns a view into the data.
         template <class Self>
@@ -116,8 +123,11 @@ namespace RealtimeMemoryForensics
     { return *self.snap.m_data; }
 
     template <class Self>
-    void Snapshot::capture(this Self& self, pid_t pid)
-    { self.snap = Detail::readProcess(self.map, pid); }
+    Self& Snapshot::capture(this Self& self, pid_t pid)
+    {
+        self.snap = Detail::readProcess(self.map, pid);
+        return self;
+    }
 
     // template <class vecSelf>
     // void Snapshot::VecOp::capture(this vecSelf& self, pid_t pid)

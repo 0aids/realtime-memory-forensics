@@ -78,9 +78,11 @@ namespace RealtimeMemoryForensics
         constexpr uintptr_t MIXIN_METHOD(pend, () const);
 
         template <typename T>
-        Utils::ErrU<bool> MIXIN_METHOD(modify, ());
+        Utils::ErrU<bool>                  MIXIN_METHOD(modify, ());
 
-                          operator std::string();
+        std::shared_ptr<const std::string> MIXIN_METHOD(getName, ());
+
+                                           operator std::string();
 
         struct VecOp
         {

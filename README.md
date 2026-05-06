@@ -1,56 +1,31 @@
 # Realtime Memory Forensics (rmf)
-A realtime program memory debugger / reverse engineering tool with
-multi-threaded high-throughput scanning, interactive gui with python
-bindings/scripting support, allowing reproducible analysis of key data flow
-via node-graph visualisation, all done without analysing executed assembly.\
+Realtime memory debugger/analysis tool for hooking and analyzing the structure
+of actively running linux processes, without interrupting via ptrace.
+Designed high-throughput without sacrificing clean API usage.
+Planned python-based DSL JIT, and visualisation tools.
 
-Done with a c++ API that is as developer friendly as possible by terribly abusing
-the C++ type system.
+# Currently available features
+1. Full process memory captures.
+2. Map filtering
+3. Multi-threaded memory searches and operations
+4. Direct raw memory access.
 
-(Ignore the mass amount of templating, I am in my metaprogramming phase)
+# Planned Features
+- [-] Type registry for using structs to help with analysis.
+- [ ] Memory graphs - The megastructure holding information
+        on process's pointer graph.
+- [ ] Python-backed DSL generator for repl-style data analysis
+- [ ] Raylib based visualisers for more visual analysis.
+- [ ] Schema based searching?
 
 # TODO
-- [-] Massive refactor for the below API.
-    - [x] Refactor errors/expected + error unions + optional
-    - [x] Refactor String format literal helper
-    - [x] Refactor Logging
-    - [x] Feature Function wrapper
-    - [x] Refactor threadpool
-    - [x] Feature Threaded function wrapper (analyzer replacement)
-    - [x] Implement base + mixins
-        - [x] Default map
-        - [x] Snapshot mixin
-    - [x] Tidy up function wrapper api
-        - [x] Allow late evaluation of operator() for Utils::Function
-        - [x] Allow late evaluation of threaded() for Utils::Function
-    - [x] Fix copies and moves between different node types by removing
-          the base template, and instead use deducing this.
-          https://devblogs.microsoft.com/cppblog/cpp23-deducing-this/#crtp
-    - [x] Apply node concept for all operation functors (otherwise deduction fails)
-    - [x] Add back operations
-        - [x] Pid maps reading with nice API
-            - [x] Chunking
-            - [x] Filtering
-        - [-] Snapshot generation. (threaded + non-threaded)
-        - [x] Generic operations
-    - [ ] Write more tests!
-    - [ ] Get AI to write even even more tests!
-    - [ ] Allow different nodes for binary operations.
-    - [x] Add better testing features.
-        - [x] custom buffers
-        - [x] generating custom executables using functions
-    - [ ] Auto flattening of threaded().with() for desirable functions.
-          Mark functors with an "using allowFlattening = std::true_type"
-          Mainly using functors for operations anyways.
-    - [ ] Basic type parsing
-    - [ ] Redone struct registry
-    - [ ] Typed mixin for region
+- [ ] Allow different nodes for binary operations.
+- [ ] Basic type parsing
+- [ ] Redone struct registry
+- [ ] Typed mixin for region
 - [ ] Attempt 3 for memory graphs.
-    - [ ] Figure out shit
-- [ ] Attempt a visualiser for memory graphs.
-    - [ ] Opengl shader? Pure cpu rendering? Using which framework?
-- [ ] Attempt 2 at using cppyy for automatic template instantiation?
-- [ ] Attempt a gui for scripting via cppyy or cling.
+- [ ] Visualiser for memory graphs using raylib.
+- [ ] Write python-backed DSL.
 - [ ] done for now?
 - [ ] Consider serialisations
 - [ ] Test out multi-SPSC queues instead of SPMC queues for tasks? Or provide it as an alternative.
@@ -58,121 +33,42 @@ the C++ type system.
       which might not be a problem in this case? the Go scheduler uses work stealing as well, which
       might also be another interesting thing to consider. Cyclic arrays for queus are DEQUEs anyways.
 
-
-# Running tests
-Make sure that you have memory limits setup otherwise it will crash your computer on failing
-tests sometimes.
+# Building
+Dependencies automatically fetched via cmake.
 ```bash
-cmake -S . -B build -Dbuild_tests=ON && cmake --build build -j 12 && (ulimit -m 1000000 && ulimit -v 1000000 && cd build && ctest)
+cmake -S . -B build -Dtests=... -DUBsan=... -DAsan=... -DcompileExamples=... -DCMAKE_BUILD_TYPE=...
+cmake --build build -j $(nproc)
 ```
 
-# planned api structure/use
+# Running tests
+```bash
+cmake -S . -B build -Dtests=ON && cmake --build build -j 12 && (ulimit -m 1000000 && ulimit -v 1000000 && cd build && ctest)
+```
+
+# Planned C++ api
 ```cpp
-namespace mf = RealtimeMemoryForensics;
-namespace mfl = mf::Logging;
-namespace mfu = mf::Utils;
-/***************************/
-/****** Logging/utils ******/
-/***************************/
-// Only log errors
-mfl::setLogLevel(mf::LogError);
-mfl::stdout("Wowwy {}", 10); // cerr
-mfl::stderr("hello {}", "world"); // cout
-mfu::assert(..., "string"); // Will just throw, which we do not catch
-
-// Utils are common abbreviations or wrappers on std to make my life easier.
-mfu::opt<value_t, mfu::Errc> result;
-// Classic *result for dereferencing and non-classic ~result for checked dereferencing (as in throws if failed).
-// result.has() returns true if valid, or just implicit bool.
-mfu::pair<...> pair;
-mfu::tuple<...> tuple;
-mfu::Vec<...> vector;
-mfu::arr<...> array;
-mfu::strView;
-mfu::str;
-mfu::strf; // Wrapper for formatting specifically, generated by string literal operator f.
-
-// main errc union, all possible errors here. A lot of functions will return this.
-// With release build function, file, and line are removed.
-struct Errc {
-    enum ErrcEnum {
-        ... // All possible errors.
-    }
-    // The maximum amount of times the errors can be swapped.
-    static constexpr size_t maxDepth = RMF_ERRC_DEPTH; // Defaults to 5.
-    using LineNumber = size_t;
-    mfu::arr<std::string_view, maxDepth> function;
-    mfu::arr<std::string_view, maxDepth> file;
-    mfu::arr<LineNumber, maxDepth> line;
-    mfu::arr<ErrcEnum, maxDepth> errc;
-};
-
-struct ErrcThrow : public std::exception {
-private:
-    std::string generateMsg(ErrorEnum e, const char* file, lineNumber_t line,
-                  const char* function);
-public:
-    using std::exception...;
-    ErrcThrow();
-    const char* what() override;
-    // "Error @ [file : line : function] errc"
-    // " ^-> From @ [file : line : function] errc"
-    // "    ^-> From @ [file : line : function] errc"
-};
-
-rmf_retErr(result); // Propogates the error
-rmf_mkErr(enumErr); // Initialises an error with extra string metadata
-rmf_updErr(result, errc); // Updates with current line metadata.
-
-// For errors that are non-destructive/cannot be dealt with
-// Non-destructive error. These are just warnings.
-// Equivalent to mfl::warning, but also here just in case I want to modify logging a bit later.
-mf_Nde("details here");
-
-
-mfu::sptr<T>, mfu::toSptr<T>(...), other stuff.
-mfu::wptr<T>;
-mfu::uptr<T>;
-
-// A vector whos first element is aligned to anything, given that the alignment
-// is bigger than alignof(T), and a correct multiple.
-// Used for testing.
-mfu::vecAligned<T, size_t> ...
-
-// Type renaming used liberally - For better legibility
-// For example, functions that return pairs.
-using NumBytes = size_t;
-using UnixTime = uint64_t;
-mfu::pair<NumBytes, UnixTime> ...
-
-
 /****************************/
 /****** Create Structs ******/
 /****************************/
-// A lot of mf structures use shared pointers to hold implementations to prevent
-// unnecessary copies.
-// You can check if a type uses an sptr by checking the type::sptrBody constexpr static value.
-// mf::Type also has very basic parsing so that we can do some more typechecking.
-
 mf::TypeRegistry sr;
 
-mf::Type node = sr.struct_("Node")
+mf::Struct node = sr.struct_("Node")
     .field("uint32_t", "data")
     .field("Node *", "next")
 .end();
 
 // Or nested structs and chars
-mf::Type bytes100 = sr.struct_("Bytes100")
+mf::Struct bytes100 = sr.struct_("Bytes100")
     .field("uint8_t[100]", "data")
 .end();
 
-mf::Type vec3d = sr.struct_("vec3d")
+mf::Struct vec3d = sr.struct_("vec3d")
     .field("float", "x")
     .field("float", "y")
     .field("float", "z")
 .end();
 
-mf::Type customVec2dArr = sr.struct_("Vec2dArr")
+mf::Struct customVec2dArr = sr.struct_("Vec2dArr")
     .struct_("Vec2d")
         .field("float", "x")
         .field("float", "y")
@@ -181,47 +77,27 @@ mf::Type customVec2dArr = sr.struct_("Vec2dArr")
     .field("size_t", "length")
 .end();
 
-mf::TypePartial partial = sr.struct_("Programatically");
+mf::PartialStruct partial = sr.struct_("Programatically");
 // Programatically create structs
 for (size_t i = 0; i < 10; i++)
 {
     partial.field("uint8_t[{}]"f.fmt(i), "field{}"f.fmt(i));
 }
-mf::Type programatically = partial.end();
+mf::Struct programatically = partial.end();
 
-// Also consider adding class compatibility with vtables? That might be a bit too much for now.
-
-// Or we can just use our own struct (doesn't support classes? Not sure how that would be done language agnostic)
-// Not possible without c++26 reflection...
-// struct TestStruct {
-//     TestStruct* next;
-// };
-//
-// mf::Type testStruct = sr.struct_<TestStruct>();
-
-// It works on standard contiguous containers
-Vec<uint8_t> testVec(0x1000, 0);
-float gah = programatically(testVec.data())["x"];
-
-// Or we can just get some data about a field by doing the following:
-// Arbitrary spaces do not matter during accessing, as they are parsed into tokens.
+// Or mf::Struct with explicit cast via ".as<mf::Struct>()"
 mf::Type vec2dStruct = customVec2dArr["Vec2dArr"];
-// OR
+
+// Get nested struct value if possible
 mf::Type vec2dStruct = sr["Vec2dArr", "Vec2d"];
-size_t vec2dAlignment = vec2dStruct.alignment; // immutable value
-size_t vec2dAlignment = vec2dStruct.size; // immutable value
+size_t vec2dAlignment = vec2dStruct.alignment;
+size_t vec2dAlignment = vec2dStruct.size;
 
 // You can also get a field and it's data.
 // A field contains a type and a parent.
 mf::Field vec3dY = sr["vec3d", "y"];
 
 // We can reshape Maps based off fields and other stuff. See below.
-
-/*
- * Logic once, infinite wrappers.
- * Logic goes into functions.
-*/
-
 /***************************************/
 /******* Basic Memory Operations *******/
 /***************************************/
@@ -230,7 +106,7 @@ pid_t pid = ...;
 using namespace mf;
 
 // Get our original maps.
-Vec<Node<Map>> maps = getMapsBy(pid)
+Vec<Node<Map>> maps = getMaps(pid)
     .minSize(0x1000)
     .maxSize(0xffffff)
     .active(pid);
@@ -239,7 +115,7 @@ Vec<Node<Map>> maps = getMapsBy(pid)
 Vec<Node<Map, Snapshot>> snapshots = makeSnapshot.threaded(maps, pid).with(tp);
 
 // Alternatively
-Vec<Node<Map, Snapshot>> snapshots = maps.map.threaded(&Snapshot::Make).with(tp);
+Vec<Node<Map, Snapshot>> snapshots = maps.mapThreaded<Snapshot::captureM>(pid).with(tp);
 
 // If we want to work on an individual node, we can do the following
 Node<Map, Snapshot> snapshot = maps[0].capture(pid);
@@ -247,10 +123,7 @@ Node<Map, Snapshot> snapshot = maps[0].capture(pid);
 // Obviously we can just access the data raw
 mf::Node<Map, Snapshot> snap1 = snapshots.front();
 
-// find* are static classes that support operator(), or a .threaded version which takes in an analyzer.
-// For templated functions, use something like the following
-// template <Numeral T>
-// constexpr auto findNumInRange<T> = mfu::function(implFunc<T>);
+// find* are static functors that support operator(), or a .threaded version which takes in an analyzer.
 Vec<mf::Node<Map>> stringInSnap = findStr.threaded(snapshots, "RandomString!").with(tp);
 Vec<mf::Node<Map>> floatYRanges = findNumInRange<float>.threaded(snapshots, 0.99, 1.01).with(tp);
 Vec<mf::Node<Map>> numCloseTo = findNumCloseTo<double>.threaded(snapshots, 1e5, 0.5).with(tp);
@@ -258,18 +131,15 @@ Vec<mf::Node<Map>> strLike = findStrLike.threaded(snapshots).with(tp);
 Vec<mf::Node<Map>> exactNum = findNum<uint32_t>.threaded(snapshots, 1000).with(tp);
 
 // We can also mass resize or get the names of all the maps.
-// We use thie implementations which are the capital letter'd versions.
-Vec<mf::sptr<mf::str>> names = vecMaps.map();
+// We use this implementations which are the capital letter'd versions.
+Vec<mf::sptr<const std::string>> names = vecMaps.map<Map::getNameM>();
 
-Vec<mf::Node<Map>> resized = vecMaps.map<&Map::Resize>(MapDelta{.offset=-0xff, .deltaSize=0xff});
+Vec<mf::Node<Map>> resized = vecMaps.map<Map::resizeM>(MapDelta{.offset=-0xff, .deltaSize=0xff});
 
 // You can coerce results and then extract values.
 // Say for example our floats we found are expected to be Y values in a vec3d.
 // mfu::vec has specialisations for certain types that automatically parallelise.
-Vec<mf::Node<Map, Typed>> vec3dMap = floatYRanges.applyMethod<Field::FromField>(vec3dY);
-
-// Alternatively
-Vec<mf::Node<Map, Typed>> vec3dMap = vec3dY.nodify(floatYRanges);
+Vec<mf::Node<Map, Typed>> vec3dMap = floatYRanges.map<Field::fromFieldM>(vec3dY);
 
 // We can also access data of nodes.
 mf::Node<mf::Map, mf::Typed> node = vec3dNodes.front();
@@ -297,183 +167,60 @@ float yValue = StructType
                 .typedAs<Primitive>()
                 .as<float>();
 
-/***************************************/
-/******* Memory graph operations *******/
-/***************************************/
-// Templated, using anything that satisfies the concept of a node, and link.
-// This means that we can then use a special modified node that has extra metadata for guis.
-mf::MemoryGraph mg; // holds sptr.
+// We can pipe vectorised method operations together.
+Vec<float> xValues = vec3dNodes.pipe() |
+                         Struct::nodeAtFieldF("x") |
+                         Snapshot::captureF(pid) |
+                         Typed::typedAsF<Primitive>() |
+                         Primitive::asF<float>() |
+                     Pipe::end;
 
-// After we're happy with this, we can move the data to mg.
-// Has diffs?
-// Duplicates are ignored, but might print a warning.
-// ??: What happens to parts that are connected but separated by mgps? We will still have them connected, as it's connected in the single source of truth.
-// mgp holds a wptr to mg_impl, and vectors of NodeKeys and LinkKeys to their relevant slotmaps (references cannot be used because the datastructure is
-// constantly growing and shrinking and changing, so they will be invalidated incredibly easily).
-// However, mgp will have wrapper functions that would make it easier and friendlier on operations.
-// mgps use the widest available nodes.
-// Using Node<Map, Snapshot, Typed> (and maybe more for storing relations?)
-mf::MemoryGraphPart mgp = mg.push(vec3dNodes);
+Vec<float> xValues = vec3dNodes.pipe() |
+                         Struct::nodeAtFieldF("x") |
+                         Snapshot::captureF(pid) |
+                         Typed::typedAsF<Primitive>() |
+                         Primitive::asF<float>() |
+                     Pipe::endThreaded(tp);
+                     // Similar, but also allows threading.
 
-mf::MemoryGraphPart mgp = mg.findSources(snapshots, nodeKeys, sourceField);
-mf::MemoryGraphPart mgp = mg.findSources(snapshots, nodeKeys, sourceField, targetField);
-
-// The node being used will have to have pointer values.
-mf::MemoryGraphPart mgp = mg.findTargets(snapshots, sourceNodeKeys, targetField);
-
-// Removes Link-less nodes
-mf::MemoryGraphPart mgp = mg.pruneLinkless();
-
-// Removes links and nodes that have changed.
-mf::MemoryGraphPart mgp = mg.pruneExpired(newSnapshots);
-mf::MemoryGraphPart mgp = mg.pruneExpired.threaded(newSnapshots).with(tp);
-
-// Multithreaded operation. findSources is not actually a function, but a class.
-// The class has operator() and operator[]. operator() acts like a normal function
-// operator[] acts like a weird function, returning a special type with another operator() awaiting an analyzer.
-mf::MemoryGraphPart mgp = mg.findSources[snapshots, nodeKeys, sourceField](tp);
-
-// Equivalent to:
-mf::MemoryGraphPart mgp = mg.findSources.threaded(snapshots, nodeKeys, sourceField).with(tp);
-
-// What about traversal? of course can traverse.
-mf::MemoryGraphPart children = mg.getChildren(moreKeys[0]);
-mf::MemoryGraphPart parents = mg.getParents(moreKeys[0]);
-// No nodes, contains link references.
-mf::MemoryGraphPart outgoingLinks = mg.getOugoingLinks(moreKeys[0]);
-
-// Filtering is easy as well.
-mf::MemoryGraphPart mgp = mg.filterType(vec3d);
-mf::MemoryGraphPart mgp = mg.filter*(...);
-
-// Grabbing a node and checking their values.
-Vec<float> floats = mgp.nodes[0].capture.threaded(pid).property("x").as<float>().with(tp);
-
-// Or we can just get nodes with embedded snapshots.
-// But we do lose link information??
-Vec<mf::FullNode> vecFullNodes = mgp.nodes[0].capture.threaded(pid).with(tp);
-
-// using "e" to extract elementwise properties.
-Vec<float> floats = vecFullNodes.e.property("x");
-
-// possible undos?
-mg.pop();
-
-
+// To be updated as more features are added.
 ```
 
-# Struct registry
-planned design
-```cpp
-// Nodes is a special type which utilizes mixins for multiple different compile time features
-// It's goal is to be as efficient as possible while having a nice developer experience
-// The 2 main mixins currently used are Map, Snapshot, and this is supposed to be another one.
-// IE:
-Node<Map> map; // is a "node" that only contains information about memory.
-Node<Map, Snapshot> snap; // Is a "node" that contains information as well as a snapshot of the memory.
-// 4 main types of types.
-class Primitive;
-class Array;
-class Pointer;
-class Struct;
+# Planned Python API
+```python
+from rmfpy import getMaps, ThreadPool, Op, Primitive
+from rmfpy.types import TypeRegistry
+import rmfpy as mf
 
-// 1 designated mixin feature
-class Typed;
+tr = TypeRegistry()
+Node = tr.struct("Node").field("uint32_t","data").field("Node*","next").end()
+Vec3 = tr.struct("Vec3").field("float","x").field("float","y").field("float","z").end()
+Vec3_y = Vec3["y"]
 
-// Then how do we expose a
-Node<Map, Typed> node;
-node.property("X") // ? It's not possible.
-// Unless we do remove the typed mixin and just use the 4 different types instead:
-Node<Map, Struct> node;
-Node<Map, Type> newNode = node.field("x");
-// Where the type could be an array, pointer, primitive or another struct.
-Node<Map, Array> node;
-node[1]; // Can index stuff like this, which is no available in a struct.
-// Eventually we would reach a primitive?
-Node<Map, Pointer> node;
-// Do we separate them? I think so
-// So a struct registry will have a list of all the different types
-// For each different category.
-// They do inherit from the same base, but there are no virtual methods.
-// But then what do we do for type traversal? We don't know what
-// type we're going to end up traversing to in the end. So then what?
-// Have a massive "type" that inherits from all.
+tp = ThreadPool(8)
+PID = 1234
+# Completely eager JIT. I love coding in c++ to code in python to compile c++ to code in python.
+# 2 options:
+# 1. completely eager JIT. (Slightly slower, apparently easier to implement)
+# 2. partial lazy jit, only JIT and run on first access. (harder to implement, faster)
+# I think being able to switch between them is a good-ish idea. But for now
+# only using the completely eager JIT is fine.
+# So per-call evaluation is on. I don't think that the performance gain of delaying JIT
+# is worth it that much.
+maps = getMaps(PID).minSize(0x1000).maxSize(0xffffff).active(PID)
+snaps = maps.capture(PID, threaded=tp)
+
+strings  = snaps.findStr("RandomString!", threaded=tp)
+floats   = snaps.findNumInRange(mf.f32, 0.99, 1.01, threaded=tp)
+close_d  = snaps.findNumCloseTo(mf.f64, 1e5, 0.5)
+exact    = snaps.findNum(mf.uint32, 1000, threaded=tp)
+
+vec3d_maps = floats.fromField(Vec3_y)         # coerce to Vec3
+
+x_vals = (vec3d_maps
+          .pipe()
+          .nodeAtField("x")
+          .capture(PID, threaded=tp)
+          .typedAs(Primitive)
+          .asFloat())
 ```
-
-# Memory graphs
-planned design
-```cpp
-// mf::field has an sptr underneath.
-// mgr stores nodes in a slotmap, not a vector, so we can
-// have invalidatable references if needed.
-// Adds stuff
-template <NodeContains<Map, Typed> node_t>
-class FieldLink
-{
-	mf::Field sourceField;
-	mfu::SMapRef<node_t> source;
-
-	mf::Field targetField;
-	mfu::SMapRef<node_t> target;
-}
-
-struct Typed {
-	mf::Type type;
-	// Relevant functions with deducing this.
-	// ...
-}
-
-// Another mixin for linked
-// Burning questions:
-// - How are we initialised?
-//     Consider an "after" block that happens for copy and move.
-// - How do we referecnce self or the head of a struct?
-//     No clue. Have custom fields representing the heads?
-// - What about partially identified structs?
-//     No clue. Have custom fields representing the unknown?
-template <NodeContains<Map, Typed> node_t>
-struct TypeLinked {
-	std::unordered_map<mf::Field, mfu::SMapRe<mf::FieldLink<node_t>>> outgoingLinks;
-	std::unordered_map<mf::Field, mfu::SMapRe<mf::FieldLink<node_t>>> incomingLinks;
-	mfu::SMapRe<node_t> selfRef;
-	// Relevant functions
-	// ...
-}
-
-// Custom links
-links.in(field) // returns the incoming link for that field
-links.out(field) // returns the outgoing link for that field
-
-// consider swapping from full node to something templated.
-class MemoryGraph
-{
-	struct MGData {
-    	mfu::SlotMap<mf::FullNode> nodeStorage;
-    	mfu::SlotMap<mf::FieldLink> linkStorage;
-	};
-	sptr<MGData> m_data;
-	// Relevant pushing and inspection and iteration functions.
-	// Has all the relevant filtering options, but returns
-	// map references instead.
-}
-
-class MemoryGraphPart
-{
-    // Memorygraphs use shared pointers to hold data.
-	MemoryGraph mg;
-	Vec<mfu::SMapRe<mf::FieldLink>> links;
-	Vec<mfu::SMapRe<mf::FullNode>> nodes;
-	// Similar but not the same? Only supports inspection, modification
-}
-
-// We only ever render using parts. The mg serves as the main storage and source of truth.
-void renderMemoryGraphPart(const MemoryGraphPart& mgp) {
-	// Raylib stuff.
-}
-```
-
-# Things I learnt so far
-- multithreading concepts
-- Mixins and CRTP
-- Memory layouts
-- DOD
