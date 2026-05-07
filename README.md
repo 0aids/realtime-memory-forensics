@@ -19,7 +19,7 @@ Planned python-based DSL JIT, and visualisation tools.
 - [ ] Schema based searching?
 
 # TODO
-- [ ] Vector method piping chaining operations
+- [-] Vector method piping chaining operations
 - [ ] Basic type parsing
 - [ ] Redone struct registry
 - [ ] Typed mixin for region
