@@ -53,14 +53,26 @@ cmake -S . -B build -Dtests=ON && cmake --build build -j 12 && (ulimit -m 100000
 /****************************/
 mf::TypeRegistry sr;
 
-mf::Struct node = sr.struct_("Node")
-    .field("uint32_t", "data")
-    .field("Node *", "next")
-.end();
+// Builder pattern with explicit field deduction?
+// This means type deduction is done by the user! Hahahahahqha
+// Less work for me is always good.
+mf::Struct node = sr.defStruct("Node")
+    .primitive("uint32_t", "data")
+    // Optional *, is ignored
+    .pointer("Node*", "next")
+    .array("uint32_t", 10, "name")
+    // Or optionally:
+    .array("uint32_t[10]", "name")
+    // We can have nested structs
+    .struct_("DefinedStruct", "name")
+.end(); // Full type is resolved here.
+// maybe you could call "defStruct" inside of the builder if I feel like implementing it.
+// Maybe in the future also allow defining types before hand and then creating
+// structs from them.
 
 // Or nested structs and chars
-mf::Struct bytes100 = sr.struct_("Bytes100")
-    .field("uint8_t[100]", "data")
+mf::Struct bytes100 = sr.defStruct("Bytes100")
+    .array("uint8_t[100]", "data")
 .end();
 
 mf::Struct vec3d = sr.struct_("vec3d")
@@ -169,6 +181,12 @@ float yValue = StructType
                 .as<float>();
 
 // We can pipe vectorised method operations together.
+// What if any one of these fails? For example attempting to
+// type a struct as a primitive? Should it throw should typedAs return
+// an optional? I think for now we will just throw an exception
+// (exceptions are never caught)
+// Ideally in the future all chained options should take in optional values,
+// and then forward all errors.
 Vec<float> xValues = vec3dNodes.pipe() |
                          Struct::nodeAtFieldF("x") |
                          Snapshot::captureF(pid) |

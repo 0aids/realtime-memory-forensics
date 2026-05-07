@@ -111,6 +111,13 @@ namespace RealtimeMemoryForensics::Utils::Meta
     template <typename Func, typename Tuple>
     using InvokeAndUnwrap_t =
         typename InvokeAndUnwrap<Func, Tuple>::Type;
+
+    template <typename T>
+    concept Numeric = requires {
+        requires std::is_integral_v<T> || std::is_floating_point_v<T>;
+        requires !std::is_same_v<bool, T>;
+        requires !std::is_pointer_v<T>;
+    };
 }
 
 #endif // meta_hpp_INCLUDED
