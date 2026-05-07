@@ -65,22 +65,23 @@ namespace RealtimeMemoryForensics
         Detail::MapData map;
         using usesMap = std::true_type;
         // Returns the address of the beginning of this region.
-        constexpr uintptr_t MIXIN_METHOD(tbegin, () const);
+        constexpr uintptr_t RMF_MIXIN_METHOD(tbegin, () const);
         // Returns the address of the end of this region (exclusive).
-        constexpr uintptr_t MIXIN_METHOD(tend, () const);
+        constexpr uintptr_t RMF_MIXIN_METHOD(tend, () const);
         // Returns the relative beginning (relative to the parent)
-        constexpr uintptr_t MIXIN_METHOD(rbegin, () const);
+        constexpr uintptr_t RMF_MIXIN_METHOD(rbegin, () const);
         // Returns the relative beginning (relative to the parent)
-        constexpr uintptr_t MIXIN_METHOD(rend, () const);
+        constexpr uintptr_t RMF_MIXIN_METHOD(rend, () const);
         // Returns the parent beginning
-        constexpr uintptr_t MIXIN_METHOD(pbegin, () const);
+        constexpr uintptr_t RMF_MIXIN_METHOD(pbegin, () const);
         // Returns the parent beginning
-        constexpr uintptr_t MIXIN_METHOD(pend, () const);
+        constexpr uintptr_t RMF_MIXIN_METHOD(pend, () const);
 
         template <typename T>
-        Utils::ErrU<bool>                  MIXIN_METHOD(modify, ());
+        Utils::ErrU<bool> RMF_MIXIN_METHOD(modify, ());
 
-        std::shared_ptr<const std::string> MIXIN_METHOD(getName, ());
+        std::shared_ptr<const std::string> RMF_MIXIN_METHOD(getName,
+                                                            ());
 
                                            operator std::string();
 

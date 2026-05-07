@@ -59,7 +59,9 @@ int main(int argc, const char* argv[])
     // captureNodes.threaded(maps, PID).with(tp);
     // maps.map(Snapshot::captureM, PID);
     Snapshot::captureM(maps[0], PID);
-    maps.mapThreaded<Snapshot::captureM>(PID).with(tp);
+    // maps.mapThreaded<Snapshot::captureM>(PID).with(tp);
+    maps.pipe() | Snapshot::captureF(PID) // | Snapshot::captureF(PID)
+        | Pipe::End{};
 
     // Search for the string
     auto newMaps = findString.threaded(maps, strToFind).with(tp);

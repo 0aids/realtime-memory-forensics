@@ -2,9 +2,11 @@
 #include "rmf/node.hpp"
 #include "rmf/utils/function.hpp"
 #include <algorithm>
+#include <cassert>
 #include <concepts>
 #include <functional>
 #include <iterator>
+#include <optional>
 #include <ranges>
 #include <memory>
 #include <type_traits>
@@ -28,6 +30,29 @@ namespace RealtimeMemoryForensics::Utils
         using type = Node<Features...>::VecOp;
     };
 
+    struct Pipe
+    {
+        struct End
+        {
+        };
+        struct EndThreaded
+        {
+        };
+        template <typename T, typename Pipeline = std::false_type>
+        struct Impl
+        {
+            T&       data;
+            Pipeline pipe;
+            auto     operator|(const auto F)
+                requires(
+                    !std::same_as<std::decay_t<decltype(F)>, End> &&
+                    !std::same_as<std::decay_t<decltype(F)>,
+                                  EndThreaded>);
+            auto operator|(End);
+            auto operator|(EndThreaded);
+        };
+    };
+
     template <typename T, typename Operator = VecOpTraits<T>::type,
               typename Allocator = std::allocator<T>>
     class Vec : public std::vector<T, Allocator>, public Operator
@@ -36,6 +61,7 @@ namespace RealtimeMemoryForensics::Utils
         using BaseType = std::vector<T, Allocator>;
         using BaseType::BaseType;
         using InnerType = T;
+        using SelfType  = Vec<T, Operator, Allocator>;
 
         template <typename F, typename... Args>
         auto map(F&& f, Args&&... args);
@@ -50,6 +76,8 @@ namespace RealtimeMemoryForensics::Utils
 
         template <typename InnerInnerType>
         Vec<InnerInnerType> flatten();
+
+        auto                pipe();
     };
 }
 
@@ -113,4 +141,42 @@ namespace RealtimeMemoryForensics::Utils
         return Utils::Function<F, F, false>().threaded(
             *this, std::forward<Args>(args)...);
     }
+    template <typename T, typename Operator, typename Allocator>
+    auto Vec<T, Operator, Allocator>::pipe()
+    {
+        return Pipe::Impl{
+            .data = *this,
+            .pipe = {},
+        };
+    }
+    template <typename T, typename Pipeline>
+    auto Pipe::Impl<T, Pipeline>::operator|(const auto F)
+        requires(
+            !std::same_as<std::decay_t<decltype(F)>, End> &&
+            !std::same_as<std::decay_t<decltype(F)>, EndThreaded>)
+    {
+        if constexpr (!std::same_as<Pipeline, std::false_type>)
+        {
+            auto newPipeline = pipe | std::views::transform(F);
+            return Impl<T, decltype(newPipeline)>{
+                .data = data, .pipe = newPipeline};
+        }
+        else
+        {
+            auto p = std::views::transform(F);
+            return Impl<T, decltype(p)>{.data = data, .pipe = p};
+        }
+    }
+
+    template <typename T, typename Pipeline>
+    auto Pipe::Impl<T, Pipeline>::operator|(End)
+    {
+        if constexpr (!std::same_as<Pipeline, std::false_type>)
+            return data | pipe | std::ranges::to<T>();
+        return data;
+    }
+
+    template <typename T, typename Pipeline>
+    auto Pipe::Impl<T, Pipeline>::operator|(EndThreaded)
+    { assert(false && "TODO!"); }
 }

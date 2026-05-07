@@ -66,14 +66,7 @@ namespace RealtimeMemoryForensics
         // It creates a shallow copy, as in the snapshot itself
         // is modified on both.
         template <class Self>
-        Self MIXIN_METHOD(capture, (this Self & self, pid_t pid));
-
-        struct captureF
-        {
-            template <class Self, typename... Args>
-            auto operator()(Self& self, Args&&... args)
-            { captureM(self, args...); }
-        };
+        Self RMF_MIXIN_METHOD(capture, (this Self & self, pid_t pid));
 
         // Returns a view into the data.
         template <class Self>

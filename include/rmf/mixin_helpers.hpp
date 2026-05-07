@@ -5,7 +5,7 @@
 #include <type_traits>
 
 // NGL don't really know what's happening here.
-#define MIXIN_METHOD_PTR(methodName)                                  \
+#define RMF_MIXIN_METHOD_PTR(methodName)                              \
     static constexpr auto methodName##M =                             \
         []<typename T, typename... Args>(                             \
             T&& obj,                                                  \
@@ -22,13 +22,19 @@
     {                                                                 \
         return std::forward<T>(obj).methodName(                       \
             std::forward<Args>(args)...);                             \
+    };                                                                \
+    static constexpr auto methodName##F =                             \
+        []<typename... Args>(Args&&... args)                          \
+    {                                                                 \
+        return [... args = std::move(args)](auto&& arg) mutable       \
+        { return methodName##M(arg, std::forward<Args>(args)...); };  \
     }
 
 // usage:
 // template <typename T>       /*  Signature goes here!  */
 // return_t MIXIN_METHOD(name, (this Self& self, args...));
-#define MIXIN_METHOD(name, ...)                                      \
+#define RMF_MIXIN_METHOD(name, ...)                                  \
     name __VA_ARGS__;                                                \
-    MIXIN_METHOD_PTR(name)
+    RMF_MIXIN_METHOD_PTR(name)
 
 #endif // mixin_helpers_hpp_INCLUDED

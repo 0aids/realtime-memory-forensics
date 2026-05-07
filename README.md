@@ -19,12 +19,13 @@ Planned python-based DSL JIT, and visualisation tools.
 - [ ] Schema based searching?
 
 # TODO
-- [ ] Allow different nodes for binary operations.
+- [ ] Vector method piping chaining operations
 - [ ] Basic type parsing
 - [ ] Redone struct registry
 - [ ] Typed mixin for region
 - [ ] Attempt 3 for memory graphs.
 - [ ] Visualiser for memory graphs using raylib.
+- [ ] Allow different nodes for binary operations.
 - [ ] Write python bindings
 - [ ] done for now?
 - [ ] Consider serialisations
