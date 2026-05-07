@@ -43,6 +43,7 @@
         pythonVer = pkgs.python313Packages;
         pythonEnv = with pythonVer; [
           numpy
+          nanobind
         ];
         llvm = pkgs.llvmPackages_22;
       in
@@ -59,7 +60,6 @@
             pre-commit
             ruff
             gdb
-            # root
           ];
         };
       }

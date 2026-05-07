@@ -63,8 +63,10 @@ namespace RealtimeMemoryForensics
                           const SnapshotBuffer& buffer);
 
         // Creates another capture.
+        // It creates a shallow copy, as in the snapshot itself
+        // is modified on both.
         template <class Self>
-        Self& MIXIN_METHOD(capture, (this Self & self, pid_t pid));
+        Self MIXIN_METHOD(capture, (this Self & self, pid_t pid));
 
         struct captureF
         {
@@ -123,7 +125,7 @@ namespace RealtimeMemoryForensics
     { return *self.snap.m_data; }
 
     template <class Self>
-    Self& Snapshot::capture(this Self& self, pid_t pid)
+    Self Snapshot::capture(this Self& self, pid_t pid)
     {
         self.snap = Detail::readProcess(self.map, pid);
         return self;

@@ -86,3 +86,25 @@ if (compileExamples)
 	endforeach()
 endif()
 
+# Bindings
+if (CMAKE_VERSION VERSION_LESS 3.18)
+  set(DEV_MODULE Development)
+else()
+  set(DEV_MODULE Development.Module)
+endif()
+
+find_package(Python 3.9 COMPONENTS Interpreter ${DEV_MODULE} REQUIRED)
+# Detect the installed nanobind package and import it into CMake
+execute_process(
+  COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+  OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+find_package(nanobind CONFIG REQUIRED)
+
+option(Bindings "Compile python bindings" ON)
+if (Bindings)
+	file(GLOB bindings_cpps "bindings/*.cpp")
+    nanobind_add_module(rmfpy NOMINSIZE ${bindings_cpps})
+    target_compile_options(rmfpy PRIVATE ${CXX_COMP_COMMANDS})
+    target_compile_options(rmfpy PRIVATE $<$<CONFIG:Debug>:-O0> $<$<CONFIG:Release>:-O3>)
+    target_link_libraries(rmfpy PRIVATE librmf)
+endif()

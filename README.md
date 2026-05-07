@@ -14,7 +14,7 @@ Planned python-based DSL JIT, and visualisation tools.
 - [-] Type registry for using structs to help with analysis.
 - [ ] Memory graphs - The megastructure holding information
         on process's pointer graph.
-- [ ] Python-backed DSL generator for repl-style data analysis
+- [ ] Python bindings
 - [ ] Raylib based visualisers for more visual analysis.
 - [ ] Schema based searching?
 
@@ -25,7 +25,7 @@ Planned python-based DSL JIT, and visualisation tools.
 - [ ] Typed mixin for region
 - [ ] Attempt 3 for memory graphs.
 - [ ] Visualiser for memory graphs using raylib.
-- [ ] Write python-backed DSL.
+- [ ] Write python bindings
 - [ ] done for now?
 - [ ] Consider serialisations
 - [ ] Test out multi-SPSC queues instead of SPMC queues for tasks? Or provide it as an alternative.
@@ -199,14 +199,6 @@ Vec3_y = Vec3["y"]
 
 tp = ThreadPool(8)
 PID = 1234
-# Completely eager JIT. I love coding in c++ to code in python to compile c++ to code in python.
-# 2 options:
-# 1. completely eager JIT. (Slightly slower, apparently easier to implement)
-# 2. partial lazy jit, only JIT and run on first access. (harder to implement, faster)
-# I think being able to switch between them is a good-ish idea. But for now
-# only using the completely eager JIT is fine.
-# So per-call evaluation is on. I don't think that the performance gain of delaying JIT
-# is worth it that much.
 maps = getMaps(PID).minSize(0x1000).maxSize(0xffffff).active(PID)
 snaps = maps.capture(PID, threaded=tp)
 
