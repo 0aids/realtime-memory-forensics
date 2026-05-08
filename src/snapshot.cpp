@@ -7,7 +7,9 @@
 namespace RealtimeMemoryForensics
 {
     Snapshot::operator std::string() const
-    { return ""; }
+    {
+        return "";
+    }
 
     namespace Detail
     {
@@ -20,30 +22,25 @@ namespace RealtimeMemoryForensics
             Node<Map>           b;
             b.map = map;
 
-            SnapshotData data = {
-                .m_data = std::make_shared<SnapshotBuffer>()};
+            SnapshotData data = {.m_data = std::make_shared<SnapshotBuffer>()};
 
             data.m_data->resize(b.map.relativeSize);
             intptr_t totalBytesRead = 0;
-            while (totalBytesRead <
-                   static_cast<intptr_t>(b.map.relativeSize))
+            while (totalBytesRead < static_cast<intptr_t>(b.map.relativeSize))
             {
                 uintptr_t bytesToRead =
-                    (b.map.relativeSize - totalBytesRead >
-                     chunkSize) ?
-                    chunkSize :
-                    b.map.relativeSize - totalBytesRead;
+                    (b.map.relativeSize - totalBytesRead > chunkSize) ?
+                        chunkSize :
+                        b.map.relativeSize - totalBytesRead;
 
-                sourceIovec[0].iov_base =
-                    (void*)(b.tbegin() + totalBytesRead);
-                sourceIovec[0].iov_len = bytesToRead;
+                sourceIovec[0].iov_base = (void*)(b.tbegin() + totalBytesRead);
+                sourceIovec[0].iov_len  = bytesToRead;
 
-                localIovec[0].iov_base =
-                    data.m_data->data() + totalBytesRead;
-                localIovec[0].iov_len = bytesToRead;
+                localIovec[0].iov_base = data.m_data->data() + totalBytesRead;
+                localIovec[0].iov_len  = bytesToRead;
 
-                ssize_t nread = process_vm_readv(pid, localIovec, 1,
-                                                 sourceIovec, 1, 0);
+                ssize_t nread =
+                    process_vm_readv(pid, localIovec, 1, sourceIovec, 1, 0);
 
                 if (nread <= 0)
                 {

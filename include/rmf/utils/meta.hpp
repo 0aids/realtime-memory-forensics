@@ -32,15 +32,13 @@ namespace RealtimeMemoryForensics::Utils::Meta
     };
 
     template <typename F>
-    using FunctionDecoder =
-        decltype(std::function{std::declval<F>()});
+    using FunctionDecoder = decltype(std::function{std::declval<F>()});
 
     template <typename F>
     using FuncTraits = FunctionTraitsGetter<FunctionDecoder<F>>;
 
     template <typename T>
-    concept ValidSignature =
-        requires { std::function{std::declval<T>()}; };
+    concept ValidSignature = requires { std::function{std::declval<T>()}; };
 
     // Helper to unwrap one level of a range, preserving references.
     // If we unwrap std::vector<int>&, we get int&.
@@ -61,13 +59,10 @@ namespace RealtimeMemoryForensics::Utils::Meta
 
     // Base case: No more arguments left. Test if the combination is valid.
     template <typename Functor, typename... Acc>
-    struct SignatureSearcher<Functor, std::tuple<Acc...>,
-                             std::tuple<>>
+    struct SignatureSearcher<Functor, std::tuple<Acc...>, std::tuple<>>
     {
-        static constexpr bool is_valid =
-            std::is_invocable_v<Functor, Acc...>;
-        using type =
-            std::conditional_t<is_valid, std::tuple<Acc...>, void>;
+        static constexpr bool is_valid = std::is_invocable_v<Functor, Acc...>;
+        using type = std::conditional_t<is_valid, std::tuple<Acc...>, void>;
     };
 
     // Recursive case: Branch on the next argument
@@ -79,26 +74,22 @@ namespace RealtimeMemoryForensics::Utils::Meta
 
         // Branch 1: Try treating the argument as a scalar/direct pass
         using TryDirect =
-            typename SignatureSearcher<Functor,
-                                       std::tuple<Acc..., NextArg>,
+            typename SignatureSearcher<Functor, std::tuple<Acc..., NextArg>,
                                        std::tuple<Rest...>>::type;
 
         // Branch 2: Try treating the argument as a vector to be unwrapped
-        using UnwrappedType =
-            typename UnwrapArg<std::decay_t<NextArg>>::type;
+        using UnwrappedType = typename UnwrapArg<std::decay_t<NextArg>>::type;
 
         using TryUnwrapped = std::conditional_t<
-            std::is_same_v<std::decay_t<NextArg>,
-                           std::decay_t<UnwrappedType>>,
+            std::is_same_v<std::decay_t<NextArg>, std::decay_t<UnwrappedType>>,
             void, // Skip Branch 2 if it's not actually a range
-            typename SignatureSearcher<
-                Functor, std::tuple<Acc..., UnwrappedType>,
-                std::tuple<Rest...>>::type>;
+            typename SignatureSearcher<Functor,
+                                       std::tuple<Acc..., UnwrappedType>,
+                                       std::tuple<Rest...>>::type>;
 
         // Return the first valid signature (Direct takes priority over Unwrapped)
-        using type =
-            std::conditional_t<!std::is_same_v<TryDirect, void>,
-                               TryDirect, TryUnwrapped>;
+        using type = std::conditional_t<!std::is_same_v<TryDirect, void>,
+                                        TryDirect, TryUnwrapped>;
     };
     template <typename Func, typename Tuple>
     struct InvokeAndUnwrap;
@@ -109,8 +100,7 @@ namespace RealtimeMemoryForensics::Utils::Meta
         using Type = std::invoke_result_t<Func, Inputs...>;
     };
     template <typename Func, typename Tuple>
-    using InvokeAndUnwrap_t =
-        typename InvokeAndUnwrap<Func, Tuple>::Type;
+    using InvokeAndUnwrap_t = typename InvokeAndUnwrap<Func, Tuple>::Type;
 
     template <typename T>
     concept Numeric = requires {

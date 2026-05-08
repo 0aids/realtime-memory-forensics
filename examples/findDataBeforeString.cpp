@@ -52,8 +52,7 @@ int main(int argc, const char* argv[])
     using namespace mf;
     ThreadPool tp(thread::hardware_concurrency() / 2);
     // Read the maps, only get readable.
-    Vec<Node<Map, Snapshot>> maps =
-        getMaps<Snapshot>(PID).hasPerms("r");
+    Vec<Node<Map, Snapshot>> maps = getMaps<Snapshot>(PID).hasPerms("r");
 
     // Capture everything
     // captureNodes.threaded(maps, PID).with(tp);
@@ -74,6 +73,5 @@ int main(int argc, const char* argv[])
         map.capture(PID);
         println("Bytes: {::02x}", map.span());
     }
-    println("Found: {} instances of string '{}'", newMaps.size(),
-            strToFind);
+    println("Found: {} instances of string '{}'", newMaps.size(), strToFind);
 }

@@ -29,27 +29,23 @@ namespace mft = mf::Tests;
 
 // BUG: doesn't work with arrays because the length is associated
 // with the name, so getting the offset is incorrect.
-#define ASSERT_SAME_OFFSET(type, fieldName, StructName,              \
-                           RegisteredStruct, ...)                    \
-    EXPECT_EQ(offsetof(StructName, fieldName),                       \
+#define ASSERT_SAME_OFFSET(type, fieldName, StructName, RegisteredStruct, ...) \
+    EXPECT_EQ(offsetof(StructName, fieldName),                                 \
               RegisteredStruct[#fieldName].offset());
 
-#define MAKE_STRUCT(StructName, DefinitionMacro)                     \
-    struct StructName                                                \
-    {                                                                \
-        DefinitionMacro(MAKE_STRUCTMember, StructName)               \
+#define MAKE_STRUCT(StructName, DefinitionMacro)                               \
+    struct StructName                                                          \
+    {                                                                          \
+        DefinitionMacro(MAKE_STRUCTMember, StructName)                         \
     }
 
-#define MAKE_REGISTERED_TYPE(TypeRegistry, StructName,               \
-                             DefinitionMacro)                        \
-    TypeRegistry                                                     \
-        .addStruct(StructName)                                       \
-            DefinitionMacro(MakeField, StructName)                   \
+#define MAKE_REGISTERED_TYPE(TypeRegistry, StructName, DefinitionMacro)        \
+    TypeRegistry.addStruct(StructName) DefinitionMacro(MakeField, StructName)  \
         .end()
 
-#define TEST_STRUCT_DEFINITION(X, StructName, ...)                   \
-    X(uint32_t, data, __VA_ARGS__)                                   \
-    X(uint8_t, array[4], __VA_ARGS__)                                \
+#define TEST_STRUCT_DEFINITION(X, StructName, ...)                             \
+    X(uint32_t, data, __VA_ARGS__)                                             \
+    X(uint8_t, array[4], __VA_ARGS__)                                          \
     X(StructName*, next, __VA_ARGS__)
 
 TEST(type_registry, registerTest)
@@ -67,8 +63,7 @@ TEST(type_registry, registerTest)
 
     // Make it reference itself? This will work if we set the
     // map to be from 0x00.
-    auto buffer =
-        mf::Tests::TestBuffer::makeZeroed(sizeof(TestStruct));
+    auto buffer = mf::Tests::TestBuffer::makeZeroed(sizeof(TestStruct));
 
     EXPECT_TRUE((bool)buffer.pushUnaligned(t));
 
@@ -79,8 +74,8 @@ TEST(type_registry, registerTest)
 
     mf::TypeRegistry tr;
 
-    mf::Struct       testStruct = MAKE_REGISTERED_TYPE(
-        tr, "TestStruct", TEST_STRUCT_DEFINITION);
+    mf::Struct       testStruct =
+        MAKE_REGISTERED_TYPE(tr, "TestStruct", TEST_STRUCT_DEFINITION);
 
     //     // Ensure that the offsets are all the same.
     //     // TEST_STRUCT_DEFINITION(ASSERT_SAME_OFFSET, TestStruct, TestStruct,

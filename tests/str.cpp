@@ -53,8 +53,7 @@ TEST(strFormatWrapper, formatMixedTypes)
 {
     using namespace mfu::Literals;
     std::string expected = "count 42, pi 3.14, ok true";
-    EXPECT_EQ("count {}, pi {}, ok {}"_f.fmt(42, 3.14, true),
-              expected);
+    EXPECT_EQ("count {}, pi {}, ok {}"_f.fmt(42, 3.14, true), expected);
 }
 
 TEST(strFormatWrapper, formatEmptyString)

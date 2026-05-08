@@ -150,8 +150,7 @@ TEST(threadpool, ThreadPool_taskWithArguments)
 {
     mfu::ThreadPool tp(2, 100);
 
-    auto            future =
-        tp.pushTask(+[](int x, int y) { return x + y; }, 10, 20);
+    auto future = tp.pushTask(+[](int x, int y) { return x + y; }, 10, 20);
     tp.awaitTasks();
 
     EXPECT_EQ(future.get(), 30);
@@ -163,7 +162,7 @@ TEST(threadpool, ThreadPool_variousReturnTypes)
 
     auto            futureInt  = tp.pushTask(+[]() { return 42; });
     auto            futureVoid = tp.pushTask(+[]() { return; });
-    auto futureStr = tp.pushTask(+[]() { return string("hello"); });
+    auto            futureStr  = tp.pushTask(+[]() { return string("hello"); });
 
     tp.awaitTasks();
 

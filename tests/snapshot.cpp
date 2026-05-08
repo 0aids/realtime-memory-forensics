@@ -37,8 +37,7 @@ TEST(snapshot, fakeBuffer)
     using namespace mf;
     std::vector<uint8_t> fakeBuffer(0xffff, 0xff);
     println("Fake buffer size: {}", fakeBuffer.size());
-    Node<Snapshot, Map> value(
-        Snapshot::fromBuffer(std::move(fakeBuffer)));
+    Node<Snapshot, Map> value(Snapshot::fromBuffer(std::move(fakeBuffer)));
     EXPECT_NO_THROW(value.wellFormed());
     EXPECT_EQ(value.span()[0], 0xff);
 }
@@ -95,8 +94,7 @@ TEST(snapshot, findNumExact)
     EXPECT_TRUE(static_cast<bool>(buffer.pushAligned(num)));
     EXPECT_LE(buffer.chead(), buffer.cend());
     EXPECT_LE(buffer.chead(), buffer.cend());
-    Node<Map, Snapshot> snapshot =
-        Snapshot::fromBuffer(buffer.moveBuffer());
+    Node<Map, Snapshot> snapshot = Snapshot::fromBuffer(buffer.moveBuffer());
     // copy
     auto snapshot1 = snapshot;
     // Figure out how to shorten this.
@@ -115,9 +113,9 @@ TEST(snapshot, findNumExact)
 TEST(snapshot, testProgram)
 {
     using namespace mft;
-    pid_t pid = forkFunc(createTestProgram(
-        StaticNumberBuffer<int, 0xfafaf>(), TestFeature{},
-        StaticStringBuffer{.buffer = "hello world"}));
+    pid_t pid = forkFunc(
+        createTestProgram(StaticNumberBuffer<int, 0xfafaf>(), TestFeature{},
+                          StaticStringBuffer{.buffer = "hello world"}));
     mfu::Vec<mf::Node<mf::Map, mf::Snapshot>> maps =
         mf::getMaps<mf::Snapshot>(pid);
     EXPECT_GE(maps.size(), 0);
@@ -128,8 +126,7 @@ TEST(snapshot, testProgram)
     }
     // Attempt to find hello world!
     mfu::ThreadPool tp(2);
-    auto            mapsWHello =
-        mf::findString.threaded(maps, "hello world").with(tp);
+    auto mapsWHello = mf::findString.threaded(maps, "hello world").with(tp);
     EXPECT_GE(mapsWHello.size(), 0);
     println("Found {} 'hello world's!", mapsWHello.size());
 }
@@ -139,8 +136,8 @@ TEST(snapshot, threadedCapture)
     using namespace mfu;
     using namespace mf;
     using namespace mft;
-    pid_t                    pid  = forkFunc(createTestProgram(
-        StaticNumberBuffer<int, 0xfafaf>(), TestFeature{},
-        StaticStringBuffer{.buffer = "hello world"}));
+    pid_t pid = forkFunc(
+        createTestProgram(StaticNumberBuffer<int, 0xfafaf>(), TestFeature{},
+                          StaticStringBuffer{.buffer = "hello world"}));
     Vec<Node<Map, Snapshot>> maps = getMaps<Snapshot>(pid);
 }

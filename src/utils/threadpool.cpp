@@ -34,9 +34,8 @@ void mfu::ThreadPool::awaitTasks()
     while (true)
     {
         std::this_thread::sleep_for(10ms);
-        bool   empty = m_queue.empty();
-        size_t numRunning =
-            m_numRunning.load(std::memory_order::acquire);
+        bool   empty      = m_queue.empty();
+        size_t numRunning = m_numRunning.load(std::memory_order::acquire);
         if (empty && numRunning == 0)
         {
             rmf_Verbose("finished awaiting tasks - Reason "
@@ -53,8 +52,7 @@ mfu::ThreadPool::ThreadPool(size_t numThreads, size_t queueSize) :
     for (size_t i = 0; i < numThreads; i++)
     {
         m_threads.emplace_back(threadFunction, std::ref(m_alive),
-                               std::ref(m_queue),
-                               std::ref(m_numRunning));
+                               std::ref(m_queue), std::ref(m_numRunning));
         m_threadNames.emplace_back(std::to_string(i + 1));
 
         pthread_setname_np(m_threads.back().native_handle(),

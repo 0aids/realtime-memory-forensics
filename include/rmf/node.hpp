@@ -36,18 +36,16 @@ namespace RealtimeMemoryForensics
         template <typename T>
         using AddFeature = Node<
             Args...,
-            std::enable_if<
-                !std::disjunction_v<std::is_same<Args, T>...>, T>>;
+            std::enable_if<!std::disjunction_v<std::is_same<Args, T>...>, T>>;
 
         // Removes the feature if it exists
         template <typename ToRemove>
-        using WithoutFeature = Node<
-            std::enable_if<!std::same_as<Args, ToRemove>, Args>...>;
+        using WithoutFeature =
+            Node<std::enable_if<!std::same_as<Args, ToRemove>, Args>...>;
 
         template <typename ToRemove, typename ToAdd>
-        using SwapFeature =
-            Node<std::conditional<std::same_as<Args, ToRemove>, ToAdd,
-                                  Args>...>;
+        using SwapFeature = Node<
+            std::conditional<std::same_as<Args, ToRemove>, ToAdd, Args>...>;
 
         struct VecOp : public Args::VecOp...
         {
@@ -85,20 +83,23 @@ namespace RealtimeMemoryForensics
 {
     template <typename... Args>
     Node<Args...>::operator std::string() const
-    { return (... + std::string(static_cast<Args>(*this))); }
+    {
+        return (... + std::string(static_cast<Args>(*this)));
+    }
 
     // Ensure that we're not being stupid.
     template <typename... Args>
     void Node<Args...>::wellFormed()
-    { static_assert(!std::is_polymorphic_v<SelfType>); }
+    {
+        static_assert(!std::is_polymorphic_v<SelfType>);
+    }
 
     template <typename... Args>
     template <typename TargetFeature, typename OtherNode>
     TargetFeature Node<Args...>::copy(const OtherNode& other)
     {
         using CleanOtherNode = std::decay_t<OtherNode>;
-        if constexpr (std::is_base_of_v<TargetFeature,
-                                        CleanOtherNode>)
+        if constexpr (std::is_base_of_v<TargetFeature, CleanOtherNode>)
         {
             return static_cast<const TargetFeature&>(other);
         }
@@ -112,8 +113,7 @@ namespace RealtimeMemoryForensics
     TargetFeature Node<Args...>::move(OtherNode&& other)
     {
         using CleanOtherNode = std::decay_t<OtherNode>;
-        if constexpr (std::is_base_of_v<TargetFeature,
-                                        CleanOtherNode>)
+        if constexpr (std::is_base_of_v<TargetFeature, CleanOtherNode>)
         {
             return std::move(static_cast<TargetFeature&>(other));
         }
@@ -143,12 +143,14 @@ namespace RealtimeMemoryForensics
     }
     template <typename... Args>
     template <typename... OtherArgs>
-    Node<Args...>&
-    Node<Args...>::operator=(Node<OtherArgs...>&& other)
-    { return std::move(static_cast<Node<Args...>>(other)); }
+    Node<Args...>& Node<Args...>::operator=(Node<OtherArgs...>&& other)
+    {
+        return std::move(static_cast<Node<Args...>>(other));
+    }
     template <typename... Args>
     template <typename... OtherArgs>
-    Node<Args...>&
-    Node<Args...>::operator=(const Node<OtherArgs...>& other)
-    { return static_cast<Node<Args...>>(other); }
+    Node<Args...>& Node<Args...>::operator=(const Node<OtherArgs...>& other)
+    {
+        return static_cast<Node<Args...>>(other);
+    }
 }

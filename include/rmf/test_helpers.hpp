@@ -59,7 +59,9 @@ namespace RealtimeMemoryForensics::Tests
     struct TestFeature
     {
         void setup() const
-        { rmf_Ok("setup"); };
+        {
+            rmf_Ok("setup");
+        };
         void run() const { rmf_Ok("run!") };
     };
 
@@ -168,8 +170,7 @@ namespace RealtimeMemoryForensics::Tests
     {
         constexpr size_t alignment = alignof(T);
         constexpr size_t size      = sizeof(T);
-        rmf_retErr(
-            tryReplaceHead(Detail::alignIter(m_head, alignment)));
+        rmf_retErr(tryReplaceHead(Detail::alignIter(m_head, alignment)));
         auto oldHead = m_head;
         rmf_retErr(tryReplaceHead(m_head + size));
         memcpy(oldHead.base(), &value, size);

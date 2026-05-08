@@ -33,41 +33,51 @@ mf::TypeRegistry::TypeRegistry()
     // Initialise all the primitive types.
     for (size_t i = 0; i < primTypes.size(); i++)
     {
-        m_data->primitives.emplace_back(
-            std::make_shared<PrimitiveData>(
-                BaseTypeData{
-                    .size      = primSizes[i],
-                    .alignment = primSizes[i],
-                    .name      = primStr[i],
-                    .type      = Type::Primitive,
-                },
-                primTypes[i]));
+        m_data->primitives.emplace_back(std::make_shared<PrimitiveData>(
+            BaseTypeData{
+                .size      = primSizes[i],
+                .alignment = primSizes[i],
+                .name      = primStr[i],
+                .type      = Type::Primitive,
+            },
+            primTypes[i]));
     }
     // Define the all types.
-#define X(name, size)                                                \
-    prim.name##size =                                                \
-        Primitive(Typed(m_data->primitives[static_cast<size_t>(      \
-            mf::PType::name##size)]));
+#define X(name, size)                                                          \
+    prim.name##size = Primitive(Typed(                                         \
+        m_data->primitives[static_cast<size_t>(mf::PType::name##size)]));
     RMF_PRIM_TYPES(X);
 #undef X
 }
 
-mf::Typed::Typed(wptr<BaseTypeData> data) : m_baseData(data) {}
+mf::Typed::Typed(wptr<BaseTypeData> data) : m_baseData(data)
+{
+}
 
 ssize_t mf::Typed::size() const
-{ return m_baseData.lock()->size; }
+{
+    return m_baseData.lock()->size;
+}
 
 ssize_t mf::Typed::alignment() const
-{ return m_baseData.lock()->alignment; }
+{
+    return m_baseData.lock()->alignment;
+}
 
 mf::Type mf::Typed::type() const
-{ return m_baseData.lock()->type; }
+{
+    return m_baseData.lock()->type;
+}
 
 const mf::strview mf::Typed::name() const
-{ return m_baseData.lock()->name; }
+{
+    return m_baseData.lock()->name;
+}
 
 mf::Struct::Struct(const Typed& typed) : Typed(typed)
-{ m_data = std::dynamic_pointer_cast<StructData>(m_baseData.lock()); }
+{
+    m_data = std::dynamic_pointer_cast<StructData>(m_baseData.lock());
+}
 
 mfu::ErrU<mf::Field> mf::Struct::getField(const std::string& str)
 {
@@ -81,15 +91,15 @@ mfu::ErrU<mf::Field> mf::Struct::getField(const std::string& str)
 
 mf::Pointer::Pointer(const Typed& typed) : Typed(typed)
 {
-    m_data =
-        std::dynamic_pointer_cast<PointerData>(m_baseData.lock());
+    m_data = std::dynamic_pointer_cast<PointerData>(m_baseData.lock());
 }
 
 mf::Primitive::Primitive(const Typed& typed) : Typed(typed)
 {
-    m_data =
-        std::dynamic_pointer_cast<PrimitiveData>(m_baseData.lock());
+    m_data = std::dynamic_pointer_cast<PrimitiveData>(m_baseData.lock());
 }
 
 mf::Array::Array(const Typed& typed) : Typed(typed)
-{ m_data = std::dynamic_pointer_cast<ArrayData>(m_baseData.lock()); }
+{
+    m_data = std::dynamic_pointer_cast<ArrayData>(m_baseData.lock());
+}

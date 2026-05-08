@@ -20,15 +20,13 @@ namespace RealtimeMemoryForensics::Utils
         template <typename Output, bool Flatten>
         struct Threader
         {
-            std::vector<std::move_only_function<Output()>> funcVec =
-                {};
+            std::vector<std::move_only_function<Output()>> funcVec = {};
 
-            auto with(ThreadPool&);
+            auto                                           with(ThreadPool&);
         };
     }
     // Consider nttp here instead?
-    template <auto Func, auto FuncThreaded = Func,
-              bool Flatten = false>
+    template <auto Func, auto FuncThreaded = Func, bool Flatten = false>
     class Function
     {
         template <typename InputsTuple, typename... Args,
@@ -78,14 +76,15 @@ namespace RealtimeMemoryForensics::Utils
     // fucking disgusting for cleaner code.
     template <auto Func, auto FuncThreaded, bool Flatten>
     template <typename... Args>
-    auto Function<Func, FuncThreaded, Flatten>::operator()(
-        Args&&... args) const
-    { return Func(std::forward<Args>(args)...); }
+    auto Function<Func, FuncThreaded, Flatten>::operator()(Args&&... args) const
+    {
+        return Func(std::forward<Args>(args)...);
+    }
 
     template <auto Func, auto FuncThreaded, bool Flatten>
     template <typename InputsTuple, typename... Args, size_t N>
-    auto Function<Func, FuncThreaded, Flatten>::threaderImpl(
-        Args&&... args) const
+    auto
+    Function<Func, FuncThreaded, Flatten>::threaderImpl(Args&&... args) const
     {
         // Meta::TypePrinter<VecArgsTuple, InputsTuple>  Gah;
         using VecArgsTuple = typename std::tuple<Args&&...>;
@@ -99,22 +98,17 @@ namespace RealtimeMemoryForensics::Utils
                 [&]()
                 {
                     rmf_Ok("Pack expansions: {}", Is);
-                    using VecArg =
-                        std::tuple_element_t<Is, VecArgsTuple>;
-                    using InputType =
-                        std::tuple_element_t<Is, InputsTuple>;
-                    if constexpr (std::is_convertible_v<VecArg,
-                                                        InputType>)
+                    using VecArg    = std::tuple_element_t<Is, VecArgsTuple>;
+                    using InputType = std::tuple_element_t<Is, InputsTuple>;
+                    if constexpr (std::is_convertible_v<VecArg, InputType>)
                     {
                     }
                     else if constexpr (std::ranges::range<VecArg> &&
                                        std::is_convertible_v<
-                                           std::ranges::range_value_t<
-                                               VecArg>,
+                                           std::ranges::range_value_t<VecArg>,
                                            std::decay_t<InputType>>)
                     {
-                        size_t proposedLength =
-                            std::get<Is>(vat).size();
+                        size_t proposedLength = std::get<Is>(vat).size();
                         rmf_Info("Proposed length: {}, current: {}",
                                  proposedLength, length);
                         if (length != 0 && length != proposedLength)
@@ -126,11 +120,9 @@ namespace RealtimeMemoryForensics::Utils
                     {
                         static_assert(
                             std::disjunction<
-                                std::is_convertible<VecArg,
-                                                    InputType>,
+                                std::is_convertible<VecArg, InputType>,
                                 std::is_convertible<
-                                    std::ranges::range_value_t<
-                                        VecArg>,
+                                    std::ranges::range_value_t<VecArg>,
                                     std::decay_t<InputType>>>::value,
                             "Invalid inputs to function");
                         rmf_Error("This should not be happening!");
@@ -138,12 +130,11 @@ namespace RealtimeMemoryForensics::Utils
                 }(),
                 ...);
         }.template operator()(idxSeq);
-        using Output = Meta::InvokeAndUnwrap_t<decltype(FuncThreaded),
-                                               InputsTuple>;
+        using Output =
+            Meta::InvokeAndUnwrap_t<decltype(FuncThreaded), InputsTuple>;
         if (!isValid)
         {
-            rmf_Error(
-                "Unequal vectorized vector inputs to function!");
+            rmf_Error("Unequal vectorized vector inputs to function!");
             return Detail::Threader<Output, Flatten>{};
         }
 
@@ -156,23 +147,18 @@ namespace RealtimeMemoryForensics::Utils
         for (size_t i = 0; i < length; i++)
         {
             // Make tuple of valid elements (moved).
-            auto tup =
-                [&]<size_t... Is>(std::index_sequence<Is...>) mutable
-                -> decltype(auto)
+            auto tup = [&]<size_t... Is>(
+                           std::index_sequence<Is...>) mutable -> decltype(auto)
             {
                 return std::forward_as_tuple(
                     [&]() mutable -> decltype(auto)
                     {
                         // GAHHHHH
-                        using VecArg =
-                            std::tuple_element_t<Is, VecArgsTuple>;
-                        using InputType =
-                            std::tuple_element_t<Is, InputsTuple>;
-                        if constexpr (std::is_convertible_v<
-                                          VecArg, InputType>)
+                        using VecArg = std::tuple_element_t<Is, VecArgsTuple>;
+                        using InputType = std::tuple_element_t<Is, InputsTuple>;
+                        if constexpr (std::is_convertible_v<VecArg, InputType>)
                         {
-                            return std::forward<InputType>(
-                                std::get<Is>(vat));
+                            return std::forward<InputType>(std::get<Is>(vat));
                         }
                         else
                         {
@@ -200,14 +186,12 @@ namespace RealtimeMemoryForensics::Utils
     template <auto Func, auto FuncThreaded, bool Flatten>
     template <typename... Args, size_t N>
         requires(N > 0)
-    constexpr auto
-    Function<Func, FuncThreaded, Flatten>::templateThreaded(
+    constexpr auto Function<Func, FuncThreaded, Flatten>::templateThreaded(
         Args&&... args) const
     {
         // Run the compile-time search tree to find the correct unwrapping path!
         using InputsTuple = typename Meta::SignatureSearcher<
-            decltype(FuncThreaded), std::tuple<>,
-            std::tuple<Args&&...>>::type;
+            decltype(FuncThreaded), std::tuple<>, std::tuple<Args&&...>>::type;
 
         // If SFINAE fails to find a path, the user gets a clean error message.
         static_assert(!std::is_same_v<InputsTuple, void>,
@@ -221,8 +205,7 @@ namespace RealtimeMemoryForensics::Utils
     template <typename... Args, size_t N>
         requires(N > 0)
     constexpr auto
-    Function<Func, FuncThreaded, Flatten>::defaultThreaded(
-        Args&&... args) const
+    Function<Func, FuncThreaded, Flatten>::defaultThreaded(Args&&... args) const
     {
         // We cannot use threaded if operator() is templated, as this
         // would mean that we cannot determine the inputs without evaluating
@@ -236,8 +219,8 @@ namespace RealtimeMemoryForensics::Utils
     template <auto Func, auto FuncThreaded, bool Flatten>
     template <typename... Args, size_t N>
         requires(N > 0)
-    constexpr auto Function<Func, FuncThreaded, Flatten>::threaded(
-        Args&&... args) const
+    constexpr auto
+    Function<Func, FuncThreaded, Flatten>::threaded(Args&&... args) const
     {
         if constexpr (Meta::ValidSignature<decltype(FuncThreaded)>)
         {
@@ -270,8 +253,7 @@ namespace RealtimeMemoryForensics::Utils
             else if constexpr (Flatten)
             {
                 // Use the host thread to flatten constantly as results are gotten.
-                using UnderlyingType =
-                    std::ranges::range_value_t<Output>;
+                using UnderlyingType = std::ranges::range_value_t<Output>;
                 std::vector<UnderlyingType> result;
                 for (auto& rFut : futures)
                 {
@@ -283,9 +265,8 @@ namespace RealtimeMemoryForensics::Utils
             }
             else
                 return futures |
-                    std::views::transform([](auto& f)
-                                          { return f.get(); }) |
-                    std::ranges::to<std::vector<Output>>();
+                       std::views::transform([](auto& f) { return f.get(); }) |
+                       std::ranges::to<std::vector<Output>>();
         }
     }
 }

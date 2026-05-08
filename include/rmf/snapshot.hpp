@@ -40,12 +40,11 @@ namespace RealtimeMemoryForensics
         // Factory methods for instantiation.
 
         template <class... Features, class Other>
-        static Node<Map, Snapshot, Features...>
-        makeSnapshot(pid_t pid, Other b);
+        static Node<Map, Snapshot, Features...> makeSnapshot(pid_t pid,
+                                                             Other b);
 
         template <class... Features>
-        static Node<Map, Snapshot, Features...>
-        fromBuffer(SnapshotBuffer&& b);
+        static Node<Map, Snapshot, Features...> fromBuffer(SnapshotBuffer&& b);
 
         // Does nothing, but just ensures that instantiation
         // is valid during comptime, as static_asserts do
@@ -59,8 +58,7 @@ namespace RealtimeMemoryForensics
         void insertBuffer(this Self& self, SnapshotBuffer&& buffer);
 
         template <class Self>
-        void insertBuffer(this Self&            self,
-                          const SnapshotBuffer& buffer);
+        void insertBuffer(this Self& self, const SnapshotBuffer& buffer);
 
         // Creates another capture.
         // It creates a shallow copy, as in the snapshot itself
@@ -80,8 +78,7 @@ namespace RealtimeMemoryForensics
 {
 
     template <class... Features>
-    Node<Map, Snapshot, Features...>
-    Snapshot::fromBuffer(SnapshotBuffer&& b)
+    Node<Map, Snapshot, Features...> Snapshot::fromBuffer(SnapshotBuffer&& b)
     {
         Node<Map, Snapshot, Features...> node;
         node.snap.m_data      = std::make_shared<SnapshotBuffer>(b);
@@ -91,8 +88,7 @@ namespace RealtimeMemoryForensics
     }
 
     template <class... Features, class Other>
-    Node<Map, Snapshot, Features...> Snapshot::makeSnapshot(pid_t pid,
-                                                            Other b)
+    Node<Map, Snapshot, Features...> Snapshot::makeSnapshot(pid_t pid, Other b)
     {
         // rmf_Log(rmf_Debug,
         //         "Time taken for snapshot: "
@@ -115,7 +111,9 @@ namespace RealtimeMemoryForensics
 
     template <class Self>
     std::span<uint8_t> Snapshot::span(this const Self& self)
-    { return *self.snap.m_data; }
+    {
+        return *self.snap.m_data;
+    }
 
     template <class Self>
     Self Snapshot::capture(this Self& self, pid_t pid)

@@ -68,7 +68,9 @@ TEST(function, lambda)
 // }
 
 size_t doubleNum(size_t num)
-{ return num * 2; }
+{
+    return num * 2;
+}
 
 TEST(function, withInputs)
 {
@@ -98,11 +100,15 @@ TEST(function, Function_noCopySemantics)
 struct MoveOnlyType
 {
     int value;
-    MoveOnlyType(int v) : value(v) {}
+    MoveOnlyType(int v) : value(v)
+    {
+    }
     MoveOnlyType(const MoveOnlyType&)            = delete;
     MoveOnlyType& operator=(const MoveOnlyType&) = delete;
     MoveOnlyType(MoveOnlyType&& other) : value(other.value)
-    { other.value = 0; }
+    {
+        other.value = 0;
+    }
     MoveOnlyType& operator=(MoveOnlyType&& other)
     {
         value       = other.value;
@@ -125,8 +131,7 @@ TEST(function, Function_returnTypeCorrect)
     constexpr auto intFunc = mfu::Function<+[]() { return 42; }>();
     constexpr auto strFunc =
         mfu::Function<+[]() { return std::string("hello"); }>();
-    constexpr auto doubleFunc =
-        mfu::Function<+[]() { return 3.14; }>();
+    constexpr auto doubleFunc = mfu::Function<+[]() { return 3.14; }>();
 
     EXPECT_EQ(intFunc(), 42);
     EXPECT_EQ(strFunc(), std::string("hello"));
@@ -135,10 +140,9 @@ TEST(function, Function_returnTypeCorrect)
 
 TEST(function, Function_variousArgTypes)
 {
-    constexpr auto funcInt =
-        mfu::Function<+[](int x) { return x * 2; }>();
-    constexpr auto funcStr = mfu::Function<+[](const std::string& s)
-                                           { return s.size(); }>();
+    constexpr auto funcInt = mfu::Function<+[](int x) { return x * 2; }>();
+    constexpr auto funcStr =
+        mfu::Function<+[](const std::string& s) { return s.size(); }>();
     constexpr auto funcFloat =
         mfu::Function<+[](double d) { return d + 1.0; }>();
 
@@ -149,8 +153,7 @@ TEST(function, Function_variousArgTypes)
 
 TEST(function, Function_threader)
 {
-    constexpr auto funcInt =
-        mfu::Function<[](int x) { return x * 2; }>();
+    constexpr auto  funcInt = mfu::Function<[](int x) { return x * 2; }>();
     mfu::ThreadPool tp(1);
     vector<int>     a = {1, 2, 3, 4, 5};
     funcInt.threaded(a).with(tp);
@@ -158,7 +161,9 @@ TEST(function, Function_threader)
 }
 
 size_t moveTests(StructorTest&& T)
-{ return T.numCopies; }
+{
+    return T.numCopies;
+}
 
 TEST(function, Function_structors)
 {
@@ -174,9 +179,9 @@ TEST(function, Function_structors)
 
 TEST(function, Function_singleCopy)
 {
-    auto            copy = [](StructorTest T) { return T.numCopies; };
-    constexpr auto  funcInt = mfu::Function<copy>();
-    mfu::ThreadPool tp(1);
+    auto                 copy    = [](StructorTest T) { return T.numCopies; };
+    constexpr auto       funcInt = mfu::Function<copy>();
+    mfu::ThreadPool      tp(1);
     vector<StructorTest> start;
     for (size_t i = 0; i < 100; i++)
         start.emplace_back();
@@ -189,8 +194,7 @@ TEST(function, Function_singleCopy)
 
 TEST(function, threaded_returnsCorrectValues)
 {
-    constexpr auto funcInt =
-        mfu::Function<[](int x) { return x * 2; }>();
+    constexpr auto  funcInt = mfu::Function<[](int x) { return x * 2; }>();
     mfu::ThreadPool tp(1);
     vector<int>     a        = {1, 2, 3, 4, 5};
     auto            r        = funcInt.threaded(a).with(tp);
@@ -204,8 +208,7 @@ TEST(function, threaded_returnsCorrectValues)
 
 TEST(function, threaded_emptyVector)
 {
-    constexpr auto funcInt =
-        mfu::Function<[](int x) { return x * 2; }>();
+    constexpr auto  funcInt = mfu::Function<[](int x) { return x * 2; }>();
     mfu::ThreadPool tp(1);
     vector<int>     a = {};
     auto            r = funcInt.threaded(a).with(tp);
@@ -214,8 +217,7 @@ TEST(function, threaded_emptyVector)
 
 TEST(function, threaded_singleElement)
 {
-    constexpr auto funcInt =
-        mfu::Function<[](int x) { return x * 2; }>();
+    constexpr auto  funcInt = mfu::Function<[](int x) { return x * 2; }>();
     mfu::ThreadPool tp(1);
     vector<int>     a = {42};
     auto            r = funcInt.threaded(a).with(tp);
@@ -225,12 +227,11 @@ TEST(function, threaded_singleElement)
 
 TEST(function, threaded_mixedVectorAndScalar)
 {
-    constexpr auto func =
-        mfu::Function<[](int x, const string& prefix)
-                      { return prefix + to_string(x); }>();
+    constexpr auto  func = mfu::Function<[](int x, const string& prefix)
+                                         { return prefix + to_string(x); }>();
     mfu::ThreadPool tp(1);
     vector<int>     nums = {1, 2, 3};
-    auto            r = func.threaded(nums, string("num_")).with(tp);
+    auto            r    = func.threaded(nums, string("num_")).with(tp);
     ASSERT_EQ(r.size(), 3);
     EXPECT_EQ(r[0], "num_1");
     EXPECT_EQ(r[1], "num_2");
@@ -239,8 +240,7 @@ TEST(function, threaded_mixedVectorAndScalar)
 
 TEST(function, threaded_multipleVectors_sameLength)
 {
-    constexpr auto func =
-        mfu::Function<[](int x, int y) { return x + y; }>();
+    constexpr auto  func = mfu::Function<[](int x, int y) { return x + y; }>();
     mfu::ThreadPool tp(1);
     vector<int>     a = {1, 2, 3};
     vector<int>     b = {10, 20, 30};
@@ -257,7 +257,9 @@ struct MoveTracker
     int numMoves  = 0;
     int value;
     MoveTracker() = default;
-    MoveTracker(int v) : value(v) {}
+    MoveTracker(int v) : value(v)
+    {
+    }
     MoveTracker(const MoveTracker& other)
     {
         numCopies = other.numCopies;
@@ -292,8 +294,7 @@ struct MoveTracker
 
 TEST(function, threaded_perfectForwarding_byValue)
 {
-    constexpr auto func =
-        mfu::Function<[](MoveTracker t) { return t; }>();
+    constexpr auto      func = mfu::Function<[](MoveTracker t) { return t; }>();
     mfu::ThreadPool     tp(1);
     vector<MoveTracker> items;
     for (int i = 0; i < 5; i++)
@@ -345,8 +346,7 @@ TEST(function, threaded_perfectForwarding_lvalueRef)
 
 TEST(function, threaded_unequalVectorLengths)
 {
-    constexpr auto func =
-        mfu::Function<[](int x, int y) { return x + y; }>();
+    constexpr auto  func = mfu::Function<[](int x, int y) { return x + y; }>();
     mfu::ThreadPool tp(1);
     vector<int>     a        = {1, 2, 3};
     vector<int>     b        = {10, 20};

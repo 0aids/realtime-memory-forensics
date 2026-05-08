@@ -32,24 +32,21 @@ namespace RealtimeMemoryForensics::Logging
     extern LogLevels LogLevel;
     void             setLogLevel(LogLevels level);
 
-    std::string formatPreamble(LogLevels              level,
-                               const std::string_view threadName,
-                               const std::string_view filename,
-                               size_t                 lineNumber,
-                               const std::string_view functionName);
+    std::string      formatPreamble(LogLevels              level,
+                                    const std::string_view threadName,
+                                    const std::string_view filename,
+                                    size_t                 lineNumber,
+                                    const std::string_view functionName);
 
     template <typename... Args>
-    void stderrAndFmt(LogLevels                   level,
-                      const std::string_view      filename,
-                      size_t                      lineNumber,
-                      const std::string_view      functionName,
-                      std::format_string<Args...> fmtString,
-                      Args&&... args)
+    void stderrAndFmt(LogLevels level, const std::string_view filename,
+                      size_t lineNumber, const std::string_view functionName,
+                      std::format_string<Args...> fmtString, Args&&... args)
     {
         char threadname[16] = {};
         // pthread_getname_np(pthread_self(), threadname, sizeof(threadname)) ;
-        const auto preamble = formatPreamble(
-            level, threadname, filename, lineNumber, functionName);
+        const auto preamble = formatPreamble(level, threadname, filename,
+                                             lineNumber, functionName);
         const auto postamble =
             std::format(fmtString, std::forward<Args>(args)...);
         const auto f = std::format("{} {}{}", preamble, postamble,
@@ -58,25 +55,23 @@ namespace RealtimeMemoryForensics::Logging
     }
 }
 
-#define rmf_Log(level, ...)                                          \
-    {                                                                \
-        if (level <= RealtimeMemoryForensics::Logging::LogLevel)     \
-        {                                                            \
-            RealtimeMemoryForensics::Logging::stderrAndFmt(          \
-                level, __FILE__, __LINE__, __FUNCTION__,             \
-                __VA_ARGS__);                                        \
-        }                                                            \
+#define rmf_Log(level, ...)                                                    \
+    {                                                                          \
+        if (level <= RealtimeMemoryForensics::Logging::LogLevel)               \
+        {                                                                      \
+            RealtimeMemoryForensics::Logging::stderrAndFmt(                    \
+                level, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);         \
+        }                                                                      \
     }
-#define rmf_Error(...)                                               \
+#define rmf_Error(...)                                                         \
     rmf_Log(RealtimeMemoryForensics::Logging::Error, __VA_ARGS__);
-#define rmf_Warning(...)                                             \
+#define rmf_Warning(...)                                                       \
     rmf_Log(RealtimeMemoryForensics::Logging::Warning, __VA_ARGS__);
-#define rmf_Ok(...)                                                  \
-    rmf_Log(RealtimeMemoryForensics::Logging::Ok, __VA_ARGS__);
-#define rmf_Info(...)                                                \
+#define rmf_Ok(...) rmf_Log(RealtimeMemoryForensics::Logging::Ok, __VA_ARGS__);
+#define rmf_Info(...)                                                          \
     rmf_Log(RealtimeMemoryForensics::Logging::Info, __VA_ARGS__);
-#define rmf_Verbose(...)                                             \
+#define rmf_Verbose(...)                                                       \
     rmf_Log(RealtimeMemoryForensics::Logging::Verbose, __VA_ARGS__);
 
-#define rmf_Debug(...)                                               \
+#define rmf_Debug(...)                                                         \
     rmf_Log(RealtimeMemoryForensics::Logging::Debug, __VA_ARGS__);

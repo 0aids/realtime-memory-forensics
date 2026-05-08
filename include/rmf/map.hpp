@@ -34,8 +34,7 @@ enum class RealtimeMemoryForensics::Perms : uint8_t
 };
 
 template <>
-struct magic_enum::customize::enum_range<
-    RealtimeMemoryForensics::Perms>
+struct magic_enum::customize::enum_range<RealtimeMemoryForensics::Perms>
 {
     static constexpr bool is_flags = true;
 };
@@ -53,10 +52,9 @@ namespace RealtimeMemoryForensics
             uintptr_t                          parentSize      = 0;
             ptrdiff_t                          relativeAddress = 0;
             ptrdiff_t                          relativeSize    = 0;
-            std::shared_ptr<const std::string> regionName_sp =
-                defaultName;
-            Perms perms = Perms::None;
-            bool  operator==(const MapData& other) const = default;
+            std::shared_ptr<const std::string> regionName_sp   = defaultName;
+            Perms                              perms           = Perms::None;
+            bool operator==(const MapData& other) const        = default;
         };
     }
 
@@ -78,10 +76,9 @@ namespace RealtimeMemoryForensics
         constexpr uintptr_t RMF_MIXIN_METHOD(pend, () const);
 
         template <typename T>
-        Utils::ErrU<bool> RMF_MIXIN_METHOD(modify, ());
+        Utils::ErrU<bool>                  RMF_MIXIN_METHOD(modify, ());
 
-        std::shared_ptr<const std::string> RMF_MIXIN_METHOD(getName,
-                                                            ());
+        std::shared_ptr<const std::string> RMF_MIXIN_METHOD(getName, ());
 
                                            operator std::string();
 
@@ -100,21 +97,17 @@ namespace RealtimeMemoryForensics
             // TODO: Move naming filters to regex.
 
             template <NodeWithFeatures<Map> Self>
-            Self exactName(this const Self& self,
-                           const std::string_view);
+            Self exactName(this const Self& self, const std::string_view);
             template <NodeWithFeatures<Map> Self>
-            Self subName(this const Self& self,
-                         const std::string_view);
+            Self subName(this const Self& self, const std::string_view);
 
             template <NodeWithFeatures<Map> Self>
             Self exactPerms(this const Self&       self,
                             const std::string_view perms);
             template <NodeWithFeatures<Map> Self>
-            Self hasPerms(this const Self&       self,
-                          const std::string_view perms);
+            Self hasPerms(this const Self& self, const std::string_view perms);
             template <NodeWithFeatures<Map> Self>
-            Self notPerms(this const Self&       self,
-                          const std::string_view perms);
+            Self notPerms(this const Self& self, const std::string_view perms);
             template <NodeWithFeatures<Map> Self>
             Self active(this const Self& self, pid_t pid);
         };
@@ -126,25 +119,34 @@ namespace RealtimeMemoryForensics
     using namespace magic_enum::bitwise_operators;
     // Returns the address of the beginning of this region.
     constexpr uintptr_t Map::tbegin() const
-    { return map.parentAddress + map.relativeAddress; }
+    {
+        return map.parentAddress + map.relativeAddress;
+    }
     // Returns the address of the end of this region (exclusive). const
     constexpr uintptr_t Map::tend() const
     {
-        return map.parentAddress + map.relativeAddress +
-            map.relativeSize;
+        return map.parentAddress + map.relativeAddress + map.relativeSize;
     }
     // Returns the relative beginning (relative to the parent) const
     constexpr uintptr_t Map::rbegin() const
-    { return map.relativeAddress; }
+    {
+        return map.relativeAddress;
+    }
     // Returns the relative beginning (relative to the parent) const
     constexpr uintptr_t Map::rend() const
-    { return map.relativeAddress + map.relativeSize; }
+    {
+        return map.relativeAddress + map.relativeSize;
+    }
     // Returns the parent beginning
     constexpr uintptr_t Map::pbegin() const
-    { return map.parentAddress; }
+    {
+        return map.parentAddress;
+    }
     // Returns the parent beginning
     constexpr uintptr_t Map::pend() const
-    { return map.parentAddress + map.parentSize; }
+    {
+        return map.parentAddress + map.parentSize;
+    }
     // using InnerType = BaseVec::InnerType;
 
     template <NodeWithFeatures<Map> Self>
@@ -197,8 +199,7 @@ namespace RealtimeMemoryForensics
             while (ptrHead < end)
             {
                 const uintptr_t actualChunkSize =
-                    (end - ptrHead > chunkSize) ? chunkSize :
-                                                  end - ptrHead;
+                    (end - ptrHead > chunkSize) ? chunkSize : end - ptrHead;
                 res.push_back(mrp);
                 res.back().map.relativeSize    = actualChunkSize;
                 res.back().map.relativeAddress = ptrHead;
@@ -299,8 +300,7 @@ namespace RealtimeMemoryForensics
         using namespace Utils::Literals;
         if (self.size() == 0)
         {
-            rmf_Warning(
-                "Given an empty types::MemoryRegionPropertiesVec!!!");
+            rmf_Warning("Given an empty types::MemoryRegionPropertiesVec!!!");
             return {};
         }
         Self              regions;
@@ -317,8 +317,7 @@ namespace RealtimeMemoryForensics
         for (const auto& mrp : self)
         {
             for (uintptr_t addr = mrp.tbegin();
-                 addr < mrp.tbegin() + mrp.map.relativeSize;
-                 addr += pageSize)
+                 addr < mrp.tbegin() + mrp.map.relativeSize; addr += pageSize)
             {
                 // Multiply by 8 because each 8 byte chunk represents a page.
                 uintptr_t offset = (addr / pageSize) * 8;
@@ -348,8 +347,7 @@ namespace RealtimeMemoryForensics
                 if (entry & ACTIVE_BIT)
                 {
                     if (regions.size() > 0 &&
-                        regions.back().rend() ==
-                            addr - mrp.map.parentAddress)
+                        regions.back().rend() == addr - mrp.map.parentAddress)
                     {
                         regions.back().map.relativeSize += pageSize;
                     }

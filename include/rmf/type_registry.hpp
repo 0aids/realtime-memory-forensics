@@ -48,17 +48,17 @@
 // Macro shit to generate the standard sizes.
 #define RMF_PTR_SIZE sizeof(void*)
 
-#define RMF_PRIM_TYPES(X)                                            \
-    X(v, 0)                                                          \
-    X(u, 8)                                                          \
-    X(u, 16)                                                         \
-    X(u, 32)                                                         \
-    X(u, 64)                                                         \
-    X(i, 8)                                                          \
-    X(i, 16)                                                         \
-    X(i, 32)                                                         \
-    X(i, 64)                                                         \
-    X(f, 32)                                                         \
+#define RMF_PRIM_TYPES(X)                                                      \
+    X(v, 0)                                                                    \
+    X(u, 8)                                                                    \
+    X(u, 16)                                                                   \
+    X(u, 32)                                                                   \
+    X(u, 64)                                                                   \
+    X(i, 8)                                                                    \
+    X(i, 16)                                                                   \
+    X(i, 32)                                                                   \
+    X(i, 64)                                                                   \
+    X(f, 32)                                                                   \
     X(f, 64)
 
 namespace RealtimeMemoryForensics
@@ -173,9 +173,8 @@ namespace RealtimeMemoryForensics
     };
 
     template <typename T>
-    concept FieldDeducible = requires {
-        std::same_as<T, strview> || std::same_as<T, Field>;
-    };
+    concept FieldDeducible =
+        requires { std::same_as<T, strview> || std::same_as<T, Field>; };
 
     template <typename T>
     concept TypeDeducible = requires {
@@ -184,9 +183,8 @@ namespace RealtimeMemoryForensics
     };
 
     template <typename T>
-    concept StructDeducible = requires {
-        std::same_as<T, strview> || std::same_as<T, Struct>;
-    };
+    concept StructDeducible =
+        requires { std::same_as<T, strview> || std::same_as<T, Struct>; };
 
     class Struct : public Typed
     {
@@ -205,8 +203,7 @@ namespace RealtimeMemoryForensics
 
         // Consider adding functor for mapped operations?
         // Creates a typed version of a node
-        template <IsNode T,
-                  IsNode ResultNode = T::template AddFeature<Typed>>
+        template <IsNode T, IsNode ResultNode = T::template AddFeature<Typed>>
         ResultNode nodify(const T& node);
 
         // Creates a typed version of a node, from a specified field.
@@ -219,15 +216,13 @@ namespace RealtimeMemoryForensics
         // Get the node at a specific field.
         // This node is technically a "SubNode", but we make no distinction.
         template <IsNode Node, FieldDeducible ForS,
-                  IsNode ResultNode =
-                      Node::template SwapFeature<Struct, Typed>>
+                  IsNode ResultNode = Node::template SwapFeature<Struct, Typed>>
         ResultNode fieldNode(this const Node&, const ForS& field);
 
         // Gets the actual buffer at a specific field, as either as a desired
         // range.
         template <NodeWithFeatures<Snapshot> Node>
-        SnapshotBuffer bytesAtField(this const Node&,
-                                    const Field& field);
+        SnapshotBuffer bytesAtField(this const Node&, const Field& field);
     };
 
     // Mixinable
@@ -255,8 +250,7 @@ namespace RealtimeMemoryForensics
         // Requires maps to query the parent region. If it cannot find the parent region,
         // it returns the region without a specified parent region.
         template <NodeWithFeatures<Snapshot> Node, typename MapRange>
-            requires NodeWithFeatures<
-                std::ranges::range_value_t<MapRange>, Map>
+            requires NodeWithFeatures<std::ranges::range_value_t<MapRange>, Map>
         Node::template SwapFeature<Pointer, Typed>
         targetNode(this const Node& node, const MapRange& maps);
     };
@@ -310,8 +304,7 @@ namespace RealtimeMemoryForensics
         // Create a node at the relevant index of the array,
         // with included bounds checking which throws if you are stupid.
         template <IsNode Node>
-        Node::template SwapFeature<Array, Typed>
-        nodeAt(ssize_t i) const;
+        Node::template SwapFeature<Array, Typed> nodeAt(ssize_t i) const;
     };
 
     class Field : public Typed
@@ -392,24 +385,27 @@ struct std::hash<RealtimeMemoryForensics::BaseTypeData>
 {
     using Hashee = RealtimeMemoryForensics::BaseTypeData;
     std::size_t operator()(const Hashee& h)
-    { return std::hash<std::string>{}(h.name); }
+    {
+        return std::hash<std::string>{}(h.name);
+    }
 };
 template <>
-struct std::hash<
-    std::shared_ptr<RealtimeMemoryForensics::BaseTypeData>>
+struct std::hash<std::shared_ptr<RealtimeMemoryForensics::BaseTypeData>>
 {
-    using Hashee =
-        std::shared_ptr<RealtimeMemoryForensics::BaseTypeData>;
+    using Hashee = std::shared_ptr<RealtimeMemoryForensics::BaseTypeData>;
     std::size_t operator()(const Hashee& h)
-    { return std::hash<std::string>{}(h->name); }
+    {
+        return std::hash<std::string>{}(h->name);
+    }
 };
 template <>
 struct std::hash<std::weak_ptr<RealtimeMemoryForensics::BaseTypeData>>
 {
-    using Hashee =
-        std::weak_ptr<RealtimeMemoryForensics::BaseTypeData>;
+    using Hashee = std::weak_ptr<RealtimeMemoryForensics::BaseTypeData>;
     std::size_t operator()(const Hashee& h)
-    { return std::hash<std::string>{}(h.lock()->name); }
+    {
+        return std::hash<std::string>{}(h.lock()->name);
+    }
 };
 
 #ifndef RMF_NO_CLEANUP_MACROS

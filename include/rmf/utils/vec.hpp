@@ -44,10 +44,8 @@ namespace RealtimeMemoryForensics::Utils
             T&       data;
             Pipeline pipe;
             auto     operator|(const auto F)
-                requires(
-                    !std::same_as<std::decay_t<decltype(F)>, End> &&
-                    !std::same_as<std::decay_t<decltype(F)>,
-                                  EndThreaded>);
+                requires(!std::same_as<std::decay_t<decltype(F)>, End> &&
+                         !std::same_as<std::decay_t<decltype(F)>, EndThreaded>);
             auto operator|(End);
             auto operator|(EndThreaded);
         };
@@ -70,8 +68,7 @@ namespace RealtimeMemoryForensics::Utils
         auto mapThreaded(Args&&... args);
 
         template <typename F, typename... Args>
-            requires std::is_same_v<std::invoke_result_t<F, Args...>,
-                                    bool>
+            requires std::is_same_v<std::invoke_result_t<F, Args...>, bool>
         Vec<T> filter(F&& f, Args&&... args);
 
         template <typename InnerInnerType>
@@ -99,22 +96,20 @@ namespace RealtimeMemoryForensics::Utils
         }
         else
             return *this |
-                std::views::transform(
-                    [&](T& item)
-                    { return std::invoke(f, item, args...); }) |
-                std::ranges::to<Vec<ReturnType>>();
+                   std::views::transform(
+                       [&](T& item) { return std::invoke(f, item, args...); }) |
+                   std::ranges::to<Vec<ReturnType>>();
     }
 
     template <typename T, typename Operator, typename Allocator>
     template <typename F, typename... Args>
-        requires std::is_same_v<std::invoke_result_t<F, Args...>,
-                                bool>
+        requires std::is_same_v<std::invoke_result_t<F, Args...>, bool>
     Vec<T> Vec<T, Operator, Allocator>::filter(F&& f, Args&&... args)
     {
         auto a = *this |
-            std::ranges::filter_view(
-                [&](T& t) -> bool
-                { return std::invoke(f, t, std::forward(args)...); });
+                 std::ranges::filter_view(
+                     [&](T& t) -> bool
+                     { return std::invoke(f, t, std::forward(args)...); });
         return Vec<T>(a.begin(), a.end());
     }
 
@@ -151,15 +146,14 @@ namespace RealtimeMemoryForensics::Utils
     }
     template <typename T, typename Pipeline>
     auto Pipe::Impl<T, Pipeline>::operator|(const auto F)
-        requires(
-            !std::same_as<std::decay_t<decltype(F)>, End> &&
-            !std::same_as<std::decay_t<decltype(F)>, EndThreaded>)
+        requires(!std::same_as<std::decay_t<decltype(F)>, End> &&
+                 !std::same_as<std::decay_t<decltype(F)>, EndThreaded>)
     {
         if constexpr (!std::same_as<Pipeline, std::false_type>)
         {
             auto newPipeline = pipe | std::views::transform(F);
-            return Impl<T, decltype(newPipeline)>{
-                .data = data, .pipe = newPipeline};
+            return Impl<T, decltype(newPipeline)>{.data = data,
+                                                  .pipe = newPipeline};
         }
         else
         {
@@ -178,5 +172,7 @@ namespace RealtimeMemoryForensics::Utils
 
     template <typename T, typename Pipeline>
     auto Pipe::Impl<T, Pipeline>::operator|(EndThreaded)
-    { assert(false && "TODO!"); }
+    {
+        assert(false && "TODO!");
+    }
 }

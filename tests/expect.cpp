@@ -91,8 +91,7 @@ TEST(Expected, rmf_updRetErr_updatesAndReturns)
     auto passThrough = [&createErr]() -> mfu::ErrU<int>
     {
         mfu::ErrU<int> errU;
-        rmf_updRetErr(createErr(),
-                      mfu::ErrorEnum::MaxErrorDepthReached);
+        rmf_updRetErr(createErr(), mfu::ErrorEnum::MaxErrorDepthReached);
         return 42;
     };
 

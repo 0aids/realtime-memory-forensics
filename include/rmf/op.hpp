@@ -43,9 +43,9 @@ namespace RealtimeMemoryForensics
         {
             template <typename node_t, typename N>
                 requires IsNode<node_t>
-            Utils::Vec<Node<Map>>
-            operator()(const node_t& snap1, const node_t& snap2,
-                       const N& minDifference) const;
+            Utils::Vec<Node<Map>> operator()(const node_t& snap1,
+                                             const node_t& snap2,
+                                             const N&      minDifference) const;
         };
 
         // Inclusive.
@@ -54,9 +54,9 @@ namespace RealtimeMemoryForensics
         {
             template <typename node_t, typename N>
                 requires IsNode<node_t>
-            Utils::Vec<Node<Map>>
-            operator()(const node_t& snap1, const node_t& snap2,
-                       const N& maxDifference) const;
+            Utils::Vec<Node<Map>> operator()(const node_t& snap1,
+                                             const node_t& snap2,
+                                             const N&      maxDifference) const;
         };
 
         /*****************************/
@@ -67,9 +67,8 @@ namespace RealtimeMemoryForensics
         {
             template <typename node_t>
                 requires IsNode<node_t>
-            Utils::Vec<node_t>
-            operator()(const node_t&          snap1,
-                       const std::string_view str) const;
+            Utils::Vec<node_t> operator()(const node_t&          snap1,
+                                          const std::string_view str) const;
         };
 
         struct findNumExact
@@ -87,9 +86,8 @@ namespace RealtimeMemoryForensics
         {
             template <typename node_t, typename N>
                 requires IsNode<node_t>
-            Utils::Vec<Node<Map>> operator()(const node_t& snap1,
-                                             const N&      min,
-                                             const N&      max) const;
+            Utils::Vec<Node<Map>> operator()(const node_t& snap1, const N& min,
+                                             const N& max) const;
         };
         // struct captureNodes
         // {
@@ -101,28 +99,25 @@ namespace RealtimeMemoryForensics
 
     // Threadify functions.
     constexpr auto findChanged =
-        Utils::Function<Detail::findChanged{}, Detail::findChanged{},
-                        true>();
+        Utils::Function<Detail::findChanged{}, Detail::findChanged{}, true>();
 
     constexpr auto findUnchanged =
-        Utils::Function<Detail::findUnchanged{},
-                        Detail::findUnchanged{}, true>();
-
-    constexpr auto findNumChanged =
-        Utils::Function<Detail::findNumChanged{},
-                        Detail::findNumChanged{}, true>();
-
-    constexpr auto findNumUnchanged =
-        Utils::Function<Detail::findNumUnchanged{},
-                        Detail::findNumUnchanged{}, true>();
-
-    constexpr auto findString =
-        Utils::Function<Detail::findString{}, Detail::findString{},
+        Utils::Function<Detail::findUnchanged{}, Detail::findUnchanged{},
                         true>();
 
+    constexpr auto findNumChanged =
+        Utils::Function<Detail::findNumChanged{}, Detail::findNumChanged{},
+                        true>();
+
+    constexpr auto findNumUnchanged =
+        Utils::Function<Detail::findNumUnchanged{}, Detail::findNumUnchanged{},
+                        true>();
+
+    constexpr auto findString =
+        Utils::Function<Detail::findString{}, Detail::findString{}, true>();
+
     constexpr auto findNumExact =
-        Utils::Function<Detail::findNumExact{},
-                        Detail::findNumExact{}, true>();
+        Utils::Function<Detail::findNumExact{}, Detail::findNumExact{}, true>();
 
     constexpr auto findNumWithinRange =
         Utils::Function<Detail::findNumWithinRange{},
@@ -143,8 +138,7 @@ namespace RealtimeMemoryForensics::Detail
     template <typename node_t>
         requires IsNode<node_t>
     Utils::Vec<Node<Map>>
-    findChanged::operator()(const node_t&    nodeSnap1,
-                            const node_t&    nodeSnap2,
+    findChanged::operator()(const node_t& nodeSnap1, const node_t& nodeSnap2,
                             const uintptr_t& compareSize) const
     {
         std::span<uint8_t>    span1 = nodeSnap1.span();
@@ -155,10 +149,9 @@ namespace RealtimeMemoryForensics::Detail
         uintptr_t             bytesCompared = 0;
         while (bytesCompared < span1.size())
         {
-            uintptr_t toCompare =
-                (span1.size() - bytesCompared > compareSize) ?
-                compareSize :
-                span1.size() - bytesCompared;
+            uintptr_t toCompare = (span1.size() - bytesCompared > compareSize) ?
+                                      compareSize :
+                                      span1.size() - bytesCompared;
 
             if (memcmp(span1.data() + bytesCompared,
                        span2.data() + bytesCompared, toCompare))
@@ -180,16 +173,14 @@ namespace RealtimeMemoryForensics::Detail
             }
             bytesCompared += toCompare;
         }
-        rmf_Debug("Number of changed regions found: {}",
-                  results.size());
+        rmf_Debug("Number of changed regions found: {}", results.size());
         return results;
     }
 
     template <typename node_t>
         requires IsNode<node_t>
     Utils::Vec<Node<Map>>
-    findUnchanged::operator()(const node_t&    nodeSnap1,
-                              const node_t&    nodeSnap2,
+    findUnchanged::operator()(const node_t& nodeSnap1, const node_t& nodeSnap2,
                               const uintptr_t& compareSize) const
     {
         std::span<uint8_t>    span1 = nodeSnap1.span();
@@ -199,10 +190,9 @@ namespace RealtimeMemoryForensics::Detail
         uintptr_t             bytesCompared = 0;
         while (bytesCompared < span1.size())
         {
-            uintptr_t toCompare =
-                (span1.size() - bytesCompared > compareSize) ?
-                compareSize :
-                span1.size() - bytesCompared;
+            uintptr_t toCompare = (span1.size() - bytesCompared > compareSize) ?
+                                      compareSize :
+                                      span1.size() - bytesCompared;
 
             if (!memcmp(span1.data() + bytesCompared,
                         span2.data() + bytesCompared, toCompare))
@@ -224,8 +214,7 @@ namespace RealtimeMemoryForensics::Detail
             }
             bytesCompared += toCompare;
         }
-        rmf_Debug("Number of unchanged regions found: ",
-                  results.size());
+        rmf_Debug("Number of unchanged regions found: ", results.size());
         return results;
     }
 
@@ -234,9 +223,8 @@ namespace RealtimeMemoryForensics::Detail
     template <typename node_t, typename N>
         requires IsNode<node_t>
     Utils::Vec<Node<Map>>
-    findNumChanged::operator()(const node_t& nodeSnap1,
-                               const node_t& nodeSnap2,
-                               const N&      minDifference) const
+    findNumChanged::operator()(const node_t& nodeSnap1, const node_t& nodeSnap2,
+                               const N& minDifference) const
     {
         std::span<uint8_t>    span1 = nodeSnap1.span();
         std::span<uint8_t>    span2 = nodeSnap2.span();
@@ -246,12 +234,11 @@ namespace RealtimeMemoryForensics::Detail
 
         // Prealign to the next available slot.
         uintptr_t bytesCompared = 0;
-        if ((nodeSnap1.tbegin() / alignment) * alignment <
-            nodeSnap1.tbegin())
+        if ((nodeSnap1.tbegin() / alignment) * alignment < nodeSnap1.tbegin())
         {
             bytesCompared += alignment +
-                (nodeSnap1.tbegin() / alignment * alignment) -
-                nodeSnap1.tbegin();
+                             (nodeSnap1.tbegin() / alignment * alignment) -
+                             nodeSnap1.tbegin();
         }
 
         // Ensure we don't read out of bounds
@@ -296,12 +283,11 @@ namespace RealtimeMemoryForensics::Detail
 
         // Prealign to the next available slot.
         uintptr_t bytesCompared = 0;
-        if ((nodeSnap1.tbegin() / alignment) * alignment <
-            nodeSnap1.tbegin())
+        if ((nodeSnap1.tbegin() / alignment) * alignment < nodeSnap1.tbegin())
         {
             bytesCompared += alignment +
-                (nodeSnap1.tbegin() / alignment * alignment) -
-                nodeSnap1.tbegin();
+                             (nodeSnap1.tbegin() / alignment * alignment) -
+                             nodeSnap1.tbegin();
         }
 
         // Ensure we don't read out of bounds
@@ -336,20 +322,19 @@ namespace RealtimeMemoryForensics::Detail
 
     template <typename node_t>
         requires IsNode<node_t>
-    Utils::Vec<node_t>
-    findString::operator()(const node_t&          nodeSnap,
-                           const std::string_view str) const
+    Utils::Vec<node_t> findString::operator()(const node_t&          nodeSnap,
+                                              const std::string_view str) const
     {
         Utils::Vec<node_t> results;
-        auto               span = nodeSnap.span();
-        const char* head = reinterpret_cast<const char*>(span.data());
-        const char* begin = head;
-        const char* end   = head + span.size();
+        auto               span  = nodeSnap.span();
+        const char*        head  = reinterpret_cast<const char*>(span.data());
+        const char*        begin = head;
+        const char*        end   = head + span.size();
 
         while (head < end)
         {
-            head = static_cast<const char*>(
-                std::memchr(head, str[0], end - head));
+            head =
+                static_cast<const char*>(std::memchr(head, str[0], end - head));
             if (!head)
                 break;
 
@@ -368,9 +353,8 @@ namespace RealtimeMemoryForensics::Detail
 
     template <typename... Features, typename N, typename node_t>
         requires IsNode<node_t>
-    Utils::Vec<node_t>
-    findNumExact::operator()(const node_t& nodeSnap,
-                             const N       number) const
+    Utils::Vec<node_t> findNumExact::operator()(const node_t& nodeSnap,
+                                                const N       number) const
     {
         using num_t             = std::decay_t<N>;
         std::span<uint8_t> span = nodeSnap.span();
@@ -379,12 +363,11 @@ namespace RealtimeMemoryForensics::Detail
         const size_t       alignment     = alignof(N);
         const size_t       size          = sizeof(N);
         uintptr_t          bytesCompared = 0;
-        if ((nodeSnap.tbegin() / alignment) * alignment <
-            nodeSnap.tend())
+        if ((nodeSnap.tbegin() / alignment) * alignment < nodeSnap.tend())
         {
             bytesCompared += alignment +
-                (nodeSnap.tbegin() / alignment * alignment) -
-                nodeSnap.tbegin();
+                             (nodeSnap.tbegin() / alignment * alignment) -
+                             nodeSnap.tbegin();
         }
 
         while (bytesCompared + size < span.size())
@@ -406,21 +389,20 @@ namespace RealtimeMemoryForensics::Detail
     // Inclusive.
     template <typename node_t, typename N>
         requires IsNode<node_t>
-    Utils::Vec<Node<Map>>
-    findNumWithinRange::operator()(const node_t& nodeSnap,
-                                   const N& min, const N& max) const
+    Utils::Vec<Node<Map>> findNumWithinRange::operator()(const node_t& nodeSnap,
+                                                         const N&      min,
+                                                         const N& max) const
     {
         std::span<uint8_t>    span = nodeSnap.span();
         Utils::Vec<Node<Map>> results;
         const size_t          alignment     = alignof(N);
         const size_t          size          = sizeof(N);
         uintptr_t             bytesCompared = 0;
-        if ((nodeSnap.tbegin() / alignment) * alignment <
-            nodeSnap.tbegin())
+        if ((nodeSnap.tbegin() / alignment) * alignment < nodeSnap.tbegin())
         {
             bytesCompared += alignment +
-                (nodeSnap.tbegin() / alignment * alignment) -
-                nodeSnap.tbegin();
+                             (nodeSnap.tbegin() / alignment * alignment) -
+                             nodeSnap.tbegin();
         }
 
         while (bytesCompared + size < span.size())
@@ -458,9 +440,9 @@ namespace RealtimeMemoryForensics
     {
         using NodeBase = Node<Map, Features...>;
         using namespace Utils::Literals;
-        std::ifstream memoryMapFile("/proc/{}/maps"_f.fmt(pid));
-        std::string   line;
-        int           unnamedRegionNumber = 1;
+        std::ifstream        memoryMapFile("/proc/{}/maps"_f.fmt(pid));
+        std::string          line;
+        int                  unnamedRegionNumber = 1;
 
         Utils::Vec<NodeBase> regionProperties;
 
@@ -471,27 +453,23 @@ namespace RealtimeMemoryForensics
             perms.resize(4, '-');
             std::string name;
             name.resize(1024, 0);
-            sscanf(line.c_str(),
-                   "%lx-%lx %c%c%c%c %*s %*s %*s %[^\n]", &startAddr,
-                   &endAddr, &perms[0], &perms[1], &perms[2],
+            sscanf(line.c_str(), "%lx-%lx %c%c%c%c %*s %*s %*s %[^\n]",
+                   &startAddr, &endAddr, &perms[0], &perms[1], &perms[2],
                    &perms[3], name.data());
             name.resize(strlen(name.c_str()));
 
             if (name.size() == 0)
             {
-                name = "UnnamedRegion-" +
-                    std::to_string(unnamedRegionNumber++);
+                name = "UnnamedRegion-" + std::to_string(unnamedRegionNumber++);
             }
 
             Detail::MapData m = {
                 .parentAddress   = startAddr,
                 .parentSize      = endAddr - startAddr,
                 .relativeAddress = 0,
-                .relativeSize =
-                    static_cast<ptrdiff_t>(endAddr - startAddr),
-                .regionName_sp =
-                    std::make_shared<const std::string>(name),
-                .perms = Detail::parsePerms(perms),
+                .relativeSize    = static_cast<ptrdiff_t>(endAddr - startAddr),
+                .regionName_sp   = std::make_shared<const std::string>(name),
+                .perms           = Detail::parsePerms(perms),
             };
             NodeBase node;
             node.map = m;
