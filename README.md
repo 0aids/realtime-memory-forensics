@@ -54,18 +54,13 @@ cmake -S . -B build -Dtests=ON && cmake --build build -j 12 && (ulimit -m 100000
 mf::TypeRegistry sr;
 
 // Builder pattern with explicit field deduction?
-// This means type deduction is done by the user! Hahahahahqha
-// Less work for me is always good.
-mf::Struct node = sr.defStruct("Node")
-    .primitive("uint32_t", "data")
-    // Optional *, is ignored
-    .pointer("Node*", "next")
-    .array("uint32_t", 10, "name")
-    // Or optionally:
-    .array("uint32_t[10]", "name")
-    // We can have nested structs
-    .struct_("DefinedStruct", "name")
-.end(); // Full type is resolved here.
+mf::Struct node = sr.defStruct("Node"/*, sr.PACKED or sr.DEFAULT*/)
+    .field(sr.prim.u32, 		 "data")
+    .field(sr.ptrTo(sr.struct_("Node")), "next")
+    .field(sr.arrOf(sr.u32, 10), "array")
+    .field(sr.arrOf(sr.ptrTo(sr.struct_("Node")), 10), "pointers")
+    .field(sr.struct_("PredefinedStruct"), "name")
+.end(); // Full type is resolved here, offsets calculated, etc.
 // maybe you could call "defStruct" inside of the builder if I feel like implementing it.
 // Maybe in the future also allow defining types before hand and then creating
 // structs from them.

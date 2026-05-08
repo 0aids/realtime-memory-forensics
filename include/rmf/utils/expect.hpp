@@ -10,6 +10,7 @@ namespace RealtimeMemoryForensics::Utils
         TestError,
         MaxErrorDepthReached,
         TestBufferOverflow,
+        FieldDoesNotExist,
     };
 
     class Error;
