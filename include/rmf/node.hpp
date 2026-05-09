@@ -1,42 +1,39 @@
 #pragma once
 #include "rmf/logging/logging.hpp"
+#include "rmf/utils/meta.hpp"
 #include <string>
 #include <type_traits>
 
 namespace RealtimeMemoryForensics
 {
     template <typename... Args>
+    concept NodeRequirements = requires {
+        NodeExclusions::isExclusive<Args...>() &&
+            !Utils::Meta::HasDuplicates_v<Args...>;
+    };
+
+    template <typename... Args>
+        requires NodeRequirements<Args...>
     class Node;
+
     template <typename T>
     concept IsNode = requires(T t) { std::decay_t<T>::IsNode; };
+
     template <typename Node_t, typename... Features>
     concept NodeWithFeatures = requires {
         IsNode<Node_t>;
         (std::is_base_of_v<Features, Node_t>, ...);
     };
-    // class Map;
-    // class Snapshot;
-    // class Typed;
-    // class Struct;
-    // class Pointer;
 
     // Consider forcing a sort of strict order using enable if
     // like
     template <typename... Args>
+        requires NodeRequirements<Args...>
     class Node : public Args...
-    // class Node:
-    //      public std::enable_if<std::disjunction_v<std::is_same<Map, Args>...>, Map>
-    //      public std::enable_if<std::disjunction_v<std::is_same<Snapshot, Args>...>, Snapshot>
-    //      public std::enable_if<std::disjunction_v<std::is_same<Typed, Args>...>, Typed>
-    //      public std::enable_if<std::disjunction_v<std::is_same<Struct, Args>...>, Struct>
-    //      public std::enable_if<std::disjunction_v<std::is_same<Pointer, Args>...>, Pointer>
     {
       public:
-        // Only adds the feature if it doesn't exist.
         template <typename T>
-        using AddFeature = Node<
-            Args...,
-            std::enable_if<!std::disjunction_v<std::is_same<Args, T>...>, T>>;
+        using AddFeature = Node<Args..., T>;
 
         // Removes the feature if it exists
         template <typename ToRemove>
@@ -46,6 +43,11 @@ namespace RealtimeMemoryForensics
         template <typename ToRemove, typename ToAdd>
         using SwapFeature = Node<
             std::conditional<std::same_as<Args, ToRemove>, ToAdd, Args>...>;
+
+        // I feel like this sort of stuff is becoming illegal.
+        template <typename ToRemove, typename ToAdd>
+        using SwapOrAddFeature =
+            AddFeature<ToAdd>::template WithoutFeature<ToRemove>;
 
         struct VecOp : public Args::VecOp...
         {
@@ -58,6 +60,10 @@ namespace RealtimeMemoryForensics
         Node& operator=(const Node&)        = default;
 
         // For allowing conversions between nodes.
+        Node(Args...);
+        // Construct a new node with an extra feature.
+        template <typename Feature>
+        AddFeature<Feature> addFeature(Feature f) const;
         template <typename... OtherArgs>
         Node(Node<OtherArgs...>&&);
         template <typename... OtherArgs>
@@ -82,6 +88,7 @@ namespace RealtimeMemoryForensics
 namespace RealtimeMemoryForensics
 {
     template <typename... Args>
+        requires NodeRequirements<Args...>
     Node<Args...>::operator std::string() const
     {
         return (... + std::string(static_cast<Args>(*this)));
@@ -89,12 +96,32 @@ namespace RealtimeMemoryForensics
 
     // Ensure that we're not being stupid.
     template <typename... Args>
+        requires NodeRequirements<Args...>
     void Node<Args...>::wellFormed()
     {
-        static_assert(!std::is_polymorphic_v<SelfType>);
+        using namespace std;
+        static_assert(!is_polymorphic_v<SelfType>);
+        static_assert(!Utils::Meta::HasDuplicates_v<Args...>);
     }
 
     template <typename... Args>
+        requires NodeRequirements<Args...>
+    Node<Args...>::Node(Args... args) : Args(args)...
+    {
+    }
+
+    template <typename... Args>
+        requires NodeRequirements<Args...>
+    template <typename Feature>
+    Node<Args...>::AddFeature<Feature>
+    Node<Args...>::addFeature(Feature f) const
+    {
+        return Node<Args...>::AddFeature<Feature>(static_cast<Args>(*this)...,
+                                                  f);
+    }
+
+    template <typename... Args>
+        requires NodeRequirements<Args...>
     template <typename TargetFeature, typename OtherNode>
     TargetFeature Node<Args...>::copy(const OtherNode& other)
     {
@@ -109,6 +136,7 @@ namespace RealtimeMemoryForensics
         }
     }
     template <typename... Args>
+        requires NodeRequirements<Args...>
     template <typename TargetFeature, typename OtherNode>
     TargetFeature Node<Args...>::move(OtherNode&& other)
     {
@@ -123,6 +151,7 @@ namespace RealtimeMemoryForensics
         }
     }
     template <typename... Args>
+        requires NodeRequirements<Args...>
     template <typename... OtherArgs>
     Node<Args...>::Node(Node<OtherArgs...>&& other) :
         Args(Node<Args...>::move<Args>(other))...
@@ -136,18 +165,21 @@ namespace RealtimeMemoryForensics
          */
     }
     template <typename... Args>
+        requires NodeRequirements<Args...>
     template <typename... OtherArgs>
     Node<Args...>::Node(const Node<OtherArgs...>& other) :
         Args(Node<Args...>::copy<Args>(other))...
     {
     }
     template <typename... Args>
+        requires NodeRequirements<Args...>
     template <typename... OtherArgs>
     Node<Args...>& Node<Args...>::operator=(Node<OtherArgs...>&& other)
     {
         return std::move(static_cast<Node<Args...>>(other));
     }
     template <typename... Args>
+        requires NodeRequirements<Args...>
     template <typename... OtherArgs>
     Node<Args...>& Node<Args...>::operator=(const Node<OtherArgs...>& other)
     {

@@ -1,6 +1,7 @@
 #ifndef meta_hpp_INCLUDED
 #define meta_hpp_INCLUDED
 
+#include <concepts>
 #include <type_traits>
 #include <functional>
 
@@ -108,6 +109,73 @@ namespace RealtimeMemoryForensics::Utils::Meta
         requires !std::is_same_v<bool, T>;
         requires !std::is_pointer_v<T>;
     };
-}
 
+    template <typename TargetType, typename... Args>
+    concept HasType = requires {
+        std::disjunction<std::is_same<TargetType, Args>...>::value;
+    };
+
+    template <typename T, typename... Rest>
+    struct IsInPack : std::disjunction<std::is_same<T, Rest>...>
+    {
+    };
+
+    template <typename... Args>
+    struct HasDuplicates : std::false_type
+    {
+    };
+
+    template <typename First, typename... Rest>
+    struct HasDuplicates<First, Rest...>
+        : std::disjunction<IsInPack<First, Rest...>, HasDuplicates<Rest...>>
+    {
+    };
+
+    template <typename... Args>
+    inline constexpr bool HasDuplicates_v = HasDuplicates<Args...>::value;
+
+    static_assert(HasDuplicates_v<int, float, char> == false);
+    static_assert(HasDuplicates_v<int, float, int> == true);
+
+    template <typename T, typename... Exclusive>
+    static constexpr int countExclusives()
+    {
+        return (std::same_as<T, Exclusive> + ...);
+    }
+
+    template <typename... Exclusives>
+    struct RequireExclusive
+    {
+        template <typename... Args>
+        static constexpr bool isExclusive()
+        {
+            return (countExclusives<Args, Exclusives...>() + ...) <= 1;
+        }
+    };
+
+    static_assert(!RequireExclusive<int, float>::isExclusive<int, int>());
+}
+namespace RealtimeMemoryForensics
+{
+    struct Map;
+    class Snapshot;
+
+    // Mutually exclusive types
+    class Typed;
+    class Struct;
+    class Pointer;
+    class Field;
+    class Primitive;
+    class Array;
+    // End mutually exclusive types
+
+    using NodeExclusions =
+        Utils::Meta::RequireExclusive<Typed, Struct, Pointer, Field, Primitive,
+                                      Array>;
+
+    template <typename T>
+    struct Missing
+    {
+    };
+}
 #endif // meta_hpp_INCLUDED
