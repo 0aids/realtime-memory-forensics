@@ -1,6 +1,9 @@
 #include "rmf/utils/expect.hpp"
 #include <array>
+#include <cassert>
 #include <memory>
+#include <utility>
+#include "rmf/utils/other.hpp"
 #define RMF_NO_CLEANUP_MACROS
 #include "rmf/type_registry.hpp"
 #undef RMF_NO_CLEANUP_MACROS
@@ -17,7 +20,7 @@ constexpr std::array<ssize_t, 11> primSizes = {
 };
 
 constexpr std::array<const char*, 11> primStr = {
-#define X(name, size) #name,
+#define X(name, size) #name #size,
     RMF_PRIM_TYPES(X)
 #undef X
 };
@@ -28,12 +31,14 @@ constexpr std::array<mf::PType, 11> primTypes = {
 #undef X
 };
 
-mf::TypeRegistry::TypeRegistry()
+// In order to preconstruct all the stuff with deleted default constructors.
+mf::TypeRegistry mf::TypeRegistry::Make()
 {
+    std::vector<sptr<PrimitiveData>> primitives{};
     // Initialise all the primitive types.
     for (size_t i = 0; i < primTypes.size(); i++)
     {
-        m_data->primitives.emplace_back(std::make_shared<PrimitiveData>(
+        primitives.emplace_back(std::make_shared<PrimitiveData>(
             BaseTypeData{
                 .size      = primSizes[i],
                 .alignment = primSizes[i],
@@ -43,15 +48,120 @@ mf::TypeRegistry::TypeRegistry()
             primTypes[i]));
     }
     // Define the all types.
+    PrimitiveList primList = {
 #define X(name, size)                                                          \
-    prim.name##size = Primitive(Typed(                                         \
-        m_data->primitives[static_cast<size_t>(mf::PType::name##size)]));
-    RMF_PRIM_TYPES(X);
+    .name##size = Primitive(                                                   \
+        Typed(primitives[static_cast<size_t>(mf::PType::name##size)])),
+        RMF_PRIM_TYPES(X)
 #undef X
+    };
+    return mf::TypeRegistry(std::move(primitives), std::move(primList));
+}
+
+mf::TypeRegistry::TypeRegistry(std::vector<sptr<PrimitiveData>>&& primitives,
+                               PrimitiveList&& primitiveList) :
+    prim(primitiveList)
+{
+    m_data->primitives = std::move(primitives);
+}
+
+mf::StructBuilder mf::TypeRegistry::defStruct(const strview name)
+{
+    return StructBuilder(*this, name);
+}
+
+mf::Pointer mf::TypeRegistry::ptrTo(Typed T)
+{
+    // Add ourselves to the map with the name "{struct name}*"
+    auto ptr = std::make_shared<PointerData>(PointerData{
+        BaseTypeData{
+                     .size      = RMF_PTR_SIZE,
+                     .alignment = RMF_PTR_SIZE,
+                     .name      = std::format("{}*", T.name()),
+                     .type      = Type::Pointer,
+                     },
+        T.m_baseData,
+    });
+    assert((bool)ptr);
+
+    m_data->ptrs.emplace(ptr->name, ptr);
+    return mf::Pointer(mf::Typed(ptr));
+}
+
+mf::Array mf::TypeRegistry::arrOf(Typed T, ssize_t length)
+{
+    auto ptr = std::make_shared<ArrayData>(ArrayData{
+        BaseTypeData{
+                     .size      = T.size() * length,
+                     .alignment = T.alignment(),
+                     .name      = std::format("{}[{}]", T.name(), length),
+                     .type      = Type::Array,
+                     },
+        /*arrayCount=*/
+        length
+    });
+    m_data->arrs.emplace(ptr->name, ptr);
+    return mf::Array(mf::Typed(ptr));
+}
+
+mf::Struct mf::TypeRegistry::struct_(const strview name)
+{
+    // I forgot how stupid is this. I have to promote it to a fucknig string.
+    return mf::Struct(mf::Typed(m_data->structs.at(std::string(name))));
+}
+
+mf::StructBuilder::StructBuilder(const mf::TypeRegistry& parent,
+                                 const strview           name) :
+    m_parent(parent), m_name(std::string(name))
+{
+    // Create an uninitialised version of ourself.
+    m_structData = std::make_shared<StructData>(StructData{
+        BaseTypeData{
+                     .size      = 0,
+                     .alignment = 0,
+                     .name      = m_name,
+                     .type      = Type::Struct,
+                     },
+        /*.fields =*/
+        {}
+    });
+    // Add data to the parent as an uninitialised type.
+    // So we can refer to ourselves as a pointer.
+    m_parent.m_data->structs.emplace(m_name, m_structData);
+}
+
+mf::StructBuilder&& mf::StructBuilder::field(Typed type, const strview name)
+{
+    // Alignment and size calculations are done later, during "end"
+    auto field = std::make_shared<FieldData>(FieldData{
+        BaseTypeData{
+                     .size      = 0,
+                     .alignment = 0,
+                     .name      = std::string(name),
+                     .type      = Type::Field,
+                     },
+        m_structData,
+        type.m_baseData.lock(),
+    });
+    m_structData->fields.emplace(std::string(name), field);
+    return std::move(*this);
+}
+
+mf::Struct mf::StructBuilder::end()
+{
+    // Business logic for setting up everything?
+    // Check that we are not referring to ourselves.
+    // Alignment, size, and cumulative offset calculation here.
+    rmf_TODO();
 }
 
 mf::Typed::Typed(wptr<BaseTypeData> data) : m_baseData(data)
 {
+}
+
+mf::Typed mf::Typed::makeFromWptr(wptr<BaseTypeData> data)
+{
+    return Typed(data);
 }
 
 ssize_t mf::Typed::size() const
@@ -76,7 +186,7 @@ const mf::strview mf::Typed::name() const
 
 mf::Struct::Struct(const Typed& typed) : Typed(typed)
 {
-    m_data = std::dynamic_pointer_cast<StructData>(m_baseData.lock());
+    m_data = std::static_pointer_cast<StructData>(m_baseData.lock());
 }
 
 mfu::ErrU<mf::Field> mf::Struct::getField(const std::string& str)
@@ -84,22 +194,27 @@ mfu::ErrU<mf::Field> mf::Struct::getField(const std::string& str)
     auto data = m_data.lock();
     if (data->fields.contains(str))
     {
-        return mf::Field(data->fields[str]);
+        return mf::Field(mf::Typed::makeFromWptr(data->fields[str]));
     }
     return rmf_mkErr(Utils::ErrorEnum::FieldDoesNotExist);
 }
 
 mf::Pointer::Pointer(const Typed& typed) : Typed(typed)
 {
-    m_data = std::dynamic_pointer_cast<PointerData>(m_baseData.lock());
+    m_data = std::static_pointer_cast<PointerData>(m_baseData.lock());
 }
 
 mf::Primitive::Primitive(const Typed& typed) : Typed(typed)
 {
-    m_data = std::dynamic_pointer_cast<PrimitiveData>(m_baseData.lock());
+    m_data = std::static_pointer_cast<PrimitiveData>(m_baseData.lock());
 }
 
 mf::Array::Array(const Typed& typed) : Typed(typed)
 {
-    m_data = std::dynamic_pointer_cast<ArrayData>(m_baseData.lock());
+    m_data = std::static_pointer_cast<ArrayData>(m_baseData.lock());
+}
+
+mf::Field::Field(const Typed& typed) : Typed(typed)
+{
+    m_data = std::static_pointer_cast<FieldData>(m_baseData.lock());
 }

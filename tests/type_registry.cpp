@@ -22,37 +22,24 @@ namespace mfl = mf::Logging;
 namespace mfu = mf::Utils;
 namespace mft = mf::Tests;
 
-// Beautiful macro magic.
-#define MAKE_STRUCTMember(type, name, ...) type name;
-
-#define MakeField(type, name, ...) .field(#type, #name)
-
-// BUG: doesn't work with arrays because the length is associated
-// with the name, so getting the offset is incorrect.
-#define ASSERT_SAME_OFFSET(type, fieldName, StructName, RegisteredStruct, ...) \
-    EXPECT_EQ(offsetof(StructName, fieldName),                                 \
-              RegisteredStruct[#fieldName].offset());
-
-#define MAKE_STRUCT(StructName, DefinitionMacro)                               \
-    struct StructName                                                          \
-    {                                                                          \
-        DefinitionMacro(MAKE_STRUCTMember, StructName)                         \
-    }
-
-#define MAKE_REGISTERED_TYPE(TypeRegistry, StructName, DefinitionMacro)        \
-    TypeRegistry.addStruct(StructName) DefinitionMacro(MakeField, StructName)  \
-        .end()
-
-#define TEST_STRUCT_DEFINITION(X, StructName, ...)                             \
-    X(uint32_t, data, __VA_ARGS__)                                             \
-    X(uint8_t, array[4], __VA_ARGS__)                                          \
-    X(StructName*, next, __VA_ARGS__)
-
 TEST(type_registry, registerTest)
 {
-    GTEST_SKIP_("TODO");
     // Setting up
-    MAKE_STRUCT(TestStruct, TEST_STRUCT_DEFINITION);
+    struct TestStruct
+    {
+        uint32_t    data;
+        uint8_t     array[4];
+        TestStruct* next;
+    };
+
+    auto tr         = mf::TypeRegistry::Make();
+    auto testStruct = tr.defStruct("TestStruct")
+                          .field(tr.prim.u32, "data")
+                          .field(tr.arrOf(tr.prim.u8, 4), "array")
+                          .field(tr.ptrTo(tr.struct_("TestStruct")), "next")
+                          .end();
+
+    GTEST_SKIP_("TODO");
 
     TestStruct t = {
         .data  = 0xaabbccdd,
@@ -70,25 +57,10 @@ TEST(type_registry, registerTest)
     mf::Node<mf::Map, mf::Snapshot> snap =
         mf::Snapshot::fromBuffer(buffer.moveBuffer());
 
-    // ACTUAL START!!!
+    // Can use operator[] for unchecked access.
+    // Will throw if invalid however.
+    mf::Field testStructField = testStruct.getField("data").value();
 
-    mf::TypeRegistry tr;
-
-    mf::Struct       testStruct =
-        MAKE_REGISTERED_TYPE(tr, "TestStruct", TEST_STRUCT_DEFINITION);
-
-    //     // Ensure that the offsets are all the same.
-    //     // TEST_STRUCT_DEFINITION(ASSERT_SAME_OFFSET, TestStruct, TestStruct,
-    //     //                        testStruct);
-
-    //     // Can use operator[] for unchecked access.
-    //     // Will throw if invalid however.
-    //     mf::Field testStructField = testStruct.field("data").value();
-
-    //     mf::Node<mf::Map, mf::Snapshot, mf::Struct> coerced =
-    //         testStructField.reshapeNode(std::move(snap));
-
-    //     // How nice, no lambda wrapping required.
-    //     EXPECT_ANY_THROW(mf::Field invalidField =
-    //                          testStruct["i don't exist"]);
+    mf::Node<mf::Map, mf::Snapshot, mf::Typed> coerced =
+        testStructField.nodify(std::move(snap));
 }

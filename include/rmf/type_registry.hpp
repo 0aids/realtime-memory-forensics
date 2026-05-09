@@ -2,10 +2,12 @@
 #define struct_registry_hpp_INCLUDED
 #include "rmf/node.hpp"
 #include "rmf/snapshot.hpp"
+#include "rmf/utils/other.hpp"
 #include "rmf/utils/vec.hpp"
 #include <memory>
 #include <ranges>
 #include <map>
+#include <unordered_map>
 #include <string_view>
 #include <rmf/utils/expect.hpp>
 #include <unordered_set>
@@ -15,35 +17,11 @@
 // Shared pointers are the majority owners. Unique pointers doesnt allow a clean
 // interfacing for holding non-owning views. wptrs are for traversal.
 
-// How types are resolved:
-// mf::Struct node = sr.defStruct("Node")
-//     .primitive(PType::u32, "data")
-//     // Optional *, is ignored
-//     .pointer("Node*", "next")
-//     .array("uint32_t", 10, "name")
-//     // We can have nested structs
-//     .struct_("PredefinedStruct", "name")
-// .end(); // Full type is resolved here.
-// 1. "sr.defStruct(...)" - Add incomplete struct "Node" to list of structs
-//    						Grab wptr to that struct, and lock it.
-// 2. ".primitive(...)"   - Add field with name "data" with wptr to the default primitive
-// 							type.
-// 2. ".pointer(...)"     - Add field with name "next" with parent and base
-// 							both a wptr to our data.
-// 							If it points to an existing but unresolved struct, point to it.
-// 							If it does not resolve into primitive, throw an error.
-// 3. ".array(...)" 	  - Add field with name "name", with unresolved type
-// 							Resolve type by adding the equivalent array type
-// 							with it being unresolved, traversing to find
-// 							continuously add unresolved types to cache and using
-// 							wptrs to them. In this case, add cache array that is some
-// 							hash of "uint32_t 10", and set field to point to it.
-// 							Afterwards, attempt to resolve the underlying type uint32_t,
-// 							and make the array point to it. Now everything is resolved.
-// 							For more complex types cyclic dependencies are possible if
-// 							traversal doesn't result in a resolved type (boo hoo).
-// 4. ".struct_(...)"	  - Attempt to find the struct in the cache, otherwise add it but
-// 							mark it as unresolved, and do not attempt to resolve it.
+// Structure:
+// Data holders - This are held as proper polymporphic types, but no
+//   actual member methods.
+// Viewers - Are polymorphic (sort of?), more like extensions.
+// Do not own, are used as mixins with nodes.
 
 // Macro shit to generate the standard sizes.
 #define RMF_PTR_SIZE sizeof(void*)
@@ -156,14 +134,21 @@ namespace RealtimeMemoryForensics
     {
       protected:
         wptr<BaseTypeData> m_baseData;
+        friend class StructBuilder;
+        friend class TypeRegistry;
+        Typed(wptr<BaseTypeData> data);
+        static Typed makeFromWptr(wptr<BaseTypeData> data);
 
       public:
         ssize_t       size() const;
         ssize_t       alignment() const;
         Type          type() const;
         const strview name() const;
-        Typed(wptr<BaseTypeData> data);
-        Typed() = default;
+        Typed()                        = delete;
+        Typed(Typed&&)                 = default;
+        Typed(const Typed&)            = default;
+        Typed& operator=(Typed&&)      = default;
+        Typed& operator=(const Typed&) = default;
 
         // Explicit conversions? as these are checked.
         // explicit operator Pointer();
@@ -193,7 +178,7 @@ namespace RealtimeMemoryForensics
       public:
         // Not really sure about the constructor situation here.
         Struct(const Typed&);
-        Struct()                                    = default;
+        Struct()                                    = delete;
         Struct(Struct&&)                            = default;
         Struct(const Struct&)                       = default;
         Struct&            operator=(Struct&&)      = default;
@@ -201,9 +186,14 @@ namespace RealtimeMemoryForensics
 
         Utils::ErrU<Field> getField(const std::string& str);
 
+        // Asserts that it exists - Otherwise throws.
+        Field operator[](const strview str);
+
         // Consider adding functor for mapped operations?
         // Creates a typed version of a node
         template <IsNode T, IsNode ResultNode = T::template AddFeature<Typed>>
+        // Strange error saying that i'm using a deleted constructor
+        // when i haven't even defined the function?
         ResultNode nodify(const T& node);
 
         // Creates a typed version of a node, from a specified field.
@@ -229,6 +219,7 @@ namespace RealtimeMemoryForensics
     // Mutually exclusive with "Typed" nodes.
     class Pointer : public Typed
     {
+      protected:
         wptr<PointerData> m_data;
 
       public:
@@ -277,7 +268,7 @@ namespace RealtimeMemoryForensics
 
       public:
         Primitive(const Typed&);
-        Primitive()                            = default;
+        Primitive()                            = delete;
         Primitive(Primitive&&)                 = default;
         Primitive(const Primitive&)            = default;
         Primitive& operator=(Primitive&&)      = default;
@@ -289,6 +280,7 @@ namespace RealtimeMemoryForensics
 
     class Array : public Typed
     {
+      protected:
         wptr<ArrayData> m_data;
 
       public:
@@ -304,7 +296,7 @@ namespace RealtimeMemoryForensics
         // Create a node at the relevant index of the array,
         // with included bounds checking which throws if you are stupid.
         template <IsNode Node>
-        Node::template SwapFeature<Array, Typed> nodeAt(ssize_t i) const;
+        Node::template SwapOrAddFeature<Array, Typed> nodeAt(ssize_t i) const;
     };
 
     class Field : public Typed
@@ -312,32 +304,46 @@ namespace RealtimeMemoryForensics
         wptr<FieldData> m_data;
 
       public:
-        Field() = default;
+        Field(const Typed& typed);
+        Field()                        = delete;
+        Field(Field&&)                 = default;
+        Field(const Field&)            = default;
+        Field& operator=(Field&&)      = default;
+        Field& operator=(const Field&) = default;
         Field(wptr<FieldData>);
         template <IsNode Node>
-        Node::template SwapFeature<Field, Struct>
-        nodifyFromField(this const Node& node);
+        Node::template AddFeature<Typed> nodify(const Node& node);
     };
 
     class StructBuilder;
 
+    // Consider refactoring this to be an implementation,
+    // and use a static constexpr to have the classic
+    // constructors without the stupid ahh factory method.
     // The monolithic class keeping track and owning all
     // types.
     class TypeRegistry
     {
+      public:
+        struct PrimitiveList;
+
       private:
         struct Data
         {
-            std::unordered_set<sptr<StructData>>  structs;
-            std::vector<sptr<PrimitiveData>>      primitives;
-            std::unordered_set<sptr<ArrayData>>   arrs;
-            std::unordered_set<sptr<PointerData>> ptrs;
+            std::unordered_map<std::string, sptr<StructData>>  structs{};
+            std::vector<sptr<PrimitiveData>>                   primitives{};
+            std::unordered_map<std::string, sptr<ArrayData>>   arrs{};
+            std::unordered_map<std::string, sptr<PointerData>> ptrs{};
         };
-        sptr<Data> m_data;
+        sptr<Data> m_data = std::make_shared<Data>();
+        // Have to use a factory because of the stupid ass
+        // deleted default constructors of primitives.
+        TypeRegistry(std::vector<sptr<PrimitiveData>>&& primitives,
+                     PrimitiveList&&                    primitiveList);
 
       public:
-        TypeRegistry();
-
+        static TypeRegistry Make();
+        TypeRegistry()                               = delete;
         TypeRegistry(const TypeRegistry&)            = default;
         TypeRegistry(TypeRegistry&&)                 = default;
         TypeRegistry& operator=(const TypeRegistry&) = default;
@@ -345,28 +351,33 @@ namespace RealtimeMemoryForensics
 
         StructBuilder defStruct(const strview name);
         Pointer       ptrTo(Typed T);
-        Array         arrOf(Typed T);
-        Struct        struct_(const strview name);
+        Array         arrOf(Typed T, ssize_t size);
+        // Throws an error if it doesn't exist, via invalid key error or whatever
+        // that std::unordered_map throws.
+        Struct struct_(const strview name);
 
         // Get a struct.
         Utils::ErrU<Struct> operator[](const strview name);
-// Primitives defined here?
-// During initial construction primitive data are added to data,
-// and then these will be constructed properly.
-#define X(name, size) Primitive name##size;
-        struct
+        // Primitives defined here?
+        // During initial construction primitive data are added to data,
+        // and then these will be constructed properly.
+        struct PrimitiveList
         {
+#define X(name, size) Primitive name##size;
             RMF_PRIM_TYPES(X)
-        } prim;
 #undef X
+        } prim;
+        friend class StructBuilder;
     };
 
     class StructBuilder
     {
       private:
-        TypeRegistry m_parent;
+        TypeRegistry     m_parent;
+        std::string      m_name;
+        sptr<StructData> m_structData;
         friend class TypeRegistry;
-        StructBuilder(TypeRegistry& parent);
+        StructBuilder(const TypeRegistry& parent, const strview name);
 
       public:
         StructBuilder()                                 = delete;
@@ -376,6 +387,7 @@ namespace RealtimeMemoryForensics
         StructBuilder&  operator=(StructBuilder&&)      = default;
 
         StructBuilder&& field(Typed type, const strview name);
+        Struct          end();
     };
 };
 
@@ -398,6 +410,7 @@ struct std::hash<std::shared_ptr<RealtimeMemoryForensics::BaseTypeData>>
         return std::hash<std::string>{}(h->name);
     }
 };
+
 template <>
 struct std::hash<std::weak_ptr<RealtimeMemoryForensics::BaseTypeData>>
 {
@@ -407,6 +420,22 @@ struct std::hash<std::weak_ptr<RealtimeMemoryForensics::BaseTypeData>>
         return std::hash<std::string>{}(h.lock()->name);
     }
 };
+
+namespace RealtimeMemoryForensics
+{
+    template <IsNode T, IsNode ResultNode>
+    // Strange error saying that i'm using a deleted constructor
+    // when i haven't even defined the function?
+    ResultNode Struct::nodify(const T& node)
+    {
+        rmf_TODO();
+    }
+    template <IsNode Node>
+    Node::template AddFeature<Typed> Field::nodify(const Node& node)
+    {
+        return node.addFeature(*this);
+    }
+}
 
 #ifndef RMF_NO_CLEANUP_MACROS
 #undef RMF_PRIM_TYPES
