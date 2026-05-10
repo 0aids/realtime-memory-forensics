@@ -19,10 +19,13 @@ Planned python-based DSL JIT, and visualisation tools.
 - [ ] Schema based searching?
 
 # TODO
-- [-] Vector method piping chaining operations
-- [ ] Basic type parsing
-- [ ] Redone struct registry
-- [ ] Typed mixin for region
+- [x] Vector method piping chaining operations
+- [ ] More meta-programming related type checking for inputs of nodes
+      IE ensure that typed, struct, pointer, etc are all mutually exclusive.
+      Ensure that the order of types in the nodes are always the same.
+- [-] Basic type parsing
+- [-] Redone struct registry
+- [-] Typed mixin for region
 - [ ] Attempt 3 for memory graphs.
 - [ ] Visualiser for memory graphs using raylib.
 - [ ] Allow different nodes for binary operations.
