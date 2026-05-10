@@ -10,11 +10,12 @@
 #include <rmf/map.hpp>
 #include <rmf/snapshot.hpp>
 #include "helpers.hpp"
-#include <rmf/type_registry.hpp>
 #include "rmf/test_helpers.hpp"
 #include "rmf/utils/function.hpp"
 #include "rmf/op.hpp"
 #include "rmf/utils/threadpool.hpp"
+#define RMF_NO_CLEANUP_MACROS
+#include <rmf/type_registry.hpp>
 
 using namespace std;
 namespace mf  = RealtimeMemoryForensics;
@@ -32,14 +33,19 @@ TEST(type_registry, registerTest)
         TestStruct* next;
     };
 
-    auto tr         = mf::TypeRegistry::Make();
+    std::vector<ssize_t> offsets = {
+        offsetof(TestStruct, data),
+        offsetof(TestStruct, array),
+        offsetof(TestStruct, next),
+    };
+    std::vector<ssize_t> sizes = {};
+
+    auto                 tr = mf::TypeRegistry::Make();
     auto testStruct = tr.defStruct("TestStruct")
                           .field(tr.prim.u32, "data")
                           .field(tr.arrOf(tr.prim.u8, 4), "array")
                           .field(tr.ptrTo(tr.struct_("TestStruct")), "next")
                           .end();
-
-    GTEST_SKIP_("TODO");
 
     TestStruct t = {
         .data  = 0xaabbccdd,
@@ -57,10 +63,41 @@ TEST(type_registry, registerTest)
     mf::Node<mf::Map, mf::Snapshot> snap =
         mf::Snapshot::fromBuffer(buffer.moveBuffer());
 
-    // Can use operator[] for unchecked access.
     // Will throw if invalid however.
     mf::Field testStructField = testStruct.getField("data").value();
 
-    mf::Node<mf::Map, mf::Snapshot, mf::Typed> coerced =
-        testStructField.nodify(std::move(snap));
+    // Invalid test
+    EXPECT_ANY_THROW(testStruct.getField("I don't exist!").value());
+
+    // Ensure size is correct.
+    EXPECT_EQ(testStruct.size(), sizeof(TestStruct));
+    // Iterate through all the fields, and compare them against the actual values.
+    size_t i = 0;
+
+    // No reference iteration.
+    for (const auto field : testStruct)
+    {
+        EXPECT_EQ(field.offset(), offsets[i++]);
+    }
+}
+
+TEST(type_registry, EnsurePrimitiveTypesConstructed)
+{
+    auto tr = mf::TypeRegistry::Make();
+#define X(_name, _size)                                                        \
+    EXPECT_EQ(tr.prim._name##_size.name(), #_name #_size);                     \
+    EXPECT_EQ(tr.prim._name##_size.alignment(), _size / 8);                    \
+    EXPECT_EQ(tr.prim._name##_size.size(), _size / 8);                         \
+    EXPECT_EQ(tr.prim._name##_size.type(), mf::Type::Primitive);
+
+    RMF_PRIM_TYPES(X);
+#undef X
+    struct Test
+    {
+        int      a;
+        uint64_t d;
+        char     b;
+        int      c;
+        int      e;
+    };
 }

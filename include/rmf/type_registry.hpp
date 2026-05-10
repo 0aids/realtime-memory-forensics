@@ -21,7 +21,8 @@
 // Data holders - This are held as proper polymporphic types, but no
 //   actual member methods.
 // Viewers - Are polymorphic (sort of?), more like extensions.
-// Do not own, are used as mixins with nodes.
+// Do not own, are used as mixins with nodes. The type registry should
+// exist for the entire lifetime of all the nodes, otherwise segfault.
 
 // Macro shit to generate the standard sizes.
 #define RMF_PTR_SIZE sizeof(void*)
@@ -136,6 +137,7 @@ namespace RealtimeMemoryForensics
         wptr<BaseTypeData> m_baseData;
         friend class StructBuilder;
         friend class TypeRegistry;
+        friend class Struct;
         Typed(wptr<BaseTypeData> data);
         static Typed makeFromWptr(wptr<BaseTypeData> data);
 
@@ -192,8 +194,6 @@ namespace RealtimeMemoryForensics
         // Consider adding functor for mapped operations?
         // Creates a typed version of a node
         template <IsNode T, IsNode ResultNode = T::template AddFeature<Typed>>
-        // Strange error saying that i'm using a deleted constructor
-        // when i haven't even defined the function?
         ResultNode nodify(const T& node);
 
         // Creates a typed version of a node, from a specified field.
@@ -213,6 +213,45 @@ namespace RealtimeMemoryForensics
         // range.
         template <NodeWithFeatures<Snapshot> Node>
         SnapshotBuffer bytesAtField(this const Node&, const Field& field);
+        struct Iterator
+        {
+            Iterator(wptr<StructData> parent);
+            Iterator()                           = delete;
+            Iterator(Iterator&&)                 = default;
+            Iterator(const Iterator&)            = default;
+            Iterator& operator=(Iterator&&)      = default;
+            Iterator& operator=(const Iterator&) = default;
+
+            using iterator_category = std::forward_iterator_tag;
+            using difference_type   = std::ptrdiff_t;
+            using value_type        = const Field;
+            using pointer           = const Field; // or also value_type*
+            using reference         = const Field; // or also value_type&
+
+            reference operator*() const;
+            pointer   operator->();
+
+            // Prefix increment
+            Iterator& operator++();
+
+            // Postfix increment
+            Iterator    operator++(int);
+
+            friend bool operator==(const Iterator& a, const Iterator& b);
+            friend bool operator!=(const Iterator& a, const Iterator& b);
+
+          private:
+            wptr<StructData> m_parent;
+            std::map<std::string, sptr<FieldData>>::const_iterator
+                m_currentIter;
+        };
+
+        // Only const interation!
+        Iterator                   begin() const;
+        Iterator                   end() const;
+
+        std::vector<const strview> getFieldNames() const;
+        Field                      operator[](const strview) const;
     };
 
     // Mixinable
@@ -313,9 +352,20 @@ namespace RealtimeMemoryForensics
         Field(wptr<FieldData>);
         template <IsNode Node>
         Node::template AddFeature<Typed> nodify(const Node& node);
+
+        ssize_t                          offset() const;
     };
 
     class StructBuilder;
+
+    // Consider adding these options later
+    // struct StructOptions {
+    //     enum {
+    //         UNPACKED = 0,
+    //         PACKED,
+    //     } packed;
+    //     ssize_t alignas_;
+    // };
 
     // Consider refactoring this to be an implementation,
     // and use a static constexpr to have the classic
@@ -358,7 +408,8 @@ namespace RealtimeMemoryForensics
 
         // Get a struct.
         Utils::ErrU<Struct> operator[](const strview name);
-        // Primitives defined here?
+
+        // Primitives defined here
         // During initial construction primitive data are added to data,
         // and then these will be constructed properly.
         struct PrimitiveList
@@ -435,6 +486,7 @@ namespace RealtimeMemoryForensics
     {
         return node.addFeature(*this);
     }
+
 }
 
 #ifndef RMF_NO_CLEANUP_MACROS

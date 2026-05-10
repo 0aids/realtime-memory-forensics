@@ -1,3 +1,4 @@
+#include "rmf/logging/logging.hpp"
 #include "rmf/utils/expect.hpp"
 #include <array>
 #include <cassert>
@@ -147,12 +148,36 @@ mf::StructBuilder&& mf::StructBuilder::field(Typed type, const strview name)
     return std::move(*this);
 }
 
+static inline ssize_t calculateOffset(ssize_t currentOffset,
+                                      ssize_t memberAlignment)
+{
+    ssize_t padding = (memberAlignment - currentOffset % memberAlignment);
+    padding         = (padding == memberAlignment) ? 0 : padding;
+    return currentOffset + padding;
+}
+
 mf::Struct mf::StructBuilder::end()
 {
     // Business logic for setting up everything?
     // Check that we are not referring to ourselves.
     // Alignment, size, and cumulative offset calculation here.
-    rmf_TODO();
+    ssize_t cumulativeOffset = 0;
+    ssize_t finalAlignment   = 0;
+    for (auto& [name, field] : m_structData->fields)
+    {
+        const auto& target = field->targetType.lock();
+        finalAlignment     = std::max(finalAlignment, target->alignment);
+        field->offset = calculateOffset(cumulativeOffset, target->alignment);
+        field->size   = target->size;
+        cumulativeOffset += target->size;
+        rmf_Info("{}:{} - offset: {}, size: {}, cumulative: {}", name,
+                 target->name, field->offset, field->size, cumulativeOffset);
+    }
+    m_structData->size      = calculateOffset(cumulativeOffset, finalAlignment);
+    m_structData->alignment = finalAlignment;
+    rmf_Info("final size: {}, final alignment: {}", m_structData->size,
+             m_structData->alignment);
+    return mf::Struct(mf::Typed(m_structData));
 }
 
 mf::Typed::Typed(wptr<BaseTypeData> data) : m_baseData(data)
@@ -217,4 +242,56 @@ mf::Array::Array(const Typed& typed) : Typed(typed)
 mf::Field::Field(const Typed& typed) : Typed(typed)
 {
     m_data = std::static_pointer_cast<FieldData>(m_baseData.lock());
+}
+ssize_t mf::Field::offset() const
+{
+    return m_data.lock()->offset;
+}
+
+mf::Struct::Iterator mf::Struct::begin() const
+{
+    return Iterator(m_data);
+}
+mf::Struct::Iterator mf::Struct::end() const
+{
+    return Iterator(m_data);
+}
+mf::Struct::Iterator::Iterator(wptr<StructData> parent) :
+    m_parent(parent), m_currentIter(parent.lock()->fields.begin())
+{
+}
+
+mf::Struct::Iterator::reference mf::Struct::Iterator::operator*() const
+{
+    return mf::Struct(mf::Typed(m_currentIter->second));
+}
+
+mf::Struct::Iterator::pointer mf::Struct::Iterator::operator->()
+{
+    return mf::Struct(mf::Typed(m_currentIter->second));
+}
+
+// Prefix increment
+mf::Struct::Iterator& mf::Struct::Iterator::operator++()
+{
+    m_currentIter++;
+    return *this;
+}
+
+// Postfix increment
+mf::Struct::Iterator mf::Struct::Iterator::operator++(int)
+{
+    auto other = *this;
+    ++(*this);
+    return other;
+}
+
+bool mf::operator==(const Struct::Iterator& a, const Struct::Iterator& b)
+{
+    return a.m_currentIter == b.m_currentIter;
+}
+
+bool mf::operator!=(const Struct::Iterator& a, const Struct::Iterator& b)
+{
+    return a.m_currentIter != b.m_currentIter;
 }
