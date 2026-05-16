@@ -25,33 +25,55 @@ namespace rmf
         (std::is_base_of_v<Features, Node_t>, ...);
     };
 
+    template <typename T>
     struct EmptyFeature
     {
     };
+
+    template <typename T, typename... Args>
+    using NodeAddFeature_t =
+        typename std::conditional_t<Meta::HasType<T, Args...>::value, T,
+                                    EmptyFeature<T>>;
 
     // Consider forcing a sort of strict order using enable if
     // like
     template <typename... Args>
         requires NodeRequirements<Args...>
-    class Node : public Args...
+    class Node : public NodeAddFeature_t<Map, Args...>,
+                 public NodeAddFeature_t<Snapshot, Args...>,
+                 public NodeAddFeature_t<Typed, Args...>,
+                 public NodeAddFeature_t<Struct, Args...>,
+                 public NodeAddFeature_t<Pointer, Args...>,
+                 public NodeAddFeature_t<Field, Args...>,
+                 public NodeAddFeature_t<Primitive, Args...>,
+                 public NodeAddFeature_t<Array, Args...>
     {
       public:
+        // Stupid coupling but I couldn't figure it out how to not duplicate it.
+        using Features = std::tuple<
+            NodeAddFeature_t<Map, Args...>, NodeAddFeature_t<Snapshot, Args...>,
+            NodeAddFeature_t<Typed, Args...>, NodeAddFeature_t<Struct, Args...>,
+            NodeAddFeature_t<Pointer, Args...>,
+            NodeAddFeature_t<Field, Args...>,
+            NodeAddFeature_t<Primitive, Args...>,
+            NodeAddFeature_t<Array, Args...>>;
+        // Add typed, field, primitive, array, struct etc to the node.
+        // Will swap mutually exclusive types to ensure it works properly.
         template <typename T>
-        using AddFeature = Node<Args..., T>;
+        using Typify = void;
+
+        // Ensures that we have the feature specified. If it already exists, does nothing
+        // Otherwises adds it.
+        template <typename T>
+        using WithFeature =
+            Node<Args..., std::conditional_t<!Meta::HasType<T, Args...>::value,
+                                             T, EmptyFeature<T>>>;
 
         // Removes the feature if it exists
         template <typename ToRemove>
         using WithoutFeature =
-            Node<std::enable_if<!std::same_as<Args, ToRemove>, Args>...>;
-
-        template <typename ToRemove, typename ToAdd>
-        using SwapFeature = Node<
-            std::conditional<std::same_as<Args, ToRemove>, ToAdd, Args>...>;
-
-        // I feel like this sort of stuff is becoming illegal.
-        template <typename ToRemove, typename ToAdd>
-        using SwapOrAddFeature =
-            AddFeature<ToAdd>::template WithoutFeature<ToRemove>;
+            Node<std::conditional_t<!std::same_as<Args, ToRemove>, Args,
+                                    EmptyFeature<Args>>...>;
 
         struct VecOp : public Args::VecOp...
         {
@@ -67,7 +89,7 @@ namespace rmf
         Node(Args...);
         // Construct a new node with an extra feature.
         template <typename Feature>
-        AddFeature<Feature> addFeature(Feature f) const;
+        WithFeature<Feature> addFeature(Feature f) const;
         template <typename... OtherArgs>
         Node(Node<OtherArgs...>&&);
         template <typename... OtherArgs>
@@ -76,9 +98,10 @@ namespace rmf
         Node& operator=(Node<OtherArgs...>&&);
         template <typename... OtherArgs>
         Node& operator=(const Node<OtherArgs...>&);
+              operator std::string() const;
         using DerivedType = Node<Args...>;
         using SelfType    = Node;
-             operator std::string() const;
+
         void wellFormed();
 
       private:
@@ -117,11 +140,11 @@ namespace rmf
     template <typename... Args>
         requires NodeRequirements<Args...>
     template <typename Feature>
-    Node<Args...>::AddFeature<Feature>
+    Node<Args...>::WithFeature<Feature>
     Node<Args...>::addFeature(Feature f) const
     {
-        return Node<Args...>::AddFeature<Feature>(static_cast<Args>(*this)...,
-                                                  f);
+        return Node<Args...>::WithFeature<Feature>(static_cast<Args>(*this)...,
+                                                   f);
     }
 
     template <typename... Args>

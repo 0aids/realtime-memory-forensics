@@ -111,9 +111,7 @@ namespace rmf::Meta
     };
 
     template <typename TargetType, typename... Args>
-    concept HasType = requires {
-        std::disjunction<std::is_same<TargetType, Args>...>::value;
-    };
+    using HasType = std::disjunction<std::is_same<TargetType, Args>...>;
 
     template <typename T, typename... Rest>
     struct IsInPack : std::disjunction<std::is_same<T, Rest>...>

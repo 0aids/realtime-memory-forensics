@@ -7,13 +7,20 @@
 // NGL don't really know what's happening here.
 #define RMF_MIXIN_METHOD_PTR(methodName)                                       \
     static constexpr auto methodName##M =                                      \
-        []<typename T, typename... Args>(T&& obj, Args&&... args) noexcept(    \
-            noexcept(std::forward<T>(obj).methodName(                          \
-                std::forward<Args>(args)...))) -> decltype(auto)               \
+        []<typename _TYPE, typename... Args>(                                  \
+            _TYPE&& obj,                                                       \
+            Args&&... args) noexcept(noexcept(std::forward<_TYPE>(obj)         \
+                                                  .methodName(                 \
+                                                      std::forward<Args>(      \
+                                                          args)...)))          \
+        -> decltype(auto)                                                      \
         requires requires {                                                    \
-            std::forward<T>(obj).methodName(std::forward<Args>(args)...);      \
+            std::forward<_TYPE>(obj).methodName(std::forward<Args>(args)...);  \
         }                                                                      \
-    { return std::forward<T>(obj).methodName(std::forward<Args>(args)...); };  \
+    {                                                                          \
+        return std::forward<_TYPE>(obj).methodName(                            \
+            std::forward<Args>(args)...);                                      \
+    };                                                                         \
     static constexpr auto methodName##F = []<typename... Args>(Args&&... args) \
     {                                                                          \
         return [... args = std::move(args)](auto&& arg) mutable                \
