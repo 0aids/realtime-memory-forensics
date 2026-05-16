@@ -4,7 +4,7 @@
 #include <rmf/utils/expect.hpp>
 #include <rmf/utils/str.hpp>
 
-namespace mf  = RealtimeMemoryForensics;
+namespace mf  = rmf;
 namespace mfl = mf::Logging;
 namespace mfu = mf::Utils;
 

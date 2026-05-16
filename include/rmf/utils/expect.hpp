@@ -3,7 +3,7 @@
 #include <string>
 #include <exception>
 #include <optional>
-namespace RealtimeMemoryForensics::Utils
+namespace rmf::Utils
 {
     enum class ErrorEnum
     {
@@ -69,10 +69,9 @@ namespace RealtimeMemoryForensics::Utils
 
 // Make an error
 #define rmf_mkErr(errc)                                                        \
-    RealtimeMemoryForensics::Utils::Error(errc, __FILE__, __LINE__,            \
-                                          __FUNCTION__)
+    rmf::Utils::Error(errc, __FILE__, __LINE__, __FUNCTION__)
 
-namespace RealtimeMemoryForensics::Utils
+namespace rmf::Utils
 {
 
     template <typename T>

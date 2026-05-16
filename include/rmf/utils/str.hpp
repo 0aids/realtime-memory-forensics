@@ -2,7 +2,7 @@
 // just a nice helper for string formatting
 #include <format>
 
-namespace RealtimeMemoryForensics::Utils
+namespace rmf::Utils
 {
     namespace Detail
     {
@@ -29,7 +29,7 @@ namespace RealtimeMemoryForensics::Utils
 }
 
 // Implementation
-namespace RealtimeMemoryForensics::Utils
+namespace rmf::Utils
 {
     template <size_t N>
     constexpr Detail::FixedSizeStr<N>::FixedSizeStr(const char (&str)[N])

@@ -11,7 +11,7 @@
 
 #include <magic_enum/magic_enum.hpp>
 
-namespace mf  = RealtimeMemoryForensics;
+namespace mf  = rmf;
 namespace mfu = mf::Utils;
 
 constexpr std::array<ssize_t, 11> primSizes = {

@@ -4,7 +4,7 @@
 #include <format>
 #include <thread>
 
-namespace mf   = RealtimeMemoryForensics;
+namespace mf   = rmf;
 namespace mfu  = mf::Utils;
 namespace mfud = mf::Utils::Detail;
 

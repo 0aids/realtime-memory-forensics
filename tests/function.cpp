@@ -7,7 +7,7 @@
 #include "helpers.hpp"
 
 using namespace std;
-namespace mf  = RealtimeMemoryForensics;
+namespace mf  = rmf;
 namespace mfu = mf::Utils;
 namespace mfl = mf::Logging;
 

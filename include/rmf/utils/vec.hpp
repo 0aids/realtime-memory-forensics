@@ -11,7 +11,7 @@
 #include <memory>
 #include <type_traits>
 #include <vector>
-namespace RealtimeMemoryForensics::Utils
+namespace rmf::Utils
 {
     // Mixins for providing vectorised operations.
     class DefaultOperator
@@ -78,7 +78,7 @@ namespace RealtimeMemoryForensics::Utils
     };
 }
 
-namespace RealtimeMemoryForensics::Utils
+namespace rmf::Utils
 {
     template <typename T, typename Operator, typename Allocator>
     template <typename F, typename... Args>

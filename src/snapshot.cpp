@@ -4,7 +4,7 @@
 #include "rmf/utils/function.hpp"
 #include <type_traits>
 
-namespace RealtimeMemoryForensics
+namespace rmf
 {
     Snapshot::operator std::string() const
     {

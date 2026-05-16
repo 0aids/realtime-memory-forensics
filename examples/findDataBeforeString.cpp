@@ -8,7 +8,7 @@
 #include <rmf/utils/vec.hpp>
 #include <stdexcept>
 #include <string>
-namespace mf  = RealtimeMemoryForensics;
+namespace mf  = rmf;
 namespace mfu = mf::Utils;
 using namespace std;
 

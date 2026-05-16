@@ -1,7 +1,7 @@
 #include "rmf/utils/expect.hpp"
 #include <format>
 #include <magic_enum/magic_enum.hpp>
-namespace mf  = RealtimeMemoryForensics;
+namespace mf  = rmf;
 namespace mfu = mf::Utils;
 
 #define fmtString       "From [{}:{} - {}] {}"

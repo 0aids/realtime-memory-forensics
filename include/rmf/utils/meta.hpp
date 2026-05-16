@@ -5,7 +5,7 @@
 #include <type_traits>
 #include <functional>
 
-namespace RealtimeMemoryForensics::Utils::Meta
+namespace rmf::Utils::Meta
 {
     template <typename... T>
     struct TypePrinter;
@@ -155,7 +155,7 @@ namespace RealtimeMemoryForensics::Utils::Meta
 
     static_assert(!RequireExclusive<int, float>::isExclusive<int, int>());
 }
-namespace RealtimeMemoryForensics
+namespace rmf
 {
     struct Map;
     class Snapshot;

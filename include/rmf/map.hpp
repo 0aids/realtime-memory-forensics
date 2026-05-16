@@ -15,12 +15,12 @@ extern "C"
 #include <sys/uio.h>
 }
 
-namespace RealtimeMemoryForensics
+namespace rmf
 {
     enum class Perms : uint8_t;
 }
 
-enum class RealtimeMemoryForensics::Perms : uint8_t
+enum class rmf::Perms : uint8_t
 {
     None    = 0,
     Read    = 1,
@@ -34,12 +34,12 @@ enum class RealtimeMemoryForensics::Perms : uint8_t
 };
 
 template <>
-struct magic_enum::customize::enum_range<RealtimeMemoryForensics::Perms>
+struct magic_enum::customize::enum_range<rmf::Perms>
 {
     static constexpr bool is_flags = true;
 };
 
-namespace RealtimeMemoryForensics
+namespace rmf
 {
     namespace Detail
     {
@@ -114,7 +114,7 @@ namespace RealtimeMemoryForensics
     };
 }
 
-namespace RealtimeMemoryForensics
+namespace rmf
 {
     using namespace magic_enum::bitwise_operators;
     // Returns the address of the beginning of this region.

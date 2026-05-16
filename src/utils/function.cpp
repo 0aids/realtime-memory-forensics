@@ -3,6 +3,6 @@
 #include "rmf/rmf.hpp"
 #include "rmf/utils/expect.hpp"
 
-namespace mf  = RealtimeMemoryForensics;
+namespace mf  = rmf;
 namespace mfl = mf::Logging;
 namespace mfu = mf::Utils;

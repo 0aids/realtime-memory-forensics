@@ -18,7 +18,7 @@
 #include <rmf/type_registry.hpp>
 
 using namespace std;
-namespace mf  = RealtimeMemoryForensics;
+namespace mf  = rmf;
 namespace mfl = mf::Logging;
 namespace mfu = mf::Utils;
 namespace mft = mf::Tests;

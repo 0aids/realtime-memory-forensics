@@ -1,8 +1,8 @@
 #include "rmf/map.hpp"
 #include <magic_enum/magic_enum_flags.hpp>
-namespace mf  = RealtimeMemoryForensics;
+namespace mf  = rmf;
 namespace mfd = mf::Detail;
-namespace RealtimeMemoryForensics
+namespace rmf
 {
     namespace Detail
     {
@@ -39,7 +39,7 @@ namespace RealtimeMemoryForensics
     // Debugging use?
     Map::operator std::string()
     {
-        using namespace RealtimeMemoryForensics::Utils::Literals;
+        using namespace rmf::Utils::Literals;
         return "\"{}\" - parent: [{:p}, {:p}) actual: [{:p}, {:p}) perms: {}"_f
             .fmt(*map.regionName_sp, (void*)pbegin(), (void*)pend(),
                  (void*)tbegin(), (void*)tend(),

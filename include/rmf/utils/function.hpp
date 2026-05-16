@@ -11,7 +11,7 @@
 #include <utility>
 #include "rmf/utils/meta.hpp"
 
-namespace RealtimeMemoryForensics::Utils
+namespace rmf::Utils
 {
     namespace Detail
     {
@@ -70,7 +70,7 @@ namespace RealtimeMemoryForensics::Utils
     };
 }
 
-namespace RealtimeMemoryForensics::Utils
+namespace rmf::Utils
 {
 
     // fucking disgusting for cleaner code.

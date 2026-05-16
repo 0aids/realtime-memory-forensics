@@ -11,7 +11,7 @@
 #include "rmf/utils/vec.hpp"
 #include <type_traits>
 #include <fstream>
-namespace RealtimeMemoryForensics
+namespace rmf
 {
     namespace Detail
     {
@@ -130,7 +130,7 @@ namespace RealtimeMemoryForensics
     template <typename... Features>
     Utils::Vec<Node<Map, Features...>> getMaps(pid_t pid);
 }
-namespace RealtimeMemoryForensics::Detail
+namespace rmf::Detail
 {
     /******************************/
     /* Binary Snapshot Operations */
@@ -433,7 +433,7 @@ namespace RealtimeMemoryForensics::Detail
     // }
 
 }
-namespace RealtimeMemoryForensics
+namespace rmf
 {
     template <typename... Features>
     Utils::Vec<Node<Map, Features...>> getMaps(pid_t pid)

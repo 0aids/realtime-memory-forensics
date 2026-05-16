@@ -13,7 +13,7 @@
 #include <utility>
 #include <sys/prctl.h>
 #include <sys/signal.h>
-namespace RealtimeMemoryForensics::Tests
+namespace rmf::Tests
 {
     namespace Detail
     {
@@ -108,7 +108,7 @@ namespace RealtimeMemoryForensics::Tests
     };
 }
 
-namespace RealtimeMemoryForensics::Tests
+namespace rmf::Tests
 {
     namespace Detail
     {

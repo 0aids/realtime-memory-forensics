@@ -8,7 +8,7 @@
 #include <type_traits>
 #include <span>
 
-namespace RealtimeMemoryForensics
+namespace rmf
 {
     using SnapshotBuffer = std::vector<uint8_t>;
     namespace Detail
@@ -74,7 +74,7 @@ namespace RealtimeMemoryForensics
     };
 }
 
-namespace RealtimeMemoryForensics
+namespace rmf
 {
 
     template <class... Features>

@@ -3,7 +3,7 @@
 #include <rmf/rmf.hpp>
 #include <sstream>
 
-namespace mf  = RealtimeMemoryForensics;
+namespace mf  = rmf;
 namespace mfl = mf::Logging;
 
 TEST(Logging, AttemptLogging)

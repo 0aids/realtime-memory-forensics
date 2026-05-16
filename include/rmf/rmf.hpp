@@ -13,7 +13,7 @@
 #include <vector>
 
 #ifdef RMF_USE_SHORT_NAMES
-namespace mf  = RealtimeMemoryForensics;
+namespace mf  = rmf;
 namespace mfu = mf::Utils;
 namespace mfl = mf::Logging;
 #endif

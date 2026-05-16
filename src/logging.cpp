@@ -1,6 +1,6 @@
 #include <rmf/logging/logging.hpp>
 #include <string_view>
-namespace mf   = RealtimeMemoryForensics;
+namespace mf   = rmf;
 namespace mfl  = mf::Logging;
 namespace mfld = mf::Logging::Detail;
 

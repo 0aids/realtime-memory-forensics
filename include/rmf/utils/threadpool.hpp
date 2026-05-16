@@ -14,7 +14,7 @@
 #include "rmf/logging/logging.hpp"
 #include "rmf/utils/expect.hpp"
 
-namespace RealtimeMemoryForensics::Utils
+namespace rmf::Utils
 {
     namespace Detail
     {
@@ -84,7 +84,7 @@ namespace RealtimeMemoryForensics::Utils
     };
 }
 
-namespace RealtimeMemoryForensics::Utils::Detail
+namespace rmf::Utils::Detail
 {
     template <typename T, ptrdiff_t MaxThreads>
     uint64_t SPMCQueue<T, MaxThreads>::getConsumeIndex() const
@@ -209,7 +209,7 @@ namespace RealtimeMemoryForensics::Utils::Detail
     }
 
 }
-namespace RealtimeMemoryForensics::Utils
+namespace rmf::Utils
 {
     // A task is a function wrapper, which holds a promise and a void function that fulfills the promise.
     // Consider having threads capture a slot in the queue, and doesn't move the data out,

@@ -4,7 +4,7 @@
 #include <print>
 #include <format>
 
-namespace RealtimeMemoryForensics::Logging
+namespace rmf::Logging
 {
     namespace Detail
     {
@@ -57,21 +57,16 @@ namespace RealtimeMemoryForensics::Logging
 
 #define rmf_Log(level, ...)                                                    \
     {                                                                          \
-        if (level <= RealtimeMemoryForensics::Logging::LogLevel)               \
+        if (level <= rmf::Logging::LogLevel)                                   \
         {                                                                      \
-            RealtimeMemoryForensics::Logging::stderrAndFmt(                    \
-                level, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);         \
+            rmf::Logging::stderrAndFmt(level, __FILE__, __LINE__,              \
+                                       __FUNCTION__, __VA_ARGS__);             \
         }                                                                      \
     }
-#define rmf_Error(...)                                                         \
-    rmf_Log(RealtimeMemoryForensics::Logging::Error, __VA_ARGS__);
-#define rmf_Warning(...)                                                       \
-    rmf_Log(RealtimeMemoryForensics::Logging::Warning, __VA_ARGS__);
-#define rmf_Ok(...) rmf_Log(RealtimeMemoryForensics::Logging::Ok, __VA_ARGS__);
-#define rmf_Info(...)                                                          \
-    rmf_Log(RealtimeMemoryForensics::Logging::Info, __VA_ARGS__);
-#define rmf_Verbose(...)                                                       \
-    rmf_Log(RealtimeMemoryForensics::Logging::Verbose, __VA_ARGS__);
+#define rmf_Error(...)   rmf_Log(rmf::Logging::Error, __VA_ARGS__);
+#define rmf_Warning(...) rmf_Log(rmf::Logging::Warning, __VA_ARGS__);
+#define rmf_Ok(...)      rmf_Log(rmf::Logging::Ok, __VA_ARGS__);
+#define rmf_Info(...)    rmf_Log(rmf::Logging::Info, __VA_ARGS__);
+#define rmf_Verbose(...) rmf_Log(rmf::Logging::Verbose, __VA_ARGS__);
 
-#define rmf_Debug(...)                                                         \
-    rmf_Log(RealtimeMemoryForensics::Logging::Debug, __VA_ARGS__);
+#define rmf_Debug(...) rmf_Log(rmf::Logging::Debug, __VA_ARGS__);

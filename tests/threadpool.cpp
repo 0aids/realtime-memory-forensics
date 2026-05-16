@@ -7,7 +7,7 @@
 #include <chrono>
 #include <thread>
 
-namespace mf  = RealtimeMemoryForensics;
+namespace mf  = rmf;
 namespace mfl = mf::Logging;
 namespace mfu = mf::Utils;
 using namespace std;

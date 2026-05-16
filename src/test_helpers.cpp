@@ -3,7 +3,7 @@
 #include <cassert>
 #include <cstdint>
 
-namespace RealtimeMemoryForensics::Tests
+namespace rmf::Tests
 {
     TestBuffer::TestBuffer(size_t size, bool zeroed, size_t alignment)
     {

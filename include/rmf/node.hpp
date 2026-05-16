@@ -4,7 +4,7 @@
 #include <string>
 #include <type_traits>
 
-namespace RealtimeMemoryForensics
+namespace rmf
 {
     template <typename... Args>
     concept NodeRequirements = requires {
@@ -85,7 +85,7 @@ namespace RealtimeMemoryForensics
     };
 }
 
-namespace RealtimeMemoryForensics
+namespace rmf
 {
     template <typename... Args>
         requires NodeRequirements<Args...>

@@ -2,7 +2,7 @@
 #include "rmf/test_helpers.hpp"
 
 using namespace std;
-namespace mf  = RealtimeMemoryForensics;
+namespace mf  = rmf;
 namespace mft = mf::Tests;
 
 using namespace mft;

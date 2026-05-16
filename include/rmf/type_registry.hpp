@@ -40,7 +40,7 @@
     X(f, 32)                                                                   \
     X(f, 64)
 
-namespace RealtimeMemoryForensics
+namespace rmf
 {
     template <typename T>
     using sptr = std::shared_ptr<T>;
@@ -444,18 +444,18 @@ namespace RealtimeMemoryForensics
 
 // Specialisations for hashing fields.
 template <>
-struct std::hash<RealtimeMemoryForensics::BaseTypeData>
+struct std::hash<rmf::BaseTypeData>
 {
-    using Hashee = RealtimeMemoryForensics::BaseTypeData;
+    using Hashee = rmf::BaseTypeData;
     std::size_t operator()(const Hashee& h)
     {
         return std::hash<std::string>{}(h.name);
     }
 };
 template <>
-struct std::hash<std::shared_ptr<RealtimeMemoryForensics::BaseTypeData>>
+struct std::hash<std::shared_ptr<rmf::BaseTypeData>>
 {
-    using Hashee = std::shared_ptr<RealtimeMemoryForensics::BaseTypeData>;
+    using Hashee = std::shared_ptr<rmf::BaseTypeData>;
     std::size_t operator()(const Hashee& h)
     {
         return std::hash<std::string>{}(h->name);
@@ -463,16 +463,16 @@ struct std::hash<std::shared_ptr<RealtimeMemoryForensics::BaseTypeData>>
 };
 
 template <>
-struct std::hash<std::weak_ptr<RealtimeMemoryForensics::BaseTypeData>>
+struct std::hash<std::weak_ptr<rmf::BaseTypeData>>
 {
-    using Hashee = std::weak_ptr<RealtimeMemoryForensics::BaseTypeData>;
+    using Hashee = std::weak_ptr<rmf::BaseTypeData>;
     std::size_t operator()(const Hashee& h)
     {
         return std::hash<std::string>{}(h.lock()->name);
     }
 };
 
-namespace RealtimeMemoryForensics
+namespace rmf
 {
     template <IsNode T, IsNode ResultNode>
     // Strange error saying that i'm using a deleted constructor
