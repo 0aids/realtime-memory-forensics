@@ -9,7 +9,7 @@ namespace rmf
     template <typename... Args>
     concept NodeRequirements = requires {
         NodeExclusions::isExclusive<Args...>() &&
-            !Utils::Meta::HasDuplicates_v<Args...>;
+            !Meta::HasDuplicates_v<Args...>;
     };
 
     template <typename... Args>
@@ -23,6 +23,10 @@ namespace rmf
     concept NodeWithFeatures = requires {
         IsNode<Node_t>;
         (std::is_base_of_v<Features, Node_t>, ...);
+    };
+
+    struct EmptyFeature
+    {
     };
 
     // Consider forcing a sort of strict order using enable if
@@ -101,7 +105,7 @@ namespace rmf
     {
         using namespace std;
         static_assert(!is_polymorphic_v<SelfType>);
-        static_assert(!Utils::Meta::HasDuplicates_v<Args...>);
+        static_assert(!Meta::HasDuplicates_v<Args...>);
     }
 
     template <typename... Args>

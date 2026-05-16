@@ -297,7 +297,7 @@ namespace rmf
         T as();
 
         // Can implicitly cast to any integer or float.
-        template <Utils::Meta::Numeric T>
+        template <Meta::Numeric T>
         operator T() const;
     };
 

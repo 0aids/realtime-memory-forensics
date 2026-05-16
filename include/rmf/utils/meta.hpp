@@ -5,7 +5,7 @@
 #include <type_traits>
 #include <functional>
 
-namespace rmf::Utils::Meta
+namespace rmf::Meta
 {
     template <typename... T>
     struct TypePrinter;
@@ -170,8 +170,7 @@ namespace rmf
     // End mutually exclusive types
 
     using NodeExclusions =
-        Utils::Meta::RequireExclusive<Typed, Struct, Pointer, Field, Primitive,
-                                      Array>;
+        Meta::RequireExclusive<Typed, Struct, Pointer, Field, Primitive, Array>;
 
     template <typename T>
     struct Missing
