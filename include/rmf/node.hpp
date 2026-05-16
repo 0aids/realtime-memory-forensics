@@ -59,17 +59,20 @@ namespace rmf
             NodeAddFeature_t<Array, Args...>>;
         // Add typed, field, primitive, array, struct etc to the node.
         // Will swap mutually exclusive types to ensure it works properly.
-        template <typename T>
-        using Typify = void;
+        template <IsType T>
+        using withType =
+            Node<std::conditional_t<NodeExclusions::isExclusive<Args, T>(),
+                                    Args, EmptyFeature<Args>>...,
+                 T>;
 
         // Ensures that we have the feature specified. If it already exists, does nothing
         // Otherwises adds it.
-        template <typename T>
+        template <IsFeature T>
         using WithFeature =
             Node<Args..., std::conditional_t<!Meta::HasType<T, Args...>::value,
                                              T, EmptyFeature<T>>>;
 
-        // Removes the feature if it exists
+        // Removes the feature if it exists. Can remove type or feature.
         template <typename ToRemove>
         using WithoutFeature =
             Node<std::conditional_t<!std::same_as<Args, ToRemove>, Args,
@@ -86,10 +89,11 @@ namespace rmf
         Node& operator=(const Node&)        = default;
 
         // For allowing conversions between nodes.
-        Node(Args...);
+        Node(const Args&...);
         // Construct a new node with an extra feature.
         template <typename Feature>
         WithFeature<Feature> addFeature(Feature f) const;
+
         template <typename... OtherArgs>
         Node(Node<OtherArgs...>&&);
         template <typename... OtherArgs>
@@ -133,7 +137,7 @@ namespace rmf
 
     template <typename... Args>
         requires NodeRequirements<Args...>
-    Node<Args...>::Node(Args... args) : Args(args)...
+    Node<Args...>::Node(const Args&... args) : Args(args)...
     {
     }
 

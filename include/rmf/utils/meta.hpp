@@ -171,8 +171,12 @@ namespace rmf
         Meta::RequireExclusive<Typed, Struct, Pointer, Field, Primitive, Array>;
 
     template <typename T>
-    struct Missing
-    {
+    concept IsType = requires {
+        Meta::HasType<T, Typed, Struct, Pointer, Field, Primitive,
+                      Array>::value;
     };
+
+    template <typename T>
+    concept IsFeature = requires { Meta::HasType<T, Map, Snapshot>::value; };
 }
 #endif // meta_hpp_INCLUDED
