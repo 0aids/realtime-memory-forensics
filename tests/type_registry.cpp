@@ -23,15 +23,16 @@ namespace mfl = mf::Logging;
 namespace mfu = mf::Utils;
 namespace mft = mf::Tests;
 
+// Setting up
+struct TestStruct
+{
+    uint32_t    data;
+    uint8_t     array[4];
+    TestStruct* next;
+};
+
 TEST(type_registry, registerTest)
 {
-    // Setting up
-    struct TestStruct
-    {
-        uint32_t    data;
-        uint8_t     array[4];
-        TestStruct* next;
-    };
 
     std::vector<ssize_t> offsets = {
         offsetof(TestStruct, data),
@@ -100,4 +101,37 @@ TEST(type_registry, EnsurePrimitiveTypesConstructed)
         int      c;
         int      e;
     };
+}
+
+TEST(type_registry, NodificationTest1)
+{
+    auto tr         = mf::TypeRegistry::Make();
+    auto testStruct = tr.defStruct("TestStruct")
+                          .field(tr.prim.u32, "data")
+                          .field(tr.arrOf(tr.prim.u8, 4), "array")
+                          .field(tr.ptrTo(tr.struct_("TestStruct")), "next")
+                          .end();
+    TestStruct t    = {
+        .data  = 0xaabbccdd,
+        .array = {0xaa, 0xbb, 0xcc, 0xdd},
+        .next  = nullptr,
+    };
+
+    // Make it reference itself? This will work if we set the
+    // map to be from 0x00.
+    t.next = &t;
+
+    auto buffer = mf::Tests::TestBuffer::makeZeroed(sizeof(TestStruct));
+
+    auto dataField = testStruct.getField("data").value();
+
+    EXPECT_TRUE((bool)buffer.pushUnaligned(t));
+
+    mf::Node<mf::Map, mf::Snapshot> snap =
+        mf::Snapshot::fromBuffer(buffer.moveBuffer());
+
+    mf::Node<mf::Map, mf::Snapshot, mf::Struct> res = testStruct.nodify(snap);
+    auto bytes = res.bytesAtField(dataField);
+    // Because x86 is little endian, 0xaabbccdd is stored as [dd cc bb aa], with smallest value first;
+    EXPECT_EQ(*reinterpret_cast<uint32_t*>(bytes.data()), 0xddccbbaa);
 }

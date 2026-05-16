@@ -92,7 +92,7 @@ namespace rmf
         Node(const Args&...);
         // Construct a new node with an extra feature.
         template <typename Feature>
-        WithFeature<Feature> addFeature(Feature f) const;
+        WithFeature<Feature> addFeature(const Feature& f) const;
 
         template <typename... OtherArgs>
         Node(Node<OtherArgs...>&&);
@@ -145,8 +145,9 @@ namespace rmf
         requires NodeRequirements<Args...>
     template <typename Feature>
     Node<Args...>::WithFeature<Feature>
-    Node<Args...>::addFeature(Feature f) const
+    Node<Args...>::addFeature(const Feature& f) const
     {
+        // This should now call the Node(Args...) constructor?
         return Node<Args...>::WithFeature<Feature>(static_cast<Args>(*this)...,
                                                    f);
     }
@@ -166,6 +167,9 @@ namespace rmf
             return TargetFeature();
         }
     }
+    // BUG: for types which are convertible from each other, they are not directly the base,
+    // so we should check if we can convert any of them to our a base. IE Struct is convertible into Typed,
+    // etc, but this is not deduced by this move or copy constructor helper.
     template <typename... Args>
         requires NodeRequirements<Args...>
     template <typename TargetFeature, typename OtherNode>

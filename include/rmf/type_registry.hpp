@@ -193,7 +193,7 @@ namespace rmf
 
         // Consider adding functor for mapped operations?
         // Creates a typed version of a node
-        template <IsNode T, IsNode ResultNode = T::template AddFeature<Typed>>
+        template <IsNode T, IsNode ResultNode = T::template WithFeature<Struct>>
         ResultNode nodify(const T& node);
 
         // Creates a typed version of a node, from a specified field.
@@ -206,7 +206,7 @@ namespace rmf
         // Get the node at a specific field.
         // This node is technically a "SubNode", but we make no distinction.
         template <IsNode Node, FieldDeducible ForS,
-                  IsNode ResultNode = Node::template SwapFeature<Struct, Typed>>
+                  IsNode ResultNode = Node::template withType<Field>>
         ResultNode fieldNode(this const Node&, const ForS& field);
 
         // Gets the actual buffer at a specific field, as either as a desired
@@ -351,9 +351,9 @@ namespace rmf
         Field& operator=(const Field&) = default;
         Field(wptr<FieldData>);
         template <IsNode Node>
-        Node::template AddFeature<Typed> nodify(const Node& node);
+        Node::template WithType<Typed> nodify(const Node& node);
 
-        ssize_t                          offset() const;
+        ssize_t                        offset() const;
     };
 
     class StructBuilder;
@@ -479,12 +479,20 @@ namespace rmf
     // when i haven't even defined the function?
     ResultNode Struct::nodify(const T& node)
     {
-        rmf_TODO();
+        return node.addFeature(*this);
     }
     template <IsNode Node>
-    Node::template AddFeature<Typed> Field::nodify(const Node& node)
+    Node::template WithType<Typed> Field::nodify(const Node& node)
     {
         return node.addFeature(*this);
+    }
+
+    template <NodeWithFeatures<Snapshot> Node>
+    SnapshotBuffer Struct::bytesAtField(this const Node& node,
+                                        const Field&     field)
+    {
+        auto res = node.span().subspan(field.offset(), field.size());
+        return SnapshotBuffer(res.begin(), res.end());
     }
 
 }
