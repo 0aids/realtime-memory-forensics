@@ -60,7 +60,7 @@ namespace rmf
         // Add typed, field, primitive, array, struct etc to the node.
         // Will swap mutually exclusive types to ensure it works properly.
         template <IsType T>
-        using withType =
+        using WithType =
             Node<std::conditional_t<NodeExclusions::isExclusive<Args, T>(),
                                     Args, EmptyFeature<Args>>...,
                  T>;

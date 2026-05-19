@@ -3,13 +3,11 @@
 #include <gtest/gtest.h>
 #include <print>
 #include <rmf/logging/logging.hpp>
-#include <rmf/rmf.hpp>
 #include <rmf/utils/expect.hpp>
 #include <rmf/utils/str.hpp>
 #include <rmf/node.hpp>
 #include <rmf/map.hpp>
 #include <rmf/snapshot.hpp>
-#include "helpers.hpp"
 #include "rmf/test_helpers.hpp"
 #include "rmf/utils/function.hpp"
 #include "rmf/op.hpp"
@@ -102,6 +100,7 @@ TEST(type_registry, EnsurePrimitiveTypesConstructed)
         int      e;
     };
 }
+constexpr std::array<uint8_t, 4> defaultArray = {0xaa, 0xbb, 0xcc, 0xdd};
 
 TEST(type_registry, NodificationTest1)
 {
@@ -134,4 +133,49 @@ TEST(type_registry, NodificationTest1)
     auto bytes = res.bytesAtField(dataField);
     // Because x86 is little endian, 0xaabbccdd is stored as [dd cc bb aa], with smallest value first;
     EXPECT_EQ(*reinterpret_cast<uint32_t*>(bytes.data()), 0xddccbbaa);
+    auto array = res.bytesAtField(testStruct.getField("array").value());
+
+    for (size_t i = 0; i < 4; i++)
+    {
+        EXPECT_EQ(array[i], defaultArray[4 - i - 1]);
+    }
+}
+
+// Attempt to follow a pointer chain.
+TEST(type_registry, pointerFollowing)
+{
+    using namespace mft;
+    using namespace mf;
+    pid_t pid       = forkFunc(createTestProgram(SinglyLinkedListFeature<5>{}));
+    TypeRegistry tr = TypeRegistry::Make();
+
+    // find the first.
+    mfu::ThreadPool tp(thread::hardware_concurrency() / 2);
+    // BUG: snapshot, map not convertible from map, snapshot?
+    mfu::Vec<Node<Map, Snapshot>> maps = getMaps<Snapshot>(pid).hasPerms("r");
+
+    // Make snapshots, find string "hello world! 00".
+    mfu::Vec<Node<Map, Snapshot>> result =
+        maps.mapThreaded<Snapshot::captureM>(pid).with(tp);
+    auto helloworlds = findString.threaded(result, "hello world! 00").with(tp);
+    EXPECT_GE(helloworlds.size(), 1);
+    println("Num hello worlds: {}", helloworlds.size());
+    auto LinkedList_tr = tr.defStruct("LinkedList")
+                             .field(tr.arrOf(tr.prim.u8, 100), "data")
+                             .field(tr.ptrTo(tr.struct_("LinkedList")), "next")
+                             .end();
+    auto dataField     = LinkedList_tr.getField("data").value();
+    auto pointerField  = LinkedList_tr.getField("next").value();
+    for (const auto& hello : helloworlds)
+    {
+        // Attempt to get a node at a specified address
+        auto nodified = LinkedList_tr.nodifyFromField(hello, dataField);
+        // Holy crap how nice.
+        // But what about if it fails? It should fail silently and get passed forward.
+        auto derefPointer = nodified.fieldNode(pointerField)
+                                .getTarget<Pointer>()
+                                .targetNode<Struct>(maps);
+
+        derefPointer.capture(pid);
+    }
 }

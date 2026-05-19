@@ -197,16 +197,15 @@ namespace rmf
         ResultNode nodify(const T& node);
 
         // Creates a typed version of a node, from a specified field.
-        template <IsNode T, FieldDeducible ForS,
-                  IsNode ResultNode = T::template AddFeature<Typed>>
-        ResultNode nodifyFromField(const T& node, const ForS& field);
+        template <IsNode T, IsNode ResultNode = T::template WithType<Struct>>
+        ResultNode nodifyFromField(const T& node, const Field& field);
 
         // -- Relevant mixin operations --
 
         // Get the node at a specific field.
         // This node is technically a "SubNode", but we make no distinction.
         template <IsNode Node, FieldDeducible ForS,
-                  IsNode ResultNode = Node::template withType<Field>>
+                  IsNode ResultNode = Node::template WithType<Field>>
         ResultNode fieldNode(this const Node&, const ForS& field);
 
         // Gets the actual buffer at a specific field, as either as a desired
@@ -279,10 +278,11 @@ namespace rmf
         // snapshot to find the value, then creates a relevant node using that value.
         // Requires maps to query the parent region. If it cannot find the parent region,
         // it returns the region without a specified parent region.
-        template <NodeWithFeatures<Snapshot> Node, typename MapRange>
+        template <typename TargetType = Typed, NodeWithFeatures<Snapshot> Node,
+                  typename MapRange>
             requires NodeWithFeatures<std::ranges::range_value_t<MapRange>, Map>
-        Node::template SwapFeature<Pointer, Typed>
-        targetNode(this const Node& node, const MapRange& maps);
+        Node::template WithType<TargetType> targetNode(this const Node& node,
+                                                       const MapRange&  maps);
     };
 
     // A temporary holder of data of unknown type. Used by primitive
@@ -350,10 +350,14 @@ namespace rmf
         Field& operator=(Field&&)      = default;
         Field& operator=(const Field&) = default;
         Field(wptr<FieldData>);
+
         template <IsNode Node>
         Node::template WithType<Typed> nodify(const Node& node);
 
-        ssize_t                        offset() const;
+        template <typename TargetType, typename Node>
+        Node::template WithType<TargetType> getTarget(this const Node& node);
+
+        ssize_t                             offset() const;
     };
 
     class StructBuilder;
