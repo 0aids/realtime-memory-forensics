@@ -1,12 +1,15 @@
 #ifndef test_helpers_hpp_INCLUDED
 #define test_helpers_hpp_INCLUDED
 // A collection of helpers for testing.
+#include <cassert>
 #include <chrono>
 #include "rmf/logging/logging.hpp"
 #include "rmf/utils/expect.hpp"
 #include <concepts>
+#include <cstring>
 #include <functional>
 #include <iterator>
+#include <memory>
 #include <span>
 #include <cstdint>
 #include <thread>
@@ -15,6 +18,12 @@
 #include <sys/signal.h>
 namespace rmf::Tests
 {
+    template <typename T>
+    concept TestProgramFunc = requires(T t) {
+        t.setup();
+        t.run();
+    };
+
     namespace Detail
     {
         using namespace std::chrono;
@@ -28,8 +37,6 @@ namespace rmf::Tests
         };
     }
 
-    using TestProgramFunc = void (*)();
-
     // Comptime generate a program with test data during comptime.
     // Polls the features every 10ms.
     template <typename... Features>
@@ -40,8 +47,8 @@ namespace rmf::Tests
     struct StaticStringBuffer
     {
         volatile const char buffer[N] = {};
-        void                setup() const {};
-        void                run() const {};
+        void                setup() {};
+        void                run() {};
     };
     template <size_t N>
     StaticStringBuffer(const char (&)[N]) -> StaticStringBuffer<N>;
@@ -50,19 +57,37 @@ namespace rmf::Tests
     struct StaticNumberBuffer
     {
         volatile const Number num = Value;
-        void                  setup() const {};
-        void                  run() const {};
+        void                  setup() {};
+        void                  run() {};
         consteval explicit StaticNumberBuffer() = default;
+    };
+
+    template <size_t Length>
+    struct SinglyLinkedListFeature
+    {
+        struct LinkedList
+        {
+            volatile char        data[100] = {0};
+            volatile LinkedList* next      = nullptr;
+            constexpr LinkedList(const std::string& str)
+            {
+                assert(str.size() < 100);
+                memcpy((void*)data, str.data(), str.size());
+            }
+        };
+        std::vector<std::unique_ptr<LinkedList>> parentHolder;
+        void                                     setup();
+        void                                     run();
     };
 
     // Just prints.
     struct TestFeature
     {
-        void setup() const
+        void setup()
         {
             rmf_Ok("setup");
         };
-        void run() const { rmf_Ok("run!") };
+        void run() { rmf_Ok("run!") };
     };
 
     pid_t forkFunc(auto&& func);
@@ -125,10 +150,10 @@ namespace rmf::Tests
     }
 
     // Comptime generate a program with test data during.
-    template <typename... Features>
+    template <TestProgramFunc... Features>
     consteval auto createTestProgram(Features&&... features)
     {
-        return [... features = std::forward<Features>(features)]()
+        return [... features = std::forward<Features>(features)]() mutable
         {
             ([&]() { features.setup(); }(), ...);
             while (true)
@@ -184,6 +209,29 @@ namespace rmf::Tests
         rmf_retErr(tryReplaceHead(m_head + size));
         memcpy(oldHead.base(), &value, size);
         return true;
+    }
+
+    template <size_t Length>
+    void SinglyLinkedListFeature<Length>::setup()
+    {
+        for (size_t i = 0; i < Length; i++)
+        {
+            std::unique_ptr<LinkedList> ll = std::make_unique<LinkedList>(
+                std::format("hello world! {:02}", i * 10));
+            parentHolder.emplace_back(std::move(ll));
+        }
+
+        // Now loop and assign links forward
+        for (size_t i = 0; i < Length - 1; i++)
+        {
+            parentHolder[i]->next = parentHolder[i + 1].get();
+        }
+    }
+
+    template <size_t Length>
+    void SinglyLinkedListFeature<Length>::run()
+    {
+        // Do nothing!
     }
 }
 
