@@ -20,14 +20,22 @@ Planned python-based DSL JIT, and visualisation tools.
 
 # TODO
 - [x] Vector method piping chaining operations
-- [-] More meta-programming related type checking for inputs of nodes
+- [x] More meta-programming related type checking for inputs of nodes
       IE ensure that typed, struct, pointer, etc are all mutually exclusive.
       Ensure that the order of types in the nodes are always the same.
 - [x] Basic type parsing
 - [x] Redone struct registry
+- [ ] Figure out how to make operations compatible with pipe syntax.
+      I think I need to rethink how I want the entire setup to work.
+- [-] Incorporate optionality for nodes. Invalid nodes should not cause throws, and are
+      expected throughout constant use.
 - [-] Typed mixin for region
-- [ ] Attempt 3 for memory graphs.
-- [ ] Visualiser for memory graphs using raylib.
+- [ ] Incorporate optionality for Vecs.
+- [ ] Make all functions and methods pure by default. Only have an impure variant for snapshots.
+- [x] Memory graphs are partially cancelled. The new type system is powerful enough that we can do
+      Graph associations from it. At most will add some sort of caching of struct generated nodes.
+- [ ] ~~Attempt 3 for memory graphs.~~
+- [ ] Potentially add visualiser for memory graphs using raylib.
 - [ ] Allow different nodes for binary operations.
 - [ ] Write python bindings
 - [ ] done for now?
@@ -58,7 +66,7 @@ mf::TypeRegistry sr;
 
 // Builder pattern with explicit field deduction?
 mf::Struct node = sr.defStruct("Node"/*, sr.PACKED or sr.DEFAULT*/)
-    .field(sr.prim.u32, 		 "data")
+    .field(sr.prim.u32,          "data")
     .field(sr.ptrTo(sr.struct_("Node")), "next")
     .field(sr.arrOf(sr.u32, 10), "array")
     .field(sr.arrOf(sr.ptrTo(sr.struct_("Node")), 10), "pointers")
