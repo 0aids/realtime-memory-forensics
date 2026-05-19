@@ -106,7 +106,7 @@ namespace rmf::Tests
         std::span<uint8_t>   m_alignedSpan;
         iter                 m_head;
         TestBuffer(size_t size, bool zeroed, size_t alignment);
-        Utils::ErrU<bool> tryReplaceHead(iter newIter);
+        bool tryReplaceHead(iter newIter);
 
       public:
         TestBuffer(size_t size) = delete;
@@ -122,13 +122,13 @@ namespace rmf::Tests
 
         // Pushes a type into the buffer, ensuring alignment.
         template <typename T>
-        Utils::ErrU<bool> pushAligned(const T& value);
+        bool pushAligned(const T& value);
 
         template <typename T>
-        Utils::ErrU<bool> pushUnaligned(const T& value);
+        bool pushUnaligned(const T& value);
 
         // Push a number of bytes.
-        Utils::ErrU<bool>    pushPadding(size_t numBytes);
+        bool                 pushPadding(size_t numBytes);
         std::vector<uint8_t> moveBuffer();
     };
 }
@@ -191,22 +191,25 @@ namespace rmf::Tests
 
     // Pushes a type into the buffer, ensuring alignment.
     template <typename T>
-    Utils::ErrU<bool> TestBuffer::pushAligned(const T& value)
+    bool TestBuffer::pushAligned(const T& value)
     {
         constexpr size_t alignment = alignof(T);
         constexpr size_t size      = sizeof(T);
-        rmf_retErr(tryReplaceHead(Detail::alignIter(m_head, alignment)));
+        if (!tryReplaceHead(Detail::alignIter(m_head, alignment)))
+            return false;
         auto oldHead = m_head;
-        rmf_retErr(tryReplaceHead(m_head + size));
+        if (!tryReplaceHead(m_head + size))
+            return false;
         memcpy(oldHead.base(), &value, size);
         return true;
     }
     template <typename T>
-    Utils::ErrU<bool> TestBuffer::pushUnaligned(const T& value)
+    bool TestBuffer::pushUnaligned(const T& value)
     {
         constexpr size_t size    = sizeof(T);
         auto             oldHead = m_head;
-        rmf_retErr(tryReplaceHead(m_head + size));
+        if (!tryReplaceHead(m_head + size))
+            return false;
         memcpy(oldHead.base(), &value, size);
         return true;
     }

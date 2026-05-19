@@ -63,10 +63,10 @@ TEST(type_registry, registerTest)
         mf::Snapshot::fromBuffer(buffer.moveBuffer());
 
     // Will throw if invalid however.
-    mf::Field testStructField = testStruct.getField("data").value();
+    mf::Field testStructField = testStruct.getField("data");
 
     // Invalid test
-    EXPECT_ANY_THROW(testStruct.getField("I don't exist!").value());
+    EXPECT_ANY_THROW(testStruct.getField("I don't exist!"));
 
     // Ensure size is correct.
     EXPECT_EQ(testStruct.size(), sizeof(TestStruct));
@@ -122,7 +122,7 @@ TEST(type_registry, NodificationTest1)
 
     auto buffer = mf::Tests::TestBuffer::makeZeroed(sizeof(TestStruct));
 
-    auto dataField = testStruct.getField("data").value();
+    auto dataField = testStruct.getField("data");
 
     EXPECT_TRUE((bool)buffer.pushUnaligned(t));
 
@@ -133,7 +133,7 @@ TEST(type_registry, NodificationTest1)
     auto bytes = res.bytesAtField(dataField);
     // Because x86 is little endian, 0xaabbccdd is stored as [dd cc bb aa], with smallest value first;
     EXPECT_EQ(*reinterpret_cast<uint32_t*>(bytes.data()), 0xddccbbaa);
-    auto array = res.bytesAtField(testStruct.getField("array").value());
+    auto array = res.bytesAtField(testStruct.getField("array"));
 
     for (size_t i = 0; i < 4; i++)
     {
@@ -164,8 +164,8 @@ TEST(type_registry, pointerFollowing)
                              .field(tr.arrOf(tr.prim.u8, 100), "data")
                              .field(tr.ptrTo(tr.struct_("LinkedList")), "next")
                              .end();
-    auto dataField     = LinkedList_tr.getField("data").value();
-    auto pointerField  = LinkedList_tr.getField("next").value();
+    auto dataField     = LinkedList_tr.getField("data");
+    auto pointerField  = LinkedList_tr.getField("next");
     for (const auto& hello : helloworlds)
     {
         // Attempt to get a node at a specified address

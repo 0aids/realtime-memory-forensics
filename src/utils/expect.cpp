@@ -4,37 +4,13 @@
 namespace mf  = rmf;
 namespace mfu = mf::Utils;
 
-#define fmtString       "From [{}:{} - {}] {}"
-#define fmtStringSubseq fmtString "\n\t^-> "
-std::string mfu::Error::generateMsg(ErrorEnum e, const char* file,
-                                    lineNumber_t line, const char* function)
+bool mfu::Error::hasError() const
 {
-    return std::format(fmtString, file, line, function,
-                       magic_enum::enum_name(e));
-}
-std::string mfu::Error::generateSubseqMsg(ErrorEnum e, const char* file,
-                                          lineNumber_t line,
-                                          const char*  function)
-{
-    return std::format(fmtStringSubseq, file, line, function,
-                       magic_enum::enum_name(e));
+    return err_what != ErrorEnum::Success;
 }
 
-mfu::Error::Error(ErrorEnum e, const char* file, lineNumber_t line,
-                  const char* function) : m_what()
+const char* mfu::Error::whatError() const
 {
-    m_what = generateMsg(e, file, line, function);
-}
-
-mfu::Error&& mfu::Error::update(ErrorEnum e, const char* file,
-                                lineNumber_t line, const char* function)
-{
-    m_what = generateSubseqMsg(e, file, line, function) + m_what;
-    depth++;
-    return std::move(*this);
-}
-
-const char* mfu::Error::what() const noexcept
-{
-    return m_what.c_str();
+    // I hope magic_enum strings are null-terminated.
+    return magic_enum::enum_name(err_what).data();
 }

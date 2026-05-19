@@ -63,6 +63,7 @@ namespace rmf
         // Creates another capture.
         // It creates a shallow copy, as in the snapshot itself
         // is modified on both.
+        // Consider making this a pure function.
         template <class Self>
         Self RMF_MIXIN_METHOD(capture, (this Self & self, pid_t pid));
 

@@ -1,83 +1,71 @@
 #pragma once
-#include <expected>
-#include <string>
-#include <exception>
-#include <optional>
+#include <concepts>
+#include <cstddef>
+#include <cstdint>
+
 namespace rmf::Utils
 {
     enum class ErrorEnum
     {
+        Success = 0,
         TestError,
         MaxErrorDepthReached,
         TestBufferOverflow,
         FieldDoesNotExist,
     };
 
-    class Error;
-    using ErrE = std::unexpected<Error>;
-    template <typename T>
-    using ErrU = std::expected<T, Error>;
-
-    template <typename T>
-    using Opt           = std::optional<T>;
-    constexpr auto nopt = std::nullopt;
-
-    class Error : public std::exception
+    // All Vecs and Nodes inherit from this.
+    // It's just some small metadata for better graceful error handling.
+    class Error
     {
-      private:
-        using lineNumber_t        = size_t;
-        std::string        m_what = "";
-        size_t             depth  = 0;
-        static std::string generateMsg(ErrorEnum e, const char* file,
-                                       lineNumber_t line, const char* function);
+      protected:
+        ErrorEnum err_what = ErrorEnum::Success;
 
-        static std::string generateSubseqMsg(ErrorEnum e, const char* file,
-                                             lineNumber_t line,
-                                             const char*  function);
+        // To be used with rmf_updErr or rmf_updRetErr.
+        // Doesn't do anything with the extra information for now for minimalism.
+        // Only really uses err.
+        template <std::derived_from<Error> Self>
+        Self& updateError(this Self& self, ErrorEnum err, const char* filename,
+                          size_t line, const char* function);
 
       public:
-        Error() = default;
-        Error(ErrorEnum e, const char* file, lineNumber_t line,
-              const char* function);
-
-        Error&&     update(ErrorEnum e, const char* file, lineNumber_t line,
-                           const char* function);
-
-        const char* what() const noexcept override;
-        template <typename T>
-        constexpr operator ErrU<T>();
+        // True if error (duh!)
+        bool hasError() const;
+        // Returns nullptr if no error has been set.
+        const char* whatError() const;
     };
 }
 
 #define rmf_retErr(exp)                                                        \
     do                                                                         \
     {                                                                          \
-        if (!exp.has_value())                                                  \
-            return exp.error();                                                \
+        if (!exp.hasError())                                                   \
+            return exp;                                                        \
     } while (0)
 
-#define rmf_updErr(exp, errc) exp.update(errc, __FILE__, __LINE__, __FUNCTION__)
+#define rmf_updErr(exp, errc)                                                  \
+    exp.updateError(errc, __FILE__, __LINE__, __FUNCTION__)
 
 #define rmf_updRetErr(exp, errc)                                               \
     do                                                                         \
     {                                                                          \
-        if (!exp.has_value())                                                  \
+        if (!exp.hasError())                                                   \
         {                                                                      \
-            return rmf_updErr(exp.error(), errc);                              \
+            return rmf_updErr(exp, errc);                                      \
         }                                                                      \
     } while (0)
 
 // Make an error
-#define rmf_mkErr(errc)                                                        \
-    rmf::Utils::Error(errc, __FILE__, __LINE__, __FUNCTION__)
+#define rmf_retNewErr(exp, errc)                                               \
+    return exp.updateError(errc, __FILE__, __LINE__, __FUNCTION__)
 
 namespace rmf::Utils
 {
-
-    template <typename T>
-    constexpr Error::operator ErrU<T>()
+    template <std::derived_from<Error> Self>
+    Self& Error::updateError(this Self& self, ErrorEnum err, const char*,
+                             size_t, const char*)
     {
-        ErrU<T> errorUnion = std::unexpected<Error>(*this);
-        return errorUnion;
+        self.err_what = err;
+        return self;
     }
 }

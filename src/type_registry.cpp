@@ -214,14 +214,14 @@ mf::Struct::Struct(const Typed& typed) : Typed(typed)
     m_data = std::static_pointer_cast<StructData>(m_baseData.lock());
 }
 
-mfu::ErrU<mf::Field> mf::Struct::getField(const std::string& str)
+mf::Field mf::Struct::getField(const std::string& str)
 {
     auto data = m_data.lock();
     if (data->fields.contains(str))
     {
         return mf::Field(mf::Typed::makeFromWptr(data->fields[str]));
     }
-    return rmf_mkErr(Utils::ErrorEnum::FieldDoesNotExist);
+    rmf_TODO("Please implement smooth failing for fields and structs!");
 }
 
 mf::Pointer::Pointer(const Typed& typed) : Typed(typed)

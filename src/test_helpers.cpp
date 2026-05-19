@@ -29,10 +29,10 @@ namespace rmf::Tests
         assert((uintptr_t)m_head.base() % alignment == 0);
     }
 
-    Utils::ErrU<bool> TestBuffer::tryReplaceHead(iter newIter)
+    bool TestBuffer::tryReplaceHead(iter newIter)
     {
         if (newIter - m_alignedSpan.end() > 0)
-            return rmf_mkErr(Utils::ErrorEnum::TestBufferOverflow);
+            return false;
         m_head = newIter;
         return true;
     }
@@ -52,9 +52,10 @@ namespace rmf::Tests
         return m_alignedSpan;
     }
 
-    Utils::ErrU<bool> TestBuffer::pushPadding(size_t numBytes)
+    bool TestBuffer::pushPadding(size_t numBytes)
     {
-        rmf_retErr(tryReplaceHead(m_head + numBytes));
+        if (!tryReplaceHead(m_head + numBytes))
+            return false;
         return true;
     }
 

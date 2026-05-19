@@ -41,16 +41,17 @@ namespace rmf::Utils
             const size_t size;
             SPMCQueue(size_t _size);
 
-            bool   tryEnqueue(T&& value);
+            bool             tryEnqueue(T&& value);
 
-            void   enqueue(T&& value);
+            void             enqueue(T&& value);
 
-            bool   empty();
+            bool             empty();
 
-            Opt<T> tryDequeue();
+            std::optional<T> tryDequeue();
 
             template <class Rep, class Period>
-            Opt<T> tryDequeueFor(std::chrono::duration<Rep, Period> duration);
+            std::optional<T>
+            tryDequeueFor(std::chrono::duration<Rep, Period> duration);
         };
     }
 
@@ -166,11 +167,11 @@ namespace rmf::Utils::Detail
     }
 
     template <typename T, ptrdiff_t MaxThreads>
-    Opt<T> SPMCQueue<T, MaxThreads>::tryDequeue()
+    std::optional<T> SPMCQueue<T, MaxThreads>::tryDequeue()
     {
         if (!m_semaphore.try_acquire())
         {
-            return nopt;
+            return std::nullopt;
         }
 
         uint64_t consumeIndex =
@@ -187,12 +188,12 @@ namespace rmf::Utils::Detail
 
     template <typename T, ptrdiff_t MaxThreads>
     template <class Rep, class Period>
-    Opt<T> SPMCQueue<T, MaxThreads>::tryDequeueFor(
+    std::optional<T> SPMCQueue<T, MaxThreads>::tryDequeueFor(
         std::chrono::duration<Rep, Period> duration)
     {
         if (!m_semaphore.try_acquire_for(duration))
         {
-            return nopt;
+            return std::nullopt;
         }
 
         uint64_t consumeIndex =

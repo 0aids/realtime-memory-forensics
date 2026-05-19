@@ -115,6 +115,9 @@ namespace rmf
 
     constexpr auto findString =
         Utils::Function<Detail::findString{}, Detail::findString{}, true>();
+    // Functor version for pipe operations
+    constexpr auto findStringF = [](const std::string& str) mutable
+    { return [str](auto&& node) mutable { return findString(node, str); }; };
 
     constexpr auto findNumExact =
         Utils::Function<Detail::findNumExact{}, Detail::findNumExact{}, true>();

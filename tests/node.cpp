@@ -54,6 +54,6 @@ TEST(node, templateExclusiveTypesAreSwapped)
 {
     using typedNode = Node<Map, Snapshot, Typed>;
     static_assert(std::same_as<Node<Map, Snapshot, Struct>::Features,
-                               typedNode::withType<Struct>::Features>,
+                               typedNode::WithType<Struct>::Features>,
                   "Types should remove and swap exclusive values");
 }

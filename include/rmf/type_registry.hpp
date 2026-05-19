@@ -180,13 +180,13 @@ namespace rmf
       public:
         // Not really sure about the constructor situation here.
         Struct(const Typed&);
-        Struct()                                    = delete;
-        Struct(Struct&&)                            = default;
-        Struct(const Struct&)                       = default;
-        Struct&            operator=(Struct&&)      = default;
-        Struct&            operator=(const Struct&) = default;
+        Struct()                         = delete;
+        Struct(Struct&&)                 = default;
+        Struct(const Struct&)            = default;
+        Struct& operator=(Struct&&)      = default;
+        Struct& operator=(const Struct&) = default;
 
-        Utils::ErrU<Field> getField(const std::string& str);
+        Field   getField(const std::string& str);
 
         // Asserts that it exists - Otherwise throws.
         Field operator[](const strview str);
@@ -411,7 +411,7 @@ namespace rmf
         Struct struct_(const strview name);
 
         // Get a struct.
-        Utils::ErrU<Struct> operator[](const strview name);
+        Struct operator[](const strview name);
 
         // Primitives defined here
         // During initial construction primitive data are added to data,

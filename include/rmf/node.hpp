@@ -1,6 +1,7 @@
 #pragma once
 #include "rmf/logging/logging.hpp"
 #include "rmf/utils/meta.hpp"
+#include "rmf/utils/expect.hpp"
 #include <string>
 #include <type_traits>
 
@@ -39,7 +40,8 @@ namespace rmf
     // like
     template <typename... Args>
         requires NodeRequirements<Args...>
-    class Node : public NodeAddFeature_t<Map, Args...>,
+    class Node : public Utils::Error,
+                 public NodeAddFeature_t<Map, Args...>,
                  public NodeAddFeature_t<Snapshot, Args...>,
                  public NodeAddFeature_t<Typed, Args...>,
                  public NodeAddFeature_t<Struct, Args...>,

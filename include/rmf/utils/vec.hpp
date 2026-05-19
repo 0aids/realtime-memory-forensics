@@ -1,5 +1,6 @@
 #pragma once
 #include "rmf/node.hpp"
+#include "rmf/utils/expect.hpp"
 #include "rmf/utils/function.hpp"
 #include <algorithm>
 #include <cassert>
@@ -53,13 +54,17 @@ namespace rmf::Utils
 
     template <typename T, typename Operator = VecOpTraits<T>::type,
               typename Allocator = std::allocator<T>>
-    class Vec : public std::vector<T, Allocator>, public Operator
+    class Vec : public std::vector<T, Allocator>,
+                public Operator,
+                public Utils::Error
     {
       public:
         using BaseType = std::vector<T, Allocator>;
         using BaseType::BaseType;
         using InnerType = T;
         using SelfType  = Vec<T, Operator, Allocator>;
+
+        Vec(BaseType&& base);
 
         template <typename F, typename... Args>
         auto map(F&& f, Args&&... args);
@@ -143,6 +148,11 @@ namespace rmf::Utils
             .data = *this,
             .pipe = {},
         };
+    }
+    template <typename T, typename Operator, typename Allocator>
+    Vec<T, Operator, Allocator>::Vec(BaseType&& base) :
+        std::vector<T, Allocator>(std::move(base))
+    {
     }
     template <typename T, typename Pipeline>
     auto Pipe::Impl<T, Pipeline>::operator|(const auto F)

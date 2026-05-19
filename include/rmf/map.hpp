@@ -76,7 +76,7 @@ namespace rmf
         constexpr uintptr_t RMF_MIXIN_METHOD(pend, () const);
 
         template <typename T>
-        Utils::ErrU<bool>                  RMF_MIXIN_METHOD(modify, ());
+        bool                               RMF_MIXIN_METHOD(modify, ());
 
         std::shared_ptr<const std::string> RMF_MIXIN_METHOD(getName, ());
 
