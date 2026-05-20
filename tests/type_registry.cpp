@@ -4,7 +4,6 @@
 #include <print>
 #include <rmf/logging/logging.hpp>
 #include <rmf/utils/expect.hpp>
-#include <rmf/utils/str.hpp>
 #include <rmf/node.hpp>
 #include <rmf/map.hpp>
 #include <rmf/snapshot.hpp>

@@ -7,7 +7,6 @@
 #include <memory>
 #include <type_traits>
 #include "rmf/utils/expect.hpp"
-#include "rmf/utils/str.hpp"
 #include "rmf/node.hpp"
 extern "C"
 {
@@ -39,25 +38,11 @@ struct magic_enum::customize::enum_range<rmf::Perms>
     static constexpr bool is_flags = true;
 };
 
+// Detail related things.
+#include "rmf/detail_map.tpp"
+
 namespace rmf
 {
-    namespace Detail
-    {
-        Perms parsePerms(const std::string_view perms);
-        struct MapData
-        {
-            static std::shared_ptr<const std::string> defaultName;
-            // Default values for safety
-            uintptr_t                          parentAddress   = 0;
-            uintptr_t                          parentSize      = 0;
-            ptrdiff_t                          relativeAddress = 0;
-            ptrdiff_t                          relativeSize    = 0;
-            std::shared_ptr<const std::string> regionName_sp   = defaultName;
-            Perms                              perms           = Perms::None;
-            bool operator==(const MapData& other) const        = default;
-        };
-    }
-
     struct Map
     {
         Detail::MapData map;
@@ -297,7 +282,6 @@ namespace rmf
     template <NodeWithFeatures<Map> Self>
     Self Map::VecOp::active(this const Self& self, pid_t pid)
     {
-        using namespace Utils::Literals;
         if (self.size() == 0)
         {
             rmf_Warning("Given an empty types::MemoryRegionPropertiesVec!!!");
@@ -305,7 +289,7 @@ namespace rmf
         }
         Self              regions;
         long              pageSize    = sysconf(_SC_PAGE_SIZE);
-        const std::string pagemapPath = "/proc/{}/pagemap"_f.fmt(pid);
+        const std::string pagemapPath = std::format("/proc/{}/pagemap", pid);
         rmf_Info("Reading pagemap: {}", pagemapPath);
         int fd = open(pagemapPath.c_str(), O_RDONLY);
         if (fd < 0)

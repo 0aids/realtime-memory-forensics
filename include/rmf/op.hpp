@@ -404,8 +404,7 @@ namespace rmf
     Utils::Vec<Node<Map, Features...>> getMaps(pid_t pid)
     {
         using NodeBase = Node<Map, Features...>;
-        using namespace Utils::Literals;
-        std::ifstream        memoryMapFile("/proc/{}/maps"_f.fmt(pid));
+        std::ifstream        memoryMapFile(std::format("/proc/{}/maps", pid));
         std::string          line;
         int                  unnamedRegionNumber = 1;
 

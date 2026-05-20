@@ -39,10 +39,9 @@ namespace rmf
     // Debugging use?
     Map::operator std::string()
     {
-        using namespace rmf::Utils::Literals;
-        return "\"{}\" - parent: [{:p}, {:p}) actual: [{:p}, {:p}) perms: {}"_f
-            .fmt(*map.regionName_sp, (void*)pbegin(), (void*)pend(),
-                 (void*)tbegin(), (void*)tend(),
-                 magic_enum::enum_flags_name(map.perms));
+        return std::format(
+            "\"{}\" - parent: [{:p}, {:p}) actual: [{:p}, {:p}) perms: {}",
+            *map.regionName_sp, (void*)pbegin(), (void*)pend(), (void*)tbegin(),
+            (void*)tend(), magic_enum::enum_flags_name(map.perms));
     }
 }
