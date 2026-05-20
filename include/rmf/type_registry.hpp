@@ -180,13 +180,13 @@ namespace rmf
       public:
         // Not really sure about the constructor situation here.
         Struct(const Typed&);
-        Struct()                         = delete;
-        Struct(Struct&&)                 = default;
-        Struct(const Struct&)            = default;
-        Struct& operator=(Struct&&)      = default;
-        Struct& operator=(const Struct&) = default;
+        Struct()                                      = delete;
+        Struct(Struct&&)                              = default;
+        Struct(const Struct&)                         = default;
+        Struct&              operator=(Struct&&)      = default;
+        Struct&              operator=(const Struct&) = default;
 
-        Field   getField(const std::string& str);
+        std::optional<Field> getField(const std::string& str);
 
         // Asserts that it exists - Otherwise throws.
         Field operator[](const strview str);
@@ -206,7 +206,7 @@ namespace rmf
         // This node is technically a "SubNode", but we make no distinction.
         template <IsNode Node, FieldDeducible ForS,
                   IsNode ResultNode = Node::template WithType<Field>>
-        ResultNode fieldNode(this const Node&, const ForS& field);
+        ResultNode getFieldNode(this const Node&, const ForS& field);
 
         // Gets the actual buffer at a specific field, as either as a desired
         // range.
@@ -281,8 +281,8 @@ namespace rmf
         template <typename TargetType = Typed, NodeWithFeatures<Snapshot> Node,
                   typename MapRange>
             requires NodeWithFeatures<std::ranges::range_value_t<MapRange>, Map>
-        Node::template WithType<TargetType> targetNode(this const Node& node,
-                                                       const MapRange&  maps);
+        Node::template WithType<TargetType> getTargetNode(this const Node& node,
+                                                          const MapRange& maps);
     };
 
     // A temporary holder of data of unknown type. Used by primitive
@@ -355,9 +355,10 @@ namespace rmf
         Node::template WithType<Typed> nodify(const Node& node);
 
         template <typename TargetType, typename Node>
-        Node::template WithType<TargetType> getTarget(this const Node& node);
+        Node::template WithType<TargetType>
+                getTargetNode(this const Node& node);
 
-        ssize_t                             offset() const;
+        ssize_t offset() const;
     };
 
     class StructBuilder;
@@ -505,5 +506,34 @@ namespace rmf
 #undef RMF_PRIM_TYPES
 #undef RMF_PTR_SIZE
 #endif
+
+namespace rmf
+{
+    // Creates a typed version of a node, from a specified field.
+    template <IsNode T, IsNode ResultNode>
+    ResultNode Struct::nodifyFromField(const T& node, const Field& field)
+    {
+        rmf_TODO();
+    }
+    template <IsNode Node, FieldDeducible ForS, IsNode ResultNode>
+    ResultNode Struct::getFieldNode(this const Node&, const ForS& field)
+    {
+        rmf_TODO();
+    }
+    template <typename TargetType, typename Node>
+    Node::template WithType<TargetType>
+    Field::getTargetNode(this const Node& node)
+    {
+        rmf_TODO();
+    }
+    template <typename TargetType, NodeWithFeatures<Snapshot> Node,
+              typename MapRange>
+        requires NodeWithFeatures<std::ranges::range_value_t<MapRange>, Map>
+    Node::template WithType<TargetType>
+    Pointer::getTargetNode(this const Node& node, const MapRange& maps)
+    {
+        rmf_TODO();
+    }
+}
 
 #endif // struct_registry_hpp_INCLUDED

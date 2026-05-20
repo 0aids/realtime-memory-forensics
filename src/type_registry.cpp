@@ -2,7 +2,10 @@
 #include "rmf/utils/expect.hpp"
 #include <array>
 #include <cassert>
+#include <exception>
 #include <memory>
+#include <optional>
+#include <stdexcept>
 #include <utility>
 #include "rmf/utils/other.hpp"
 #define RMF_NO_CLEANUP_MACROS
@@ -214,14 +217,14 @@ mf::Struct::Struct(const Typed& typed) : Typed(typed)
     m_data = std::static_pointer_cast<StructData>(m_baseData.lock());
 }
 
-mf::Field mf::Struct::getField(const std::string& str)
+std::optional<mf::Field> mf::Struct::getField(const std::string& str)
 {
     auto data = m_data.lock();
     if (data->fields.contains(str))
     {
         return mf::Field(mf::Typed::makeFromWptr(data->fields[str]));
     }
-    rmf_TODO("Please implement smooth failing for fields and structs!");
+    return std::nullopt;
 }
 
 mf::Pointer::Pointer(const Typed& typed) : Typed(typed)
@@ -294,4 +297,15 @@ bool mf::operator==(const Struct::Iterator& a, const Struct::Iterator& b)
 bool mf::operator!=(const Struct::Iterator& a, const Struct::Iterator& b)
 {
     return a.m_currentIter != b.m_currentIter;
+}
+
+mf::Field mf::Struct::operator[](const strview str)
+{
+    if (auto val = getField(std::string(str)); val.has_value())
+    {
+        return val.value();
+    }
+    throw std::runtime_error(
+        "Invalid access of struct! Use Struct::getField which "
+        "uses std::optional instead if unsure");
 }
