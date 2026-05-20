@@ -157,7 +157,9 @@ TEST(type_registry, pointerFollowing)
     // Make snapshots, find string "hello world! 00".
     mfu::Vec<Node<Map, Snapshot>> result =
         maps.mapThreaded<Snapshot::captureM>(pid).with(tp);
-    auto helloworlds = findString.threaded(result, "hello world! 00").with(tp);
+    auto helloworlds =
+        consolidate(result.pipe() | findStringF("hello world! 00") |
+                    mfu::Pipe::EndThreaded(tp));
     EXPECT_GE(helloworlds.size(), 1);
     println("Num hello worlds: {}", helloworlds.size());
     auto LinkedList_tr = tr.defStruct("LinkedList")

@@ -11,6 +11,7 @@
 #include "rmf/utils/function.hpp"
 #include "rmf/op.hpp"
 #include "rmf/utils/threadpool.hpp"
+#include "rmf/utils/vec.hpp"
 #include <rmf/test_helpers.hpp>
 
 using namespace std;
@@ -105,7 +106,8 @@ TEST(snapshot, findNumExact)
 
     auto              snaps = mfu::Vec<decltype(snapshot)>{snapshot};
     println("inputs: {}", snaps.size());
-    auto res1 = findNumExact.threaded(snaps, num).with(tp);
+    auto res1 = snaps.pipe() | findNumExactF(num) |
+                Utils::Pipe::EndThreaded{tp};
     println("res1: {}", res1.size());
     EXPECT_EQ(res1.size(), res.size());
 }
@@ -126,7 +128,8 @@ TEST(snapshot, testProgram)
     }
     // Attempt to find hello world!
     mfu::ThreadPool tp(2);
-    auto mapsWHello = mf::findString.threaded(maps, "hello world").with(tp);
+    auto            mapsWHello = maps.pipe() | mf::findStringF("hello world") |
+                                 mfu::Pipe::EndThreaded(tp);
     EXPECT_GE(mapsWHello.size(), 0);
     println("Found {} 'hello world's!", mapsWHello.size());
 }

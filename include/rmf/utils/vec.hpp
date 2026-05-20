@@ -2,6 +2,7 @@
 #include "rmf/node.hpp"
 #include "rmf/utils/expect.hpp"
 #include "rmf/utils/function.hpp"
+#include "rmf/utils/threadpool.hpp"
 #include <algorithm>
 #include <cassert>
 #include <concepts>
@@ -38,7 +39,9 @@ namespace rmf::Utils
         };
         struct EndThreaded
         {
+            ThreadPool& tp;
         };
+        // We cannot convert it to the same T
         template <typename T, typename Pipeline = std::false_type>
         struct Impl
         {
@@ -176,13 +179,28 @@ namespace rmf::Utils
     auto Pipe::Impl<T, Pipeline>::operator|(End)
     {
         if constexpr (!std::same_as<Pipeline, std::false_type>)
-            return data | pipe | std::ranges::to<T>();
-        return data;
+        {
+            // Check what the last pipeline's result is
+            using pipelineResult =
+                std::invoke_result_t<decltype(pipe), decltype(data)>;
+            using pipelineUnderlying =
+                std::ranges::range_value_t<pipelineResult>;
+            return data | pipe |
+                   std::ranges::to<Utils::Vec<pipelineUnderlying>>();
+        }
+        else
+        {
+            return data;
+        }
     }
 
     template <typename T, typename Pipeline>
     auto Pipe::Impl<T, Pipeline>::operator|(EndThreaded)
     {
         assert(false && "TODO!");
+        using pipelineResult =
+            std::invoke_result_t<decltype(pipe), decltype(data)>;
+        using pipelineUnderlying = std::ranges::range_value_t<pipelineResult>;
+        return Utils::Vec<pipelineUnderlying>{};
     }
 }

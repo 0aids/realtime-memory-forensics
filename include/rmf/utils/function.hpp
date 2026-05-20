@@ -64,7 +64,7 @@ namespace rmf::Utils
             requires(N > 0)
         constexpr auto threaded(Args&&... args) const;
 
-        // Runs very basic parallelised (but not threaded)
+        // Runs very basic vectorised (but not threaded)
         template <typename... Args>
         auto applyTo(Args&&... args) const;
     };
@@ -212,6 +212,8 @@ namespace rmf::Utils
         // our inputs. So we need to somehow create a valid operator() in order
         // to get the inputs. But we can't do that without evaluating operator(),
         // unless we try every combination of Args and unwrapped Args.
+        // In other words if we have a templated operator(), then we cannot determine
+        // the input types to the function, which means we have to try every combination.
         using FTTraits    = Meta::FuncTraits<decltype(FuncThreaded)>;
         using InputsTuple = typename FTTraits::InputsTuple;
         return threaderImpl<InputsTuple>(std::forward<Args>(args)...);

@@ -1,4 +1,5 @@
 #include "rmf/op.hpp"
+#include "rmf/utils/meta.hpp"
 #include "rmf/utils/threadpool.hpp"
 #include <cstring>
 #include <exception>
@@ -63,9 +64,10 @@ int main(int argc, const char* argv[])
         | Pipe::End{};
 
     // Search for the string
-    auto newMaps = findString.threaded(maps, strToFind).with(tp);
+    auto newMaps = maps.pipe() | findStringF(strToFind) | Pipe::End{};
 
-    for (auto& map : newMaps)
+    // Will have to implement my own piping so consolidation can happen automatically.
+    for (auto& map : consolidate(newMaps))
     {
         println("{}", string(map));
         map.map.relativeAddress -= 10;

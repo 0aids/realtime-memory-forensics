@@ -8,6 +8,8 @@
 #include "rmf/snapshot.hpp"
 #include "rmf/utils/meta.hpp"
 #include "rmf/utils/vec.hpp"
+#include <iterator>
+#include <string_view>
 #include <type_traits>
 #include <fstream>
 namespace rmf
@@ -61,9 +63,20 @@ namespace rmf
     Utils::Vec<nodeR_t> findString(const node_t&          snap1,
                                    const std::string_view str);
 
+    constexpr auto      findStringF = [](const std::string_view str)
+    {
+        return [str]<OpCompatible node_t>(const node_t& snap1) mutable
+        { return findString(snap1, str); };
+    };
+
     template <OpCompatible node_t, Meta::Numeric N,
               OpCompatible nodeR_t = node_t>
     Utils::Vec<nodeR_t> findNumExact(const node_t& snap1, const N number);
+    constexpr auto      findNumExactF = []<Meta::Numeric N>(const N number)
+    {
+        return [number]<OpCompatible node_t>(const node_t& snap1) mutable
+        { return findNumExact(snap1, number); };
+    };
 
     // Inclusive.
 
@@ -71,6 +84,34 @@ namespace rmf
               OpCompatible nodeR_t = node_t>
     Utils::Vec<nodeR_t> findNumWithinRange(const node_t& snap1, const N& min,
                                            const N& max);
+
+    // for rvalues
+    template <template <typename...> typename OuterContainer,
+              template <typename...> typename InnerContainer, typename T>
+    auto consolidate(OuterContainer<InnerContainer<T>>&& range)
+    {
+        InnerContainer<T> result;
+        auto              backInserter = std::back_inserter(result);
+        for (InnerContainer<T>& inner : range)
+        {
+            std::move(inner.begin(), inner.end(), backInserter);
+        }
+        return result;
+    }
+
+    // For lvalues
+    template <template <typename...> typename OuterContainer,
+              template <typename...> typename InnerContainer, typename T>
+    auto consolidate(OuterContainer<InnerContainer<T>>& range)
+    {
+        InnerContainer<T> result;
+        auto              backInserter = std::back_inserter(result);
+        for (InnerContainer<T>& inner : range)
+        {
+            std::move(inner.begin(), inner.end(), backInserter);
+        }
+        return result;
+    }
 
 }
 
