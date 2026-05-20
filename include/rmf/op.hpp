@@ -6,143 +6,84 @@
 #include "rmf/map.hpp"
 #include "rmf/node.hpp"
 #include "rmf/snapshot.hpp"
-#include "rmf/utils/function.hpp"
-
+#include "rmf/utils/meta.hpp"
 #include "rmf/utils/vec.hpp"
 #include <type_traits>
 #include <fstream>
 namespace rmf
 {
-    namespace Detail
-    {
-        /******************************/
-        /* Binary Snapshot Operations */
-        /******************************/
-        struct findChanged
-        {
-            template <typename node_t>
-                requires IsNode<node_t>
-            Utils::Vec<Node<Map>>
-            operator()(const node_t& snap1, const node_t& snap2,
-                       const uintptr_t& compareSize) const;
-        };
-
-        struct findUnchanged
-        {
-            template <typename node_t>
-                requires IsNode<node_t>
-            Utils::Vec<Node<Map>>
-            operator()(const node_t& snap1, const node_t& snap2,
-                       const uintptr_t& compareSize) const;
-        };
-
-        // Difference is calculated as snap2 - snap1
-        // Inclusive.
-
-        struct findNumChanged
-        {
-            template <typename node_t, typename N>
-                requires IsNode<node_t>
-            Utils::Vec<Node<Map>> operator()(const node_t& snap1,
-                                             const node_t& snap2,
-                                             const N&      minDifference) const;
-        };
-
-        // Inclusive.
-
-        struct findNumUnchanged
-        {
-            template <typename node_t, typename N>
-                requires IsNode<node_t>
-            Utils::Vec<Node<Map>> operator()(const node_t& snap1,
-                                             const node_t& snap2,
-                                             const N&      maxDifference) const;
-        };
-
-        /*****************************/
-        /* Unary Snapshot Operations */
-        /*****************************/
-
-        struct findString
-        {
-            template <typename node_t>
-                requires IsNode<node_t>
-            Utils::Vec<node_t> operator()(const node_t&          snap1,
-                                          const std::string_view str) const;
-        };
-
-        struct findNumExact
-        {
-            template <typename... Features, typename N,
-                      typename node_t = Node<Features...>>
-                requires IsNode<node_t>
-            Utils::Vec<node_t> operator()(const node_t& snap1,
-                                          const N       number) const;
-        };
-
-        // Inclusive.
-
-        struct findNumWithinRange
-        {
-            template <typename node_t, typename N>
-                requires IsNode<node_t>
-            Utils::Vec<Node<Map>> operator()(const node_t& snap1, const N& min,
-                                             const N& max) const;
-        };
-        // struct captureNodes
-        // {
-        //     template <typename node_t>
-        //         requires IsNode<node_t>
-        //     void operator()(node_t& node, pid_t pid) const;
-        // };
-    }
-
-    // Threadify functions.
-    constexpr auto findChanged =
-        Utils::Function<Detail::findChanged{}, Detail::findChanged{}, true>();
-
-    constexpr auto findUnchanged =
-        Utils::Function<Detail::findUnchanged{}, Detail::findUnchanged{},
-                        true>();
-
-    constexpr auto findNumChanged =
-        Utils::Function<Detail::findNumChanged{}, Detail::findNumChanged{},
-                        true>();
-
-    constexpr auto findNumUnchanged =
-        Utils::Function<Detail::findNumUnchanged{}, Detail::findNumUnchanged{},
-                        true>();
-
-    constexpr auto findString =
-        Utils::Function<Detail::findString{}, Detail::findString{}, true>();
-    // Functor version for pipe operations
-    constexpr auto findStringF = [](const std::string& str) mutable
-    { return [str](auto&& node) mutable { return findString(node, str); }; };
-
-    constexpr auto findNumExact =
-        Utils::Function<Detail::findNumExact{}, Detail::findNumExact{}, true>();
-
-    constexpr auto findNumWithinRange =
-        Utils::Function<Detail::findNumWithinRange{},
-                        Detail::findNumWithinRange{}, true>();
-
-    // constexpr auto captureNodes =
-    //     Utils::Function<Detail::captureNodes{},
-    //                     Detail::captureNodes{}, false>();
-
+    template <typename T>
+    concept OpCompatible = NodeWithFeatures<Map, Snapshot>;
+    // All node operations return a node with the same features as the first node inputted.
+    // All nodes can be implicitly converted from eachother so no problems shoud happen anyways.
+    // First thing you'll probably need to use is this to get all maps.
+    // By default it will only give you a node with a map.
     template <typename... Features>
     Utils::Vec<Node<Map, Features...>> getMaps(pid_t pid);
+
+    /******************************/
+    /* Binary Snapshot Operations */
+    /******************************/
+
+    template <OpCompatible node1_t, OpCompatible node2_t,
+              OpCompatible nodeR_t = node1_t>
+    Utils::Vec<nodeR_t> findChanged(const node1_t& snap1, const node2_t& snap2,
+                                    const uintptr_t& compareSize);
+
+    template <OpCompatible node1_t, OpCompatible node2_t,
+              OpCompatible nodeR_t = node1_t>
+    Utils::Vec<nodeR_t> findUnchanged(const node1_t&   snap1,
+                                      const node2_t&   snap2,
+                                      const uintptr_t& compareSize);
+
+    // Difference is calculated as snap2 - snap1
+    // Inclusive.
+
+    template <OpCompatible node1_t, OpCompatible node2_t, Meta::Numeric N,
+              OpCompatible nodeR_t = node1_t>
+    Utils::Vec<nodeR_t> findNumChanged(const node1_t& snap1,
+                                       const node2_t& snap2,
+                                       const N&       minDifference);
+
+    // Inclusive.
+
+    template <OpCompatible node1_t, OpCompatible node2_t, Meta::Numeric N,
+              OpCompatible nodeR_t = node1_t>
+    Utils::Vec<nodeR_t> findNumUnchanged(const node1_t& snap1,
+                                         const node2_t& snap2,
+                                         const N&       maxDifference);
+
+    /*****************************/
+    /* Unary Snapshot Operations */
+    /*****************************/
+
+    template <OpCompatible node_t, OpCompatible nodeR_t = node_t>
+    Utils::Vec<nodeR_t> findString(const node_t&          snap1,
+                                   const std::string_view str);
+
+    template <OpCompatible node_t, Meta::Numeric N,
+              OpCompatible nodeR_t = node_t>
+    Utils::Vec<nodeR_t> findNumExact(const node_t& snap1, const N number);
+
+    // Inclusive.
+
+    template <OpCompatible node_t, Meta::Numeric N,
+              OpCompatible nodeR_t = node_t>
+    Utils::Vec<nodeR_t> findNumWithinRange(const node_t& snap1, const N& min,
+                                           const N& max);
+
 }
-namespace rmf::Detail
+
+// Implementation
+namespace rmf
 {
     /******************************/
     /* Binary Snapshot Operations */
     /******************************/
-    template <typename node_t>
-        requires IsNode<node_t>
-    Utils::Vec<Node<Map>>
-    findChanged::operator()(const node_t& nodeSnap1, const node_t& nodeSnap2,
-                            const uintptr_t& compareSize) const
+    template <OpCompatible node1_t, OpCompatible node2_t, OpCompatible nodeR_t>
+    Utils::Vec<nodeR_t> findChanged(const node1_t&   nodeSnap1,
+                                    const node2_t&   nodeSnap2,
+                                    const uintptr_t& compareSize)
     {
         std::span<uint8_t>    span1 = nodeSnap1.span();
         std::span<uint8_t>    span2 = nodeSnap2.span();
@@ -180,11 +121,10 @@ namespace rmf::Detail
         return results;
     }
 
-    template <typename node_t>
-        requires IsNode<node_t>
-    Utils::Vec<Node<Map>>
-    findUnchanged::operator()(const node_t& nodeSnap1, const node_t& nodeSnap2,
-                              const uintptr_t& compareSize) const
+    template <OpCompatible node1_t, OpCompatible node2_t, OpCompatible nodeR_t>
+    Utils::Vec<nodeR_t> findUnchanged(const node1_t&   nodeSnap1,
+                                      const node2_t&   nodeSnap2,
+                                      const uintptr_t& compareSize)
     {
         std::span<uint8_t>    span1 = nodeSnap1.span();
         std::span<uint8_t>    span2 = nodeSnap2.span();
@@ -223,11 +163,12 @@ namespace rmf::Detail
 
     // Difference is calculated as snap2 - snap1
     // Inclusive.
-    template <typename node_t, typename N>
-        requires IsNode<node_t>
-    Utils::Vec<Node<Map>>
-    findNumChanged::operator()(const node_t& nodeSnap1, const node_t& nodeSnap2,
-                               const N& minDifference) const
+
+    template <OpCompatible node1_t, OpCompatible node2_t, Meta::Numeric N,
+              OpCompatible nodeR_t>
+    Utils::Vec<nodeR_t> findNumChanged(const node1_t& nodeSnap1,
+                                       const node2_t& nodeSnap2,
+                                       const N&       minDifference)
     {
         std::span<uint8_t>    span1 = nodeSnap1.span();
         std::span<uint8_t>    span2 = nodeSnap2.span();
@@ -271,12 +212,11 @@ namespace rmf::Detail
     }
 
     // Inclusive.
-    template <typename node_t, typename N>
-        requires IsNode<node_t>
-    Utils::Vec<Node<Map>>
-    findNumUnchanged::operator()(const node_t& nodeSnap1,
-                                 const node_t& nodeSnap2,
-                                 const N&      maxDifference) const
+    template <OpCompatible node1_t, OpCompatible node2_t, Meta::Numeric N,
+              OpCompatible nodeR_t>
+    Utils::Vec<nodeR_t> findNumUnchanged(const node1_t& nodeSnap1,
+                                         const node2_t& nodeSnap2,
+                                         const N&       maxDifference)
     {
         std::span<uint8_t>    span1 = nodeSnap1.span();
         std::span<uint8_t>    span2 = nodeSnap2.span();
@@ -323,10 +263,9 @@ namespace rmf::Detail
     /* Unary Snapshot Operations */
     /*****************************/
 
-    template <typename node_t>
-        requires IsNode<node_t>
-    Utils::Vec<node_t> findString::operator()(const node_t&          nodeSnap,
-                                              const std::string_view str) const
+    template <OpCompatible node_t, OpCompatible nodeR_t>
+    Utils::Vec<nodeR_t> findString(const node_t&          nodeSnap,
+                                   const std::string_view str)
     {
         Utils::Vec<node_t> results;
         auto               span  = nodeSnap.span();
@@ -354,10 +293,8 @@ namespace rmf::Detail
         return results;
     }
 
-    template <typename... Features, typename N, typename node_t>
-        requires IsNode<node_t>
-    Utils::Vec<node_t> findNumExact::operator()(const node_t& nodeSnap,
-                                                const N       number) const
+    template <OpCompatible node_t, Meta::Numeric N, OpCompatible nodeR_t>
+    Utils::Vec<nodeR_t> findNumExact(const node_t& nodeSnap, const N number)
     {
         using num_t             = std::decay_t<N>;
         std::span<uint8_t> span = nodeSnap.span();
@@ -390,11 +327,9 @@ namespace rmf::Detail
     }
 
     // Inclusive.
-    template <typename node_t, typename N>
-        requires IsNode<node_t>
-    Utils::Vec<Node<Map>> findNumWithinRange::operator()(const node_t& nodeSnap,
-                                                         const N&      min,
-                                                         const N& max) const
+    template <OpCompatible node_t, Meta::Numeric N, OpCompatible nodeR_t>
+    Utils::Vec<nodeR_t> findNumWithinRange(const node_t& nodeSnap, const N& min,
+                                           const N& max)
     {
         std::span<uint8_t>    span = nodeSnap.span();
         Utils::Vec<Node<Map>> results;
@@ -424,20 +359,6 @@ namespace rmf::Detail
         return results;
     }
 
-    // Boilerplate, but can't find any other way to do it.
-    // Explicit object param + templates is not compatible with
-    // being threaded, nor compatible with being passed as function
-    // parameters.
-    // template <typename node_t>
-    //     requires IsNode<node_t>
-    // void captureNodes::operator()(node_t& node, pid_t pid) const
-    // {
-    //     node.capture(pid);
-    // }
-
-}
-namespace rmf
-{
     template <typename... Features>
     Utils::Vec<Node<Map, Features...>> getMaps(pid_t pid)
     {
