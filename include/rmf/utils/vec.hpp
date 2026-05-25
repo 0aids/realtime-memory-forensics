@@ -11,6 +11,7 @@
 #include <optional>
 #include <ranges>
 #include <memory>
+#include <span>
 #include <type_traits>
 #include <vector>
 namespace rmf::Utils
@@ -45,13 +46,15 @@ namespace rmf::Utils
         template <typename T, typename Pipeline = std::false_type>
         struct Impl
         {
-            T&       data;
-            Pipeline pipe;
+            T&       m_data;
+            Pipeline m_pipe;
             auto     operator|(const auto F)
                 requires(!std::same_as<std::decay_t<decltype(F)>, End> &&
                          !std::same_as<std::decay_t<decltype(F)>, EndThreaded>);
-            auto operator|(End);
-            auto operator|(EndThreaded);
+
+            auto operator|(End&&);
+
+            auto operator|(EndThreaded&& et);
         };
     };
 
@@ -148,8 +151,8 @@ namespace rmf::Utils
     auto Vec<T, Operator, Allocator>::pipe()
     {
         return Pipe::Impl{
-            .data = *this,
-            .pipe = {},
+            .m_data = *this,
+            .m_pipe = {},
         };
     }
     template <typename T, typename Operator, typename Allocator>
@@ -164,43 +167,95 @@ namespace rmf::Utils
     {
         if constexpr (!std::same_as<Pipeline, std::false_type>)
         {
-            auto newPipeline = pipe | std::views::transform(F);
-            return Impl<T, decltype(newPipeline)>{.data = data,
-                                                  .pipe = newPipeline};
+            // Consider adding a mini-consolidation depending on the operation?
+            auto newPipeline = m_pipe | std::views::transform(F);
+            return Impl<T, decltype(newPipeline)>{.m_data = m_data,
+                                                  .m_pipe = newPipeline};
         }
         else
         {
             auto p = std::views::transform(F);
-            return Impl<T, decltype(p)>{.data = data, .pipe = p};
+            return Impl<T, decltype(p)>{.m_data = m_data, .m_pipe = p};
         }
     }
 
     template <typename T, typename Pipeline>
-    auto Pipe::Impl<T, Pipeline>::operator|(End)
+    auto Pipe::Impl<T, Pipeline>::operator|(End&&)
     {
         if constexpr (!std::same_as<Pipeline, std::false_type>)
         {
             // Check what the last pipeline's result is
             using pipelineResult =
-                std::invoke_result_t<decltype(pipe), decltype(data)>;
+                std::invoke_result_t<decltype(m_pipe), decltype(m_data)>;
             using pipelineUnderlying =
                 std::ranges::range_value_t<pipelineResult>;
-            return data | pipe |
+            return m_data | m_pipe |
                    std::ranges::to<Utils::Vec<pipelineUnderlying>>();
         }
         else
         {
-            return data;
+            return m_data;
         }
     }
 
     template <typename T, typename Pipeline>
-    auto Pipe::Impl<T, Pipeline>::operator|(EndThreaded)
+    auto Pipe::Impl<T, Pipeline>::operator|(EndThreaded&& et)
     {
-        assert(false && "TODO!");
+        // Alternative solution:
+        // Piping solution 1: Store all functors as a vector of std::function and then use that.
+        // Pros - Compatible with python
+        // Cons - Slower, more runtime-dependent.
+        // 		- Have to type-erase everything, and piping different inputs becomes difficult.
+        // Piping solution 2: Switch to an eager activation model
+        // Pros - Compatible with python
+        // Cons - Api change
+        // 		- Slower, less optimization available (i assume?)
+        // Piping solution 3: Implement a slightly custom piping solution in python.
+        // Piping solution 4: No piping solution, just split up the vector into chunks for
+        // each thread, and add that as a task, then perform consolidation.
+        // Pros - Easiest implementation
+        // Cons - Not the best for python.
+        // I think for python I will most likely end up using the fattest nodes possible by default.
+        // As for pipe operations, I think that i'll have a custom solution written in python.
+        // Piping solution 4 will be the one chosen.
+        // assert(false && "TODO!");
         using pipelineResult =
-            std::invoke_result_t<decltype(pipe), decltype(data)>;
+            std::invoke_result_t<decltype(m_pipe), decltype(m_data)>;
         using pipelineUnderlying = std::ranges::range_value_t<pipelineResult>;
-        return Utils::Vec<pipelineUnderlying>{};
+        auto         dataSpan    = std::span(m_data);
+        const size_t numThreads  = et.tp.getNumThreads();
+        // Split up the data somewhat evenly and then apply the pipeline.
+        size_t workPerThread = m_data.size() / numThreads;
+        // Create subspans for each thread, and then apply the pipes to them.
+        std::vector<std::span<typename T::InnerType>>            spans;
+        std::vector<std::future<Utils::Vec<pipelineUnderlying>>> futuresVector;
+        Utils::Vec<pipelineUnderlying>                           finalResult;
+        for (size_t i = 0; i < numThreads; i++)
+        {
+            spans.push_back(dataSpan.subspan(
+                i * workPerThread,
+                (i == numThreads - 1 ? std::dynamic_extent : workPerThread)));
+            auto data = m_data | m_pipe;
+            // For some fucking reason
+            // this doesnt work:
+            // futuresVector.push_back(
+            //     et.tp.pushTask(std::ranges::to<Utils::Vec<pipelineUnderlying>>,
+            //                    m_data | m_pipe));
+            // And I have no clue why.
+            futuresVector.push_back(et.tp.pushTask(
+                [data = std::move(data)]() mutable
+                {
+                    return std::ranges::to<Utils::Vec<pipelineUnderlying>>(
+                        data);
+                }));
+        }
+        // Consolidate all the data.
+        auto backInserter = std::back_inserter(finalResult);
+        for (auto& fut : futuresVector)
+        {
+            auto futRes = fut.get();
+            std::move(futRes.begin(), futRes.end(), backInserter);
+        }
+        return finalResult;
     }
 }

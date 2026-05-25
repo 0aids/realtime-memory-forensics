@@ -26,7 +26,8 @@ Planned python-based DSL JIT, and visualisation tools.
 - [x] Basic type parsing
 - [x] Redone struct registry
 - [ ] Figure out how to make operations compatible with pipe syntax.
-      I think I need to rethink how I want the entire setup to work.
+      Do this by allowing zipping, custom functors for operations.
+- [ ] Incorporate multi-threaded piping by creating a custom piping method.
 - [-] Incorporate optionality for nodes. Invalid nodes should not cause throws, and are
       expected throughout constant use.
 - [-] Typed mixin for region

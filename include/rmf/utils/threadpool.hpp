@@ -79,6 +79,7 @@ namespace rmf::Utils
         std::future<ReturnType> pushTask(Func task, Args&&... args);
 
         void                    awaitTasks();
+        size_t                  getNumThreads() const;
 
         ThreadPool(size_t numThreads, size_t queueSize = DefaultQueueSize);
         ~ThreadPool();

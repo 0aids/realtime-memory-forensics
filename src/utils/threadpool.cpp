@@ -67,3 +67,7 @@ mfu::ThreadPool::~ThreadPool()
         thread.join();
     }
 }
+size_t mfu::ThreadPool::getNumThreads() const
+{
+    return m_threads.size();
+}
