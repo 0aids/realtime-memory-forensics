@@ -149,6 +149,12 @@ namespace rmf::Meta
         {
             return (countExclusives<Args, Exclusives...>() + ...) <= 1;
         }
+
+        template <typename T>
+        static constexpr bool isWithinExclusives()
+        {
+            return countExclusives<T, Exclusives...>() > 0;
+        }
     };
 
     static_assert(!RequireExclusive<int, float>::isExclusive<int, int>());

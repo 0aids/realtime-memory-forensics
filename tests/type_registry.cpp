@@ -170,7 +170,7 @@ TEST(type_registry, pointerFollowing)
     for (const auto& hello : helloworlds)
     {
         // Attempt to get a node at a specified address
-        auto nodified = LinkedList_tr.nodifyFromField(hello, dataField);
+        auto nodified = LinkedList_tr.nodifyFromFieldOffset(hello, dataField);
         // Holy crap how nice.
         // But what about if it fails? It should fail silently and get passed forward.
         auto derefPointer = nodified.getFieldNode(pointerField)

@@ -309,3 +309,12 @@ mf::Field mf::Struct::operator[](const strview str)
         "Invalid access of struct! Use Struct::getField which "
         "uses std::optional instead if unsure");
 }
+
+bool mf::Struct::containsField(const strview str)
+{
+    if (auto val = getField(std::string(str)); val.has_value())
+    {
+        return true;
+    }
+    return false;
+}

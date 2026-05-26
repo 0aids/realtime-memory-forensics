@@ -130,6 +130,13 @@ TEST(snapshot, testProgram)
     auto            mapsWHello = maps.pipe() | mf::findStringF("hello world") |
                                  mfu::Pipe::EndThreaded(tp);
     EXPECT_GE(mapsWHello.size(), 0);
+    // Double check it's the same amount that we would find anyways
+    size_t count = 0;
+    for (auto& map : maps)
+    {
+        count += mf::findString(map, "hello world").size();
+    }
+    EXPECT_EQ(mapsWHello.size(), count);
     println("Found {} 'hello world's!", mapsWHello.size());
 }
 

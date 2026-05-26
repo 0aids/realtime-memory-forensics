@@ -2,8 +2,10 @@
 #define struct_registry_hpp_INCLUDED
 #include "rmf/node.hpp"
 #include "rmf/snapshot.hpp"
+#include "rmf/utils/meta.hpp"
 #include "rmf/utils/other.hpp"
 #include "rmf/utils/vec.hpp"
+#include <concepts>
 #include <memory>
 #include <ranges>
 #include <map>
@@ -11,6 +13,7 @@
 #include <string_view>
 #include <rmf/utils/expect.hpp>
 #include <unordered_set>
+#include <utility>
 #include <variant>
 // Designing using funky inheritance and pointer spamming.
 // Weak and shared pointer spam because is a Directed, possibly cyclic graph.
@@ -194,11 +197,13 @@ namespace rmf
         // Consider adding functor for mapped operations?
         // Creates a typed version of a node
         template <IsNode T, IsNode ResultNode = T::template WithFeature<Struct>>
-        ResultNode nodify(const T& node);
+        ResultNode nodify(const T& node) const;
 
-        // Creates a typed version of a node, from a specified field.
-        template <IsNode T, IsNode ResultNode = T::template WithType<Struct>>
-        ResultNode nodifyFromField(const T& node, const Field& field);
+        // Creates a struct assuming that the captured node is a field of that struct.
+        template <IsNode T, FieldDeducible ForS,
+                  IsNode ResultNode = T::template WithType<Struct>>
+        ResultNode nodifyFromFieldOffset(const T&    node,
+                                         const ForS& field) const;
 
         // -- Relevant mixin operations --
 
@@ -251,6 +256,7 @@ namespace rmf
 
         std::vector<const strview> getFieldNames() const;
         Field                      operator[](const strview) const;
+        bool                       containsField(const strview field);
     };
 
     // Mixinable
@@ -269,6 +275,9 @@ namespace rmf
         Pointer& operator=(const Pointer&) = default;
 
         Typed    targetType() const;
+
+        template <IsNode Node>
+        Node::template WithType<Pointer> nodify(const Node& node) const;
 
         // Get the value of the pointer which this object is referencing.
         template <NodeWithFeatures<Snapshot> Node>
@@ -352,7 +361,11 @@ namespace rmf
         Field(wptr<FieldData>);
 
         template <IsNode Node>
-        Node::template WithType<Typed> nodify(const Node& node);
+        Node::template WithType<Field> nodify(const Node& node) const;
+
+        template <typename TargetType>
+            requires(NodeExclusions::isWithinExclusives<TargetType>())
+        TargetType getTargetType();
 
         template <typename TargetType, typename Node>
         Node::template WithType<TargetType>
@@ -482,12 +495,12 @@ namespace rmf
     template <IsNode T, IsNode ResultNode>
     // Strange error saying that i'm using a deleted constructor
     // when i haven't even defined the function?
-    ResultNode Struct::nodify(const T& node)
+    ResultNode Struct::nodify(const T& node) const
     {
         return node.addFeature(*this);
     }
     template <IsNode Node>
-    Node::template WithType<Typed> Field::nodify(const Node& node)
+    Node::template WithType<Field> Field::nodify(const Node& node) const
     {
         return node.addFeature(*this);
     }
@@ -509,23 +522,61 @@ namespace rmf
 
 namespace rmf
 {
-    // Creates a typed version of a node, from a specified field.
-    template <IsNode T, IsNode ResultNode>
-    ResultNode Struct::nodifyFromField(const T& node, const Field& field)
+    // Creates a struct assuming that the captured node is a field of that struct.
+    template <IsNode T, FieldDeducible ForS, IsNode ResultNode>
+    ResultNode Struct::nodifyFromFieldOffset(const T&    node,
+                                             const ForS& field) const
     {
         rmf_TODO();
+        // if constexpr (std::same_as<ForS, Field>)
+        // {
+        //     return field.nodify(node);
+        // }
+        // else
+        // {
+        //     if (containsField(field))
+        //         return (*this)[field].nodify(node);
+        //     // Return an invalid field
+        //     ResultNode node{};
+
+        //     rmf_retNewErr(node, Utils::ErrorEnum::FieldDoesNotExist);
+        // }
     }
+
     template <IsNode Node, FieldDeducible ForS, IsNode ResultNode>
-    ResultNode Struct::getFieldNode(this const Node&, const ForS& field)
+    ResultNode Struct::getFieldNode(this const Node& node, const ForS& field)
     {
-        rmf_TODO();
+        if constexpr (std::same_as<ForS, Field>)
+        {
+            return field.nodify(node);
+        }
+        else
+        {
+            if (node.containsField(field))
+                return node.getField(field).nodify(node);
+            // Return an invalid field
+            ResultNode node{};
+
+            rmf_retNewErr(node, Utils::ErrorEnum::FieldDoesNotExist);
+        }
     }
+
+    template <typename TargetType>
+        requires(NodeExclusions::isWithinExclusives<TargetType>())
+    TargetType Field::getTargetType()
+    {
+        return TargetType(makeFromWptr(m_data));
+    }
+
     template <typename TargetType, typename Node>
     Node::template WithType<TargetType>
     Field::getTargetNode(this const Node& node)
     {
-        rmf_TODO();
+        auto target =
+            static_cast<Field>(node).template getTargetType<TargetType>();
+        return target.nodify(node);
     }
+
     template <typename TargetType, NodeWithFeatures<Snapshot> Node,
               typename MapRange>
         requires NodeWithFeatures<std::ranges::range_value_t<MapRange>, Map>
@@ -533,6 +584,11 @@ namespace rmf
     Pointer::getTargetNode(this const Node& node, const MapRange& maps)
     {
         rmf_TODO();
+    }
+    template <IsNode Node>
+    Node::template WithType<Pointer> Pointer::nodify(const Node& node) const
+    {
+        return node.addFeature(*this);
     }
 }
 

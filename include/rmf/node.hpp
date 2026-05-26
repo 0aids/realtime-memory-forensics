@@ -150,6 +150,10 @@ namespace rmf
     Node<Args...>::addFeature(const Feature& f) const
     {
         // This should now call the Node(Args...) constructor?
+        // TODO: I think there's a problem where features from old args
+        // are still added to the constructor, causing issues.
+        // Get actual argument types here:
+
         return Node<Args...>::WithFeature<Feature>(static_cast<Args>(*this)...,
                                                    f);
     }
@@ -169,18 +173,25 @@ namespace rmf
             return TargetFeature();
         }
     }
+
     // BUG: for types which are convertible from each other, they are not directly the base,
     // so we should check if we can convert any of them to our a base. IE Struct is convertible into Typed,
     // etc, but this is not deduced by this move or copy constructor helper.
+
+    // Bruh this comment was right btw. Congratulations to me from 10 days ago.
     template <typename... Args>
         requires NodeRequirements<Args...>
     template <typename TargetFeature, typename OtherNode>
     TargetFeature Node<Args...>::move(OtherNode&& other)
     {
         using CleanOtherNode = std::decay_t<OtherNode>;
-        if constexpr (std::is_base_of_v<TargetFeature, CleanOtherNode>)
+        if constexpr (
+            std::is_base_of_v<TargetFeature, CleanOtherNode> ||
+            // Also edge case if we are converting from a typed to any of its derived
+            // Maybe a more lenient conversion check is better?
+            std::is_convertible_v<OtherNode, TargetFeature>)
         {
-            return std::move(static_cast<TargetFeature&>(other));
+            return static_cast<TargetFeature&&>(other);
         }
         else
         {
