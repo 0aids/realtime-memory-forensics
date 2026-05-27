@@ -3,6 +3,7 @@
 #include "rmf/utils/meta.hpp"
 #include "rmf/utils/expect.hpp"
 #include <string>
+#include <tuple>
 #include <type_traits>
 
 namespace rmf
@@ -26,15 +27,10 @@ namespace rmf
         (std::is_base_of_v<Features, Node_t>, ...);
     };
 
-    template <typename T>
-    struct EmptyFeature
-    {
-    };
-
     template <typename T, typename... Args>
     using NodeAddFeature_t =
         typename std::conditional_t<Meta::HasType<T, Args...>::value, T,
-                                    EmptyFeature<T>>;
+                                    Meta::EmptyFeature<T>>;
 
     // Consider forcing a sort of strict order using enable if
     // like
@@ -52,6 +48,7 @@ namespace rmf
     {
       public:
         // Stupid coupling but I couldn't figure it out how to not duplicate it.
+        // also now need to change the conversions.
         using Features = std::tuple<
             NodeAddFeature_t<Map, Args...>, NodeAddFeature_t<Snapshot, Args...>,
             NodeAddFeature_t<Typed, Args...>, NodeAddFeature_t<Struct, Args...>,
@@ -59,12 +56,13 @@ namespace rmf
             NodeAddFeature_t<Field, Args...>,
             NodeAddFeature_t<Primitive, Args...>,
             NodeAddFeature_t<Array, Args...>>;
+        constexpr static int MaxPossibleFeatures = std::tuple_size_v<Features>;
         // Add typed, field, primitive, array, struct etc to the node.
         // Will swap mutually exclusive types to ensure it works properly.
         template <IsType T>
         using WithType =
             Node<std::conditional_t<NodeExclusions::isExclusive<Args, T>(),
-                                    Args, EmptyFeature<Args>>...,
+                                    Args, Meta::EmptyFeature<Args>>...,
                  T>;
 
         // Ensures that we have the feature specified. If it already exists, does nothing
@@ -72,13 +70,13 @@ namespace rmf
         template <IsFeature T>
         using WithFeature =
             Node<Args..., std::conditional_t<!Meta::HasType<T, Args...>::value,
-                                             T, EmptyFeature<T>>>;
+                                             T, Meta::EmptyFeature<T>>>;
 
         // Removes the feature if it exists. Can remove type or feature.
         template <typename ToRemove>
         using WithoutFeature =
             Node<std::conditional_t<!std::same_as<Args, ToRemove>, Args,
-                                    EmptyFeature<Args>>...>;
+                                    Meta::EmptyFeature<Args>>...>;
 
         struct VecOp : public Args::VecOp...
         {
@@ -91,10 +89,15 @@ namespace rmf
         Node& operator=(const Node&)        = default;
 
         // For allowing conversions between nodes.
+        // The args have to be the
         Node(const Args&...);
+        template <typename... LessArgs>
+        Node(const LessArgs&...);
         // Construct a new node with an extra feature.
         template <typename Feature>
         WithFeature<Feature> addFeature(const Feature& f) const;
+
+        Features             getFeatures() const;
 
         template <typename... OtherArgs>
         Node(Node<OtherArgs...>&&);
@@ -115,6 +118,7 @@ namespace rmf
         static TargetFeature copy(const OtherFeature& other);
         template <typename TargetFeature, typename OtherFeature>
         static TargetFeature move(OtherFeature&& other);
+        explicit             operator Features() const;
     };
 }
 
@@ -137,6 +141,8 @@ namespace rmf
         static_assert(!Meta::HasDuplicates_v<Args...>);
     }
 
+    // Args doesn't count as our actual type, so we cannot use it as constructor
+    // Thus we should make use of the features tuple.
     template <typename... Args>
         requires NodeRequirements<Args...>
     Node<Args...>::Node(const Args&... args) : Args(args)...
@@ -145,17 +151,49 @@ namespace rmf
 
     template <typename... Args>
         requires NodeRequirements<Args...>
+    template <typename... LessArgs>
+    Node<Args...>::Node(const LessArgs&... args) : LessArgs(args)...
+    {
+    }
+    template <typename... Args>
+        requires NodeRequirements<Args...>
+    Node<Args...>::Features Node<Args...>::getFeatures() const
+    {
+        return Features(*this);
+    }
+
+    template <typename... Args>
+        requires NodeRequirements<Args...>
     template <typename Feature>
     Node<Args...>::WithFeature<Feature>
     Node<Args...>::addFeature(const Feature& f) const
     {
-        // This should now call the Node(Args...) constructor?
-        // TODO: I think there's a problem where features from old args
-        // are still added to the constructor, causing issues.
+        using TargetNode = typename Node<Args...>::WithFeature<Feature>;
         // Get actual argument types here:
+        auto currentFeatures = getFeatures();
+        // Create another set of features-like using tuples.;;
+        auto applierUnderlying = [&f](auto&& var)
+        {
+            using VarType = std::decay_t<decltype(var)>;
+            if constexpr (std::same_as<VarType, Meta::EmptyFeature<Feature>>)
+            {
+                return f;
+            }
+            else if constexpr (IsGettable<typename TargetNode::Features,
+                                          VarType>)
+            {
+                return var;
+            }
+            else
+            {
+                return Meta::EmptyFeature<VarType>{};
+            }
+        };
+        auto applier = [applierUnderlying](auto&&... vars)
+        { return std::make_tuple(applierUnderlying(vars)...); };
 
-        return Node<Args...>::WithFeature<Feature>(static_cast<Args>(*this)...,
-                                                   f);
+        return std::make_from_tuple<TargetNode>(
+            std::apply(applier, currentFeatures));
     }
 
     template <typename... Args>
@@ -202,7 +240,22 @@ namespace rmf
         requires NodeRequirements<Args...>
     template <typename... OtherArgs>
     Node<Args...>::Node(Node<OtherArgs...>&& other) :
-        Args(Node<Args...>::move<Args>(other))...
+        NodeAddFeature_t<Map, Args...>(
+            Node<Args...>::move<NodeAddFeature_t<Map, Args...>>(other)),
+        NodeAddFeature_t<Snapshot, Args...>(
+            Node<Args...>::move<NodeAddFeature_t<Snapshot, Args...>>(other)),
+        NodeAddFeature_t<Typed, Args...>(
+            Node<Args...>::move<NodeAddFeature_t<Typed, Args...>>(other)),
+        NodeAddFeature_t<Struct, Args...>(
+            Node<Args...>::move<NodeAddFeature_t<Struct, Args...>>(other)),
+        NodeAddFeature_t<Pointer, Args...>(
+            Node<Args...>::move<NodeAddFeature_t<Pointer, Args...>>(other)),
+        NodeAddFeature_t<Field, Args...>(
+            Node<Args...>::move<NodeAddFeature_t<Field, Args...>>(other)),
+        NodeAddFeature_t<Primitive, Args...>(
+            Node<Args...>::move<NodeAddFeature_t<Primitive, Args...>>(other)),
+        NodeAddFeature_t<Array, Args...>(
+            Node<Args...>::move<NodeAddFeature_t<Array, Args...>>(other))
     {
         /* Possible solution for mixins that rely on other mixins.
          * Just have to agree on the so called "stages" of initialisation.
@@ -232,5 +285,22 @@ namespace rmf
     Node<Args...>& Node<Args...>::operator=(const Node<OtherArgs...>& other)
     {
         return static_cast<Node<Args...>>(other);
+    }
+    template <typename... Args>
+        requires NodeRequirements<Args...>
+    Node<Args...>::operator Node<Args...>::Features() const
+    {
+        // This is disgusting
+        Features f = {
+            static_cast<NodeAddFeature_t<Map, Args...>>(*this),
+            static_cast<NodeAddFeature_t<Snapshot, Args...>>(*this),
+            static_cast<NodeAddFeature_t<Typed, Args...>>(*this),
+            static_cast<NodeAddFeature_t<Struct, Args...>>(*this),
+            static_cast<NodeAddFeature_t<Pointer, Args...>>(*this),
+            static_cast<NodeAddFeature_t<Field, Args...>>(*this),
+            static_cast<NodeAddFeature_t<Primitive, Args...>>(*this),
+            static_cast<NodeAddFeature_t<Array, Args...>>(*this),
+        };
+        return f;
     }
 }

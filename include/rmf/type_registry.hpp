@@ -196,8 +196,8 @@ namespace rmf
 
         // Consider adding functor for mapped operations?
         // Creates a typed version of a node
-        template <IsNode T, IsNode ResultNode = T::template WithFeature<Struct>>
-        ResultNode nodify(const T& node) const;
+        template <IsNode Node>
+        Node::template WithFeature<Struct> nodify(const Node& node) const;
 
         // Creates a struct assuming that the captured node is a field of that struct.
         template <IsNode T, FieldDeducible ForS,
@@ -264,7 +264,7 @@ namespace rmf
     class Pointer : public Typed
     {
       protected:
-        wptr<PointerData> m_data;
+        wptr<PointerData> m_pointerData;
 
       public:
         Pointer(const Typed&);
@@ -278,6 +278,10 @@ namespace rmf
 
         template <IsNode Node>
         Node::template WithType<Pointer> nodify(const Node& node) const;
+
+        template <typename TargetType>
+            requires(NodeExclusions::isWithinExclusives<TargetType>())
+        TargetType getTargetType();
 
         // Get the value of the pointer which this object is referencing.
         template <NodeWithFeatures<Snapshot> Node>
@@ -492,11 +496,12 @@ struct std::hash<std::weak_ptr<rmf::BaseTypeData>>
 
 namespace rmf
 {
-    template <IsNode T, IsNode ResultNode>
+    template <IsNode Node>
     // Strange error saying that i'm using a deleted constructor
     // when i haven't even defined the function?
-    ResultNode Struct::nodify(const T& node) const
+    Node::template WithFeature<Struct> Struct::nodify(const Node& node) const
     {
+        // Meta::TypePrinter<typename Node::template WithFeature<Struct>::Features> bad{};
         return node.addFeature(*this);
     }
     template <IsNode Node>
@@ -568,6 +573,13 @@ namespace rmf
         return TargetType(makeFromWptr(m_data));
     }
 
+    template <typename TargetType>
+        requires(NodeExclusions::isWithinExclusives<TargetType>())
+    TargetType Pointer::getTargetType()
+    {
+        return TargetType(makeFromWptr(m_pointerData));
+    }
+
     template <typename TargetType, typename Node>
     Node::template WithType<TargetType>
     Field::getTargetNode(this const Node& node)
@@ -583,8 +595,13 @@ namespace rmf
     Node::template WithType<TargetType>
     Pointer::getTargetNode(this const Node& node, const MapRange& maps)
     {
-        rmf_TODO();
+        // TODO: make this use maps as well?
+        auto target =
+            static_cast<Pointer>(node).template getTargetType<TargetType>();
+        // Meta::TypePrinter<typename Node::template WithFeature<Struct>::Features> good{};
+        return target.nodify(node);
     }
+
     template <IsNode Node>
     Node::template WithType<Pointer> Pointer::nodify(const Node& node) const
     {

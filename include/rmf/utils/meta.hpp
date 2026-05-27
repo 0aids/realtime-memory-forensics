@@ -110,6 +110,11 @@ namespace rmf::Meta
         requires !std::is_pointer_v<T>;
     };
 
+    template <typename T>
+    struct EmptyFeature
+    {
+    };
+
     template <typename TargetType, typename... Args>
     using HasType = std::disjunction<std::is_same<TargetType, Args>...>;
 
@@ -184,5 +189,9 @@ namespace rmf
 
     template <typename T>
     concept IsFeature = requires { Meta::HasType<T, Map, Snapshot>::value; };
+
+    template <typename Tuple, typename Target>
+    concept IsGettable = requires(Tuple tuple) { std::get<Target>(tuple); };
+
 }
 #endif // meta_hpp_INCLUDED

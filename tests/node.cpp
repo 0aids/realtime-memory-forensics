@@ -56,3 +56,14 @@ TEST(node, templateExclusiveTypesAreSwapped)
                                typedNode::WithType<Struct>::Features>,
                   "Types should remove and swap exclusive values");
 }
+
+template <typename... Args>
+concept ShouldBeIllegal = requires() { rmf::Node<Args...>{}; };
+
+TEST(node, templateExclusiveTypesAreExclusive)
+{
+    static_assert(
+        !ShouldBeIllegal<
+            rmf::Map, rmf::Snapshot, rmf::Meta::EmptyFeature<rmf::Struct>,
+            rmf::Meta::EmptyFeature<rmf::Field>, rmf::Pointer, rmf::Struct>);
+}

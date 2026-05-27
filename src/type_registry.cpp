@@ -229,7 +229,7 @@ std::optional<mf::Field> mf::Struct::getField(const std::string& str)
 
 mf::Pointer::Pointer(const Typed& typed) : Typed(typed)
 {
-    m_data = std::static_pointer_cast<PointerData>(m_baseData.lock());
+    m_pointerData = std::static_pointer_cast<PointerData>(m_baseData.lock());
 }
 
 mf::Primitive::Primitive(const Typed& typed) : Typed(typed)
