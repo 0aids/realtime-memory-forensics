@@ -238,16 +238,16 @@ namespace rmf::Utils
         const size_t numThreads  = et.tp.getNumThreads();
         // Split up the data somewhat evenly and then apply the pipeline.
         const size_t workPerThread = m_data.size() / numThreads;
-        auto resultLazy = m_data | m_pipe | std::views::chunk(workPerThread);
+        auto         resultLazy    = m_data | std::views::chunk(workPerThread);
         std::vector<std::future<Utils::Vec<pipelineUnderlying>>> futuresVector;
         Utils::Vec<pipelineUnderlying>                           finalResult;
         for (auto chunk : resultLazy)
         {
             futuresVector.push_back(et.tp.pushTask(
-                [&chunk]() mutable
+                [chunk = std::move(chunk), this]() mutable
                 {
-                    return std::ranges::to<Utils::Vec<pipelineUnderlying>>(
-                        chunk);
+                    return chunk | m_pipe |
+                           std::ranges::to<Utils::Vec<pipelineUnderlying>>();
                 }));
         }
         // Consolidate all the data.

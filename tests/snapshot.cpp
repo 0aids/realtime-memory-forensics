@@ -105,10 +105,15 @@ TEST(snapshot, findNumExact)
 
     auto              snaps = mfu::Vec<decltype(snapshot)>{snapshot};
     println("inputs: {}", snaps.size());
-    auto res1 = snaps.pipe() | findNumExactF(num) |
-                Utils::Pipe::EndThreaded{tp};
-    println("res1: {}", res1.size());
-    EXPECT_EQ(res1.size(), res.size());
+    auto   res1   = snaps.pipe() | findNumExactF(num) |
+                    Utils::Pipe::EndThreaded{tp};
+    size_t r1size = 0;
+    for (auto& r1 : res1)
+    {
+        r1size += r1.size();
+    }
+    println("res1: {}", r1size);
+    EXPECT_EQ(r1size, res.size());
 }
 
 TEST(snapshot, testProgram)
