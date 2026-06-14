@@ -235,31 +235,19 @@ namespace rmf::Utils
         using pipelineResult =
             std::invoke_result_t<decltype(m_pipe), decltype(m_data)>;
         using pipelineUnderlying = std::ranges::range_value_t<pipelineResult>;
-        auto         dataSpan    = std::span(m_data);
         const size_t numThreads  = et.tp.getNumThreads();
         // Split up the data somewhat evenly and then apply the pipeline.
-        size_t workPerThread = m_data.size() / numThreads;
-        // Create subspans for each thread, and then apply the pipes to them.
-        std::vector<std::span<typename T::InnerType>>            spans;
+        const size_t workPerThread = m_data.size() / numThreads;
+        auto resultLazy = m_data | m_pipe | std::views::chunk(workPerThread);
         std::vector<std::future<Utils::Vec<pipelineUnderlying>>> futuresVector;
         Utils::Vec<pipelineUnderlying>                           finalResult;
-        for (size_t i = 0; i < numThreads; i++)
+        for (auto chunk : resultLazy)
         {
-            spans.push_back(dataSpan.subspan(
-                i * workPerThread,
-                (i == numThreads - 1 ? std::dynamic_extent : workPerThread)));
-            auto data = m_data | m_pipe;
-            // For some fucking reason
-            // this doesnt work:
-            // futuresVector.push_back(
-            //     et.tp.pushTask(std::ranges::to<Utils::Vec<pipelineUnderlying>>,
-            //                    m_data | m_pipe));
-            // And I have no clue why.
             futuresVector.push_back(et.tp.pushTask(
-                [data = std::move(data)]() mutable
+                [&chunk]() mutable
                 {
                     return std::ranges::to<Utils::Vec<pipelineUnderlying>>(
-                        data);
+                        chunk);
                 }));
         }
         // Consolidate all the data.

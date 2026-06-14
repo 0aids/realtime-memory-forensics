@@ -169,16 +169,14 @@ TEST(snapshot, threadedCapture)
     using namespace mfu;
     using namespace mf;
     using namespace mft;
-    pid_t pid = forkFunc(
+    ThreadPool tp(std::thread::hardware_concurrency() / 2);
+    pid_t      pid = forkFunc(
         createTestProgram(StaticNumberBuffer<int, 0xfafaf>(), TestFeature{},
                           StaticStringBuffer{.buffer = "hello world"}));
     Vec<Node<Map, Snapshot>> maps    = getMaps<Snapshot>(pid).pipe() |
                                        Snapshot::captureF(pid) | Pipe::End{};
     auto                     zipview = std::ranges::zip_view(maps, maps);
     static_assert(requires { zipview.begin(); });
-    // Possible fix: Do not keep track of only the pipe operations, as because they are lazy,
-    // we can divide up the evaluation multi-threaded wise by giving each thread a different
-    // part of the range.
     auto result = Pipe::Impl{zipview, {}} | findChangedF(sizeof(void*)) |
-                  Pipe::End{};
+                  Pipe::EndThreaded{tp};
 }
