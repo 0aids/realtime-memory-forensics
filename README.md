@@ -27,6 +27,7 @@ Planned python-based DSL JIT, and visualisation tools.
 - [x] Redone struct registry
 - [ ] Figure out how to make operations compatible with pipe syntax.
       Do this by allowing zipping, custom functors for operations.
+- [ ] Add map modification API, with hooking for snapshots.
 - [ ] Incorporate multi-threaded piping by creating a custom piping method.
 - [-] Incorporate optionality for nodes. Invalid nodes should not cause throws, and are
       expected throughout constant use.
@@ -57,6 +58,10 @@ cmake --build build -j $(nproc)
 ```bash
 cmake -S . -B build -Dtests=ON && cmake --build build -j 12 && (ulimit -m 1000000 && ulimit -v 1000000 && cd build && ctest)
 ```
+
+# Problems
+Running with asan does not work to some degree. Filtering active regions will hang because the
+pagemap is opened by the asan?
 
 # Planned C++ api
 ```cpp
@@ -194,22 +199,27 @@ float yValue = StructType
 // (exceptions are never caught)
 // Ideally in the future all chained options should take in optional values,
 // and then forward all errors.
-Vec<float> xValues = vec3dNodes.pipe() |
-                         Struct::nodeAtFieldF("x") |
-                         Snapshot::captureF(pid) |
-                         Typed::typedAsF<Primitive>() |
-                         Primitive::asF<float>() |
-                     Pipe::end;
+Vec<float> xValues = vec3dNodes.pipe()
+                        | Struct::nodeAtFieldF("x")
+                        | Snapshot::captureF(pid)
+                        | Typed::typedAsF<Primitive>()
+                        | Primitive::asF<float>()
+                    | Pipe::end;
 
-Vec<float> xValues = vec3dNodes.pipe() |
-                         Struct::nodeAtFieldF("x") |
-                         Snapshot::captureF(pid) |
-                         Typed::typedAsF<Primitive>() |
-                         Primitive::asF<float>() |
-                     Pipe::endThreaded(tp);
+Vec<float> xValues = vec3dNodes.pipe()
+                        | Struct::nodeAtFieldF("x")
+                        | Snapshot::captureF(pid)
+                        | Typed::typedAsF<Primitive>()
+                        | Primitive::asF<float>()
+                    | Pipe::endThreaded(tp);
                      // Similar, but also allows threading.
 
 // To be updated as more features are added.
+
+// Map modification
+Node<Map> nmap = ...;
+// There are hooks in here for modifying the snapshots or anything that's hooked.
+nmap.modifyRelative({.addrDelta = 0x10, .sizeDelta = 10});
 ```
 
 # Planned Python API

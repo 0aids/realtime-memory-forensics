@@ -115,7 +115,7 @@ TEST(snapshot, testProgram)
 {
     using namespace mft;
     pid_t pid = forkFunc(
-        createTestProgram(StaticNumberBuffer<int, 0xfafaf>(), TestFeature{},
+        createTestProgram(StaticNumberBuffer<int, 0xfafaf>(), // TestFeature{},
                           StaticStringBuffer{.buffer = "hello world"}));
     mfu::Vec<mf::Node<mf::Map, mf::Snapshot>> maps =
         mf::getMaps<mf::Snapshot>(pid);
@@ -127,17 +127,41 @@ TEST(snapshot, testProgram)
     }
     // Attempt to find hello world!
     mfu::ThreadPool tp(2);
-    auto            mapsWHello = maps.pipe() | mf::findStringF("hello world") |
-                                 mfu::Pipe::EndThreaded(tp);
-    EXPECT_GE(mapsWHello.size(), 0);
+    auto   premapsWHello = maps.pipe() | mf::findStringF("hello world") |
+                           mfu::Pipe::EndThreaded(tp);
+    size_t countPiped    = 0;
+    for (auto& maps : premapsWHello)
+    {
+        countPiped += maps.size();
+        for (auto& map : maps)
+        {
+            map.capture(pid);
+            auto s = map.span();
+            auto gah =
+                std::string(s.begin(), s.begin() + sizeof("hello world"));
+            println("Map contents: {}", gah);
+        }
+    }
+
+    println("counting individually...");
+    EXPECT_GE(countPiped, 0);
     // Double check it's the same amount that we would find anyways
-    size_t count = 0;
+    size_t countIndividual = 0;
     for (auto& map : maps)
     {
-        count += mf::findString(map, "hello world").size();
+        auto results = mf::findString(map, "hello world");
+        for (auto& result : results)
+        {
+            result.capture(pid);
+            auto s = result.span();
+            auto gah =
+                std::string(s.begin(), s.begin() + sizeof("hello world"));
+            println("Map contents: {}", gah);
+        }
+        countIndividual += results.size();
     }
-    EXPECT_EQ(mapsWHello.size(), count);
-    println("Found {} 'hello world's!", mapsWHello.size());
+    EXPECT_EQ(countPiped, countIndividual);
+    println("Found {} 'hello world's!", countIndividual);
 }
 
 TEST(snapshot, threadedCapture)
@@ -148,5 +172,13 @@ TEST(snapshot, threadedCapture)
     pid_t pid = forkFunc(
         createTestProgram(StaticNumberBuffer<int, 0xfafaf>(), TestFeature{},
                           StaticStringBuffer{.buffer = "hello world"}));
-    Vec<Node<Map, Snapshot>> maps = getMaps<Snapshot>(pid);
+    Vec<Node<Map, Snapshot>> maps    = getMaps<Snapshot>(pid).pipe() |
+                                       Snapshot::captureF(pid) | Pipe::End{};
+    auto                     zipview = std::ranges::zip_view(maps, maps);
+    static_assert(requires { zipview.begin(); });
+    // Possible fix: Do not keep track of only the pipe operations, as because they are lazy,
+    // we can divide up the evaluation multi-threaded wise by giving each thread a different
+    // part of the range.
+    auto result = Pipe::Impl{zipview, {}} | findChangedF(sizeof(void*)) |
+                  Pipe::End{};
 }

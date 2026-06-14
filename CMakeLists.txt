@@ -22,8 +22,8 @@ set(CXX_COMP_COMMANDS
 )
 set(CXX_LINK_COMMANDS)
 
-option(Asan "Address sanitizer" ON)
-option(UBsan "Undefined behaviour sanitizer" ON)
+option(Asan "Address sanitizer" OFF)
+option(UBsan "Undefined behaviour sanitizer" OFF)
 if(Asan)
     add_compile_options(-fsanitize=address)
     add_link_options(-fsanitize=address)

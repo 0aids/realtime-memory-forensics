@@ -162,7 +162,16 @@ namespace rmf::Meta
         }
     };
 
+    template <typename type, template <typename...> typename _template>
+    static constexpr bool isTemplatedFrom = std::false_type{};
+
+    template <template <typename...> typename _template, typename... types>
+    static constexpr bool isTemplatedFrom<_template<types...>, _template> =
+        std::true_type{};
+
     static_assert(!RequireExclusive<int, float>::isExclusive<int, int>());
+    static_assert(!isTemplatedFrom<std::vector<int>, std::tuple>);
+    static_assert(isTemplatedFrom<std::vector<int>, std::vector>);
 }
 namespace rmf
 {

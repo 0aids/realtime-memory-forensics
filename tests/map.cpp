@@ -1,4 +1,5 @@
 #include "rmf/snapshot.hpp"
+#include <csignal>
 #include <gtest/gtest.h>
 #include <print>
 #include <rmf/logging/logging.hpp>
@@ -96,12 +97,13 @@ TEST(map, testProgramReading)
     {
         EXPECT_GE(map.map.relativeSize, size);
     }
+    kill(pid, SIGTERM);
 }
 TEST(map, aggressiveFiltering)
 {
     using namespace mft;
     pid_t pid = forkFunc(
-        createTestProgram(StaticNumberBuffer<int, 0xfafaf>(), TestFeature{},
+        createTestProgram(StaticNumberBuffer<int, 0xfafaf>(),
                           StaticStringBuffer{.buffer = "hello world"}));
     mfu::Vec<mf::Node<mf::Map>> maps = mf::getMaps(pid);
     EXPECT_GT(maps.size(), 0);
@@ -120,4 +122,5 @@ TEST(map, aggressiveFiltering)
     EXPECT_GT(newMaps3.size(), 0);
     auto newMaps4 = maps.subName("stack");
     EXPECT_GT(newMaps4.size(), 0);
+    kill(pid, SIGTERM);
 }

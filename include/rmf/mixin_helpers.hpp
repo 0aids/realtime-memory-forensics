@@ -34,4 +34,12 @@
     name __VA_ARGS__;                                                          \
     RMF_MIXIN_METHOD_PTR(name)
 
+#define RMF_FUNCTOR(funcName, ...)                                             \
+    funcName              __VA_ARGS__;                                         \
+    static constexpr auto funcName##F = []<typename... Args>(Args&&... args)   \
+    {                                                                          \
+        return [... args = std::move(args)](auto&& arg) mutable                \
+        { return funcName##M(arg, std::forward<Args>(args)...); };             \
+    }
+
 #endif // mixin_helpers_hpp_INCLUDED

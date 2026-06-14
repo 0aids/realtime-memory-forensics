@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstring>
 #include "rmf/map.hpp"
+#include "rmf/mixin_helpers.hpp"
 #include "rmf/node.hpp"
 #include "rmf/snapshot.hpp"
 #include "rmf/utils/meta.hpp"
@@ -31,6 +32,11 @@ namespace rmf
               OpCompatible nodeR_t = node1_t>
     Utils::Vec<nodeR_t> findChanged(const node1_t& snap1, const node2_t& snap2,
                                     const uintptr_t& compareSize);
+    static constexpr auto findChangedF = []<typename... Args>(Args&&... args)
+    {
+        return [... args = std ::move(args)](auto&&... arg) mutable
+        { return findChanged(arg..., std ::forward<Args>(args)...); };
+    };
 
     template <OpCompatible node1_t, OpCompatible node2_t,
               OpCompatible nodeR_t = node1_t>
@@ -126,12 +132,12 @@ namespace rmf
                                     const node2_t&   nodeSnap2,
                                     const uintptr_t& compareSize)
     {
-        std::span<uint8_t>    span1 = nodeSnap1.span();
-        std::span<uint8_t>    span2 = nodeSnap2.span();
-        Node<Map>             mrp   = nodeSnap1;
+        std::span<uint8_t>  span1 = nodeSnap1.span();
+        std::span<uint8_t>  span2 = nodeSnap2.span();
+        Node<Map>           mrp   = nodeSnap1;
 
-        Utils::Vec<Node<Map>> results;
-        uintptr_t             bytesCompared = 0;
+        Utils::Vec<nodeR_t> results;
+        uintptr_t           bytesCompared = 0;
         while (bytesCompared < span1.size())
         {
             uintptr_t toCompare = (span1.size() - bytesCompared > compareSize) ?

@@ -3,6 +3,7 @@
 #include "rmf/utils/expect.hpp"
 #include "rmf/utils/function.hpp"
 #include "rmf/utils/threadpool.hpp"
+#include "rmf/utils/meta.hpp"
 #include <algorithm>
 #include <cassert>
 #include <concepts>
@@ -12,6 +13,7 @@
 #include <ranges>
 #include <memory>
 #include <span>
+#include <tuple>
 #include <type_traits>
 #include <vector>
 namespace rmf::Utils
@@ -48,7 +50,7 @@ namespace rmf::Utils
         {
             T&       m_data;
             Pipeline m_pipe;
-            auto     operator|(const auto F)
+            auto     operator|(auto&& F)
                 requires(!std::same_as<std::decay_t<decltype(F)>, End> &&
                          !std::same_as<std::decay_t<decltype(F)>, EndThreaded>);
 
@@ -60,16 +62,13 @@ namespace rmf::Utils
 
     template <typename T, typename Operator = VecOpTraits<T>::type,
               typename Allocator = std::allocator<T>>
-    class Vec : public std::vector<T, Allocator>,
-                public Operator,
-                public Utils::Error
+    class Vec : public std::vector<T, Allocator>, public Operator
     {
       public:
         using BaseType = std::vector<T, Allocator>;
         using BaseType::BaseType;
         using InnerType = T;
         using SelfType  = Vec<T, Operator, Allocator>;
-
         Vec(BaseType&& base);
 
         template <typename F, typename... Args>
@@ -161,14 +160,31 @@ namespace rmf::Utils
     {
     }
     template <typename T, typename Pipeline>
-    auto Pipe::Impl<T, Pipeline>::operator|(const auto F)
+    auto Pipe::Impl<T, Pipeline>::operator|(auto&& F)
         requires(!std::same_as<std::decay_t<decltype(F)>, End> &&
                  !std::same_as<std::decay_t<decltype(F)>, EndThreaded>)
     {
+        // If we're the first one, and we're a zip, the perform the correct shenanigans.
+        // To allow unzipping.
         if constexpr (!std::same_as<Pipeline, std::false_type>)
         {
             // Consider adding a mini-consolidation depending on the operation?
             auto newPipeline = m_pipe | std::views::transform(F);
+            return Impl<T, decltype(newPipeline)>{.m_data = m_data,
+                                                  .m_pipe = newPipeline};
+        }
+        else if constexpr (Meta::isTemplatedFrom<T, std::ranges::zip_view>)
+        {
+            auto newF = [F](auto&& val) mutable { return std::apply(F, val); };
+
+            static_assert(
+                Meta::isTemplatedFrom<decltype(m_data.front()), std::tuple>,
+                "Inside zips should be tuples");
+            static_assert(
+                requires { newF(m_data.front()); },
+                "Zipped data should be able to be inputted directly");
+
+            auto newPipeline = std::views::transform(newF);
             return Impl<T, decltype(newPipeline)>{.m_data = m_data,
                                                   .m_pipe = newPipeline};
         }
@@ -182,15 +198,12 @@ namespace rmf::Utils
     template <typename T, typename Pipeline>
     auto Pipe::Impl<T, Pipeline>::operator|(End&&)
     {
+        // Zipping. We can zip some amount of values and then apply them.
+        // If we detect a zip, then we should probably just apply them?
         if constexpr (!std::same_as<Pipeline, std::false_type>)
         {
-            // Check what the last pipeline's result is
-            using pipelineResult =
-                std::invoke_result_t<decltype(m_pipe), decltype(m_data)>;
-            using pipelineUnderlying =
-                std::ranges::range_value_t<pipelineResult>;
-            return m_data | m_pipe |
-                   std::ranges::to<Utils::Vec<pipelineUnderlying>>();
+            auto res = m_data | m_pipe;
+            return Vec(std::vector(res.begin(), res.end()));
         }
         else
         {

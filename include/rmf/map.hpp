@@ -43,6 +43,12 @@ struct magic_enum::customize::enum_range<rmf::Perms>
 
 namespace rmf
 {
+    struct MapDelta
+    {
+        ssize_t addrDelta = 0;
+        ssize_t sizeDelta = 0;
+    };
+
     struct Map
     {
         Detail::MapData map;
@@ -66,6 +72,11 @@ namespace rmf
         std::shared_ptr<const std::string> RMF_MIXIN_METHOD(getName, ());
 
                                            operator std::string();
+        template <NodeWithFeatures<Map> Self>
+        Self mapModifyRelative(MapDelta) const;
+
+        template <NodeWithFeatures<Map> Self>
+        Self mapModifyParent(MapDelta) const;
 
         struct VecOp
         {
@@ -298,10 +309,11 @@ namespace rmf
             return {};
         }
         static constexpr uint64_t ACTIVE_BIT = (1ULL << 63);
+        rmf_Info("Opened pagemap: {}, FD: {}", pagemapPath, fd);
         for (const auto& mrp : self)
         {
-            for (uintptr_t addr = mrp.tbegin();
-                 addr < mrp.tbegin() + mrp.map.relativeSize; addr += pageSize)
+            for (uintptr_t addr = mrp.tbegin(); addr < mrp.tend();
+                 addr += pageSize)
             {
                 // Multiply by 8 because each 8 byte chunk represents a page.
                 uintptr_t offset = (addr / pageSize) * 8;
