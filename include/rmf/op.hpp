@@ -66,23 +66,13 @@ namespace rmf
     /*****************************/
 
     template <OpCompatible node_t, OpCompatible nodeR_t = node_t>
-    Utils::Vec<nodeR_t> findString(const node_t&          snap1,
-                                   const std::string_view str);
-
-    constexpr auto      findStringF = [](const std::string_view str)
-    {
-        return [str]<OpCompatible node_t>(const node_t& snap1) mutable
-        { return findString(snap1, str); };
-    };
+    Utils::Vec<nodeR_t> RMF_FUNCTOR(findString, (const node_t&          snap1,
+                                                 const std::string_view str));
 
     template <OpCompatible node_t, Meta::Numeric N,
               OpCompatible nodeR_t = node_t>
-    Utils::Vec<nodeR_t> findNumExact(const node_t& snap1, const N number);
-    constexpr auto      findNumExactF = []<Meta::Numeric N>(const N number)
-    {
-        return [number]<OpCompatible node_t>(const node_t& snap1) mutable
-        { return findNumExact(snap1, number); };
-    };
+    Utils::Vec<nodeR_t> RMF_FUNCTOR(findNumExact,
+                                    (const node_t& snap1, const N number));
 
     // Inclusive.
 

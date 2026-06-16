@@ -25,10 +25,10 @@ Planned python-based DSL JIT, and visualisation tools.
       Ensure that the order of types in the nodes are always the same.
 - [x] Basic type parsing
 - [x] Redone struct registry
-- [ ] Figure out how to make operations compatible with pipe syntax.
+- [x] Figure out how to make operations compatible with pipe syntax.
       Do this by allowing zipping, custom functors for operations.
 - [ ] Add map modification API, with hooking for snapshots.
-- [ ] Incorporate multi-threaded piping by creating a custom piping method.
+- [x] Incorporate multi-threaded piping by creating a custom piping method.
 - [-] Incorporate optionality for nodes. Invalid nodes should not cause throws, and are
       expected throughout constant use.
 - [-] Typed mixin for region

@@ -14,6 +14,7 @@
 #include <rmf/test_helpers.hpp>
 
 using namespace std;
+using namespace std::literals;
 namespace mf  = rmf;
 namespace mfl = mf::Logging;
 namespace mfu = mf::Utils;
@@ -132,7 +133,9 @@ TEST(snapshot, testProgram)
     }
     // Attempt to find hello world!
     mfu::ThreadPool tp(2);
-    auto   premapsWHello = maps.pipe() | mf::findStringF("hello world") |
+    // sv is required because it defaults into const char[12] for some reason and doesn't know how
+    // to convert it?
+    auto   premapsWHello = maps.pipe() | mf::findStringF("hello world"sv) |
                            mfu::Pipe::EndThreaded(tp);
     size_t countPiped    = 0;
     for (auto& maps : premapsWHello)

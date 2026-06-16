@@ -15,6 +15,7 @@
 #include <rmf/type_registry.hpp>
 
 using namespace std;
+using namespace std::literals;
 namespace mf  = rmf;
 namespace mfl = mf::Logging;
 namespace mfu = mf::Utils;
@@ -157,7 +158,7 @@ TEST(type_registry, pointerFollowing)
     mfu::Vec<Node<Map, Snapshot>> result =
         maps.mapThreaded<Snapshot::captureM>(pid).with(tp);
     auto helloworlds =
-        consolidate(result.pipe() | findStringF("hello world! 00") |
+        consolidate(result.pipe() | findStringF("hello world! 00"sv) |
                     mfu::Pipe::EndThreaded(tp));
     EXPECT_GE(helloworlds.size(), 1);
     println("Num hello worlds: {}", helloworlds.size());

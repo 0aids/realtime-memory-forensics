@@ -38,8 +38,8 @@
     funcName              __VA_ARGS__;                                         \
     static constexpr auto funcName##F = []<typename... Args>(Args&&... args)   \
     {                                                                          \
-        return [... args = std::move(args)](auto&& arg) mutable                \
-        { return funcName##M(arg, std::forward<Args>(args)...); };             \
+        return [... args = args](auto&& arg) mutable                           \
+        { return funcName(arg, std::forward<Args>(args)...); };                \
     }
 
 #endif // mixin_helpers_hpp_INCLUDED
