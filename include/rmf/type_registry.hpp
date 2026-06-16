@@ -257,6 +257,7 @@ namespace rmf
         std::vector<const strview> getFieldNames() const;
         Field                      operator[](const strview) const;
         bool                       containsField(const strview field);
+        bool                       containsField(const Field& field);
     };
 
     // Mixinable
@@ -532,20 +533,20 @@ namespace rmf
     ResultNode Struct::nodifyFromFieldOffset(const T&    node,
                                              const ForS& field) const
     {
-        rmf_TODO();
-        // if constexpr (std::same_as<ForS, Field>)
-        // {
-        //     return field.nodify(node);
-        // }
-        // else
-        // {
-        //     if (containsField(field))
-        //         return (*this)[field].nodify(node);
-        //     // Return an invalid field
-        //     ResultNode node{};
-
-        //     rmf_retNewErr(node, Utils::ErrorEnum::FieldDoesNotExist);
-        // }
+        std::optional<Field> f;
+        if constexpr (std::same_as<ForS, Field>)
+        {
+            f = field;
+        }
+        else
+        {
+            f = getField(field);
+        }
+        assert(f.has_value() && "field must exist!");
+        T tempNode = node;
+        tempNode.map.relativeAddress -= f->offset();
+        tempNode.map.relativeSize += f->offset();
+        return tempNode.template addFeature<Struct>(*this);
     }
 
     template <IsNode Node, FieldDeducible ForS, IsNode ResultNode>

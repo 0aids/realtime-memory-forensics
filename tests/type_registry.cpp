@@ -179,5 +179,7 @@ TEST(type_registry, pointerFollowing)
                                 .getTargetNode<Struct>(maps);
 
         derefPointer.capture(pid);
+        auto span = derefPointer.span();
+        println("String gotten: {}", std::string(span.begin(), span.end()));
     }
 }

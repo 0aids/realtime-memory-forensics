@@ -318,3 +318,8 @@ bool mf::Struct::containsField(const strview str)
     }
     return false;
 }
+
+bool mf::Struct::containsField(const Field& field)
+{
+    return containsField(std::string(field.name()));
+}

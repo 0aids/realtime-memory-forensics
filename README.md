@@ -31,9 +31,9 @@ Planned python-based DSL JIT, and visualisation tools.
 - [x] Incorporate multi-threaded piping by creating a custom piping method.
 - [-] Incorporate optionality for nodes. Invalid nodes should not cause throws, and are
       expected throughout constant use.
-- [-] Typed mixin for region
+- [x] Typed mixin for region
 - [ ] Incorporate optionality for Vecs.
-- [ ] Make all functions and methods pure by default. Only have an impure variant for snapshots.
+- [ ] Make all functions and methods pure by default.
 - [x] Memory graphs are partially cancelled. The new type system is powerful enough that we can do
       Graph associations from it. At most will add some sort of caching of struct generated nodes.
 - [ ] ~~Attempt 3 for memory graphs.~~
