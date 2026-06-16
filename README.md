@@ -10,6 +10,12 @@ Planned python-based DSL JIT, and visualisation tools.
 3. Multi-threaded memory searches and operations
 4. Direct raw memory access.
 
+# Status
+I'm not sure if I want to work on this project anymore. It was sort of a toy to introduce
+myself into the world of `C++` and it's absolutely terrible shenanigans, and many attempts
+to reduce those shenanigans with horrible, horrible template metaprogramming everywhere.
+I think it's time to move onto greener pastures.
+
 # Planned Features
 - [-] Type registry for using structs to help with analysis.
 - [ ] Memory graphs - The megastructure holding information
