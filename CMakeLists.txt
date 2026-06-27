@@ -45,7 +45,7 @@ FetchContent_MakeAvailable(magic_enum)
 # ---------------- rmf ----------------
 file(GLOB_RECURSE rmf_src_files "src/*")
 add_library(rmf STATIC ${rmf_src_files})
-target_link_libraries(rmf PRIVATE
+target_link_libraries(rmf PUBLIC
 	magic_enum::magic_enum
 )
 target_compile_options(rmf PUBLIC ${CXX_COMP_COMMANDS})
@@ -70,3 +70,9 @@ nanobind_add_module(rmfpy NOMINSIZE ${bindings_cpps})
 target_compile_options(rmfpy PRIVATE ${CXX_COMP_COMMANDS})
 target_compile_options(rmfpy PRIVATE $<$<CONFIG:Debug>:-O0> $<$<CONFIG:Release>:-O3>)
 target_link_libraries(rmfpy PRIVATE rmf)
+
+option(tests "Compile tests" ON)
+if(tests)
+	enable_testing()
+    add_subdirectory("tests")
+endif()
