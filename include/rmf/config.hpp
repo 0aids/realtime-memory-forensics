@@ -1,13 +1,12 @@
 #pragma once
 
+#include <type_traits>
 #include <vector>
 
 namespace rmf
 {
     template <typename N>
-    concept Numeric = requires {
-        std::integral<N> || std::same_as<N, double> || std::same_as<N, float>;
-    };
+    concept Numeric = requires { std::is_arithmetic_v<N>; };
     namespace config
     {
         template <typename T>
