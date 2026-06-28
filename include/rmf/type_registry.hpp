@@ -201,7 +201,6 @@ namespace rmf
             friend bool operator==(const Iterator& a, const Iterator& b);
             friend bool operator!=(const Iterator& a, const Iterator& b);
 
-          private:
             std::weak_ptr<StructData> m_parent;
             std::map<std::string, std::shared_ptr<FieldData>>::const_iterator
                 m_currentIter;

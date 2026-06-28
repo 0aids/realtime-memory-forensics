@@ -257,9 +257,12 @@ namespace rmf
     {
         return Iterator(m_data);
     }
+
     Struct::Iterator Struct::end() const
     {
-        return Iterator(m_data);
+        auto iter          = Iterator(m_data);
+        iter.m_currentIter = m_data.lock()->fields.end();
+        return iter;
     }
     Struct::Iterator::Iterator(std::weak_ptr<StructData> parent) :
         m_parent(parent), m_currentIter(parent.lock()->fields.begin())

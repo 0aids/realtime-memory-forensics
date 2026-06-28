@@ -56,6 +56,7 @@ TEST(type_registry, registerTest)
     {
         EXPECT_EQ(field.offset(), offsets[i++]);
     }
+    EXPECT_GT(i, 0);
 }
 
 TEST(type_registry, EnsurePrimitiveTypesConstructed)
