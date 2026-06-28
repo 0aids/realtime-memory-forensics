@@ -9,29 +9,17 @@
 
 namespace rmf
 {
-    struct Perms
+    enum class Perms : uint8_t
     {
-        enum Value : uint8_t
-        {
-            None    = 0,
-            Read    = 1 << 0,
-            Write   = 1 << 1,
-            Execute = 1 << 2,
-            Shared  = 1 << 3,
-        } value;
-
-        template <std::ranges::range Range>
-            requires std::same_as<std::ranges::range_value_t<Range>, char>
-        static Perms Parse(Range chars);
-
-        Perms() = default;
-        constexpr Perms(Value perms) : value(perms)
-        {
-        }
-        constexpr bool   operator==(const Perms& other) const = default;
-        constexpr Perms  operator|(const Perms& other) const;
-        constexpr Perms& operator|=(const Perms& other);
+        None    = 0,
+        Read    = 1 << 0,
+        Write   = 1 << 2,
+        Execute = 1 << 3,
+        Shared  = 1 << 4,
     };
+    template <std::ranges::range Range>
+        requires std::same_as<std::ranges::range_value_t<Range>, char>
+    Perms Perms_Parse(Range chars);
 } // namespace rmf
 
 template <>
@@ -39,6 +27,14 @@ struct magic_enum::customize::enum_range<rmf::Perms>
 {
     static constexpr bool is_flags = true;
 };
+
+rmf::Perms  operator|(rmf::Perms p1, rmf::Perms p2);
+rmf::Perms& operator|=(rmf::Perms& p1, rmf::Perms p2);
+rmf::Perms  operator&(rmf::Perms p1, rmf::Perms p2);
+rmf::Perms& operator&=(rmf::Perms& p1, rmf::Perms p2);
+rmf::Perms  operator^(rmf::Perms p1, rmf::Perms p2);
+rmf::Perms& operator^=(rmf::Perms& p1, rmf::Perms p2);
+rmf::Perms  operator~(rmf::Perms p1);
 
 namespace rmf
 {
@@ -115,20 +111,9 @@ namespace rmf
         return name != nullptr;
     }
 
-    constexpr Perms Perms::operator|(const Perms& other) const
-    {
-        return static_cast<Perms::Value>(this->value | other.value);
-    }
-
-    constexpr Perms& Perms::operator|=(const Perms& other)
-    {
-        this->value = static_cast<Perms::Value>(this->value | other.value);
-        return *this;
-    }
-
     template <std::ranges::range Range>
         requires std::same_as<std::ranges::range_value_t<Range>, char>
-    Perms Perms::Parse(Range chars)
+    Perms Perms_Parse(Range chars)
     {
         Perms p = Perms::None;
         for (auto c : chars)

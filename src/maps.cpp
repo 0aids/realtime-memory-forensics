@@ -29,3 +29,38 @@ namespace rmf
         return res;
     }
 } // namespace rmf
+
+rmf::Perms operator|(rmf::Perms p1, rmf::Perms p2)
+{
+    return static_cast<rmf::Perms>(static_cast<uint8_t>(p1) |
+                                   static_cast<uint8_t>(p2));
+}
+rmf::Perms& operator|=(rmf::Perms& p1, rmf::Perms p2)
+{
+    p1 = p1 | p2;
+    return p1;
+}
+rmf::Perms operator&(rmf::Perms p1, rmf::Perms p2)
+{
+    return static_cast<rmf::Perms>(static_cast<uint8_t>(p1) &
+                                   static_cast<uint8_t>(p2));
+}
+rmf::Perms& operator&=(rmf::Perms& p1, rmf::Perms p2)
+{
+    p1 = p1 & p2;
+    return p1;
+}
+rmf::Perms operator^(rmf::Perms p1, rmf::Perms p2)
+{
+    return static_cast<rmf::Perms>(static_cast<uint8_t>(p1) ^
+                                   static_cast<uint8_t>(p2));
+}
+rmf::Perms& operator^=(rmf::Perms& p1, rmf::Perms p2)
+{
+    p1 = p1 ^ p2;
+    return p1;
+}
+rmf::Perms operator~(rmf::Perms p1)
+{
+    return static_cast<rmf::Perms>(~static_cast<uint8_t>(p1));
+}

@@ -39,7 +39,7 @@ namespace rmf
                 .pSize = endAddr - startAddr,
                 .rAddr = 0,
                 .rSize = static_cast<ptrdiff_t>(endAddr - startAddr),
-                .perms = Perms::Parse(perms),
+                .perms = Perms_Parse(perms),
             });
         }
         return maps;

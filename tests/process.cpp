@@ -25,5 +25,4 @@ TEST(process, ReadMemory)
     std::span<uint8_t> firstSnapSpan = *snaps[0].data;
     std::println("snaps first 100 bytes: {::02x}",
                  firstSnapSpan.subspan(0, 100));
-    std::println("snaps first 100 chars: {::c}", firstSnapSpan.subspan(0, 100));
 }
