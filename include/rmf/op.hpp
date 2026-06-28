@@ -59,7 +59,7 @@ namespace rmf
         uintptr_t bytesCompared = Dtl::prealign(in1.map, alignment);
 
         // Ensure we don't read out of bounds
-        while (bytesCompared + size < in1.snap.data->size())
+        while (bytesCompared + size <= in1.snap.data->size())
         {
             N value1;
             memcpy(&value1, in1.snap.data->data() + bytesCompared, size);
@@ -93,7 +93,7 @@ namespace rmf
         uintptr_t bytesCompared = Dtl::prealign(in1.map, alignment);
 
         // Ensure we don't read out of bounds
-        while (bytesCompared + size < in1.snap.data->size())
+        while (bytesCompared + size <= in1.snap.data->size())
         {
             N value1;
             memcpy(&value1, in1.snap.data->data() + bytesCompared, size);
@@ -122,7 +122,7 @@ namespace rmf
         constexpr size_t size          = sizeof(N);
         uintptr_t        bytesCompared = Dtl::prealign(in1.map, alignment);
 
-        while (bytesCompared + size < in1.snap.data->size())
+        while (bytesCompared + size <= in1.snap.data->size())
         {
             N value;
             memcpy(&value, in1.snap.data->data() + bytesCompared, size);
@@ -146,7 +146,7 @@ namespace rmf
         constexpr size_t size          = sizeof(N);
         uintptr_t        bytesCompared = Dtl::prealign(in1.map, alignment);
 
-        while (bytesCompared + size < in1.snap.data->size())
+        while (bytesCompared + size <= in1.snap.data->size())
         {
             N value;
             memcpy(&value, in1.snap.data->data() + bytesCompared, size);
