@@ -153,6 +153,8 @@ namespace rmf
     static inline ssize_t calculateOffset(ssize_t currentOffset,
                                           ssize_t memberAlignment)
     {
+        if (currentOffset == 0)
+            return 0;
         ssize_t padding = (memberAlignment - currentOffset % memberAlignment);
         padding         = (padding == memberAlignment) ? 0 : padding;
         return currentOffset + padding;
