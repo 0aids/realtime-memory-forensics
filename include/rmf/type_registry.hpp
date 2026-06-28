@@ -1,5 +1,6 @@
 #pragma once
 #include "rmf/config.hpp"
+#include "rmf/memory_region.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -129,6 +130,10 @@ namespace rmf
         Typed& operator=(Typed&&)      = default;
         Typed& operator=(const Typed&) = default;
 
+        // MemoryRegionTyped<Typed> from a MemoryRegion (either view or not)
+        template <typename T>
+            requires isMemoryRegionViewCpt<T> || isMemoryRegionCpt<T>
+        auto regionify(T self);
         // Explicit conversions? as these are checked.
         // explicit operator Pointer();
         // explicit operator Array();
@@ -137,18 +142,18 @@ namespace rmf
     };
 
     template <typename T>
-    concept FieldDeducible = requires {
+    concept FieldDeducibleCpt = requires {
         std::same_as<T, std::string_view> || std::same_as<T, Field>;
     };
 
     template <typename T>
-    concept TypeDeducible = requires {
+    concept TypeDeducibleCpt = requires {
         std::same_as<T, PType> || std::same_as<T, std::string_view> ||
             std::same_as<T, Struct>;
     };
 
     template <typename T>
-    concept StructDeducible = requires {
+    concept StructDeducibleCpt = requires {
         std::same_as<T, std::string_view> || std::same_as<T, Struct>;
     };
 
@@ -211,9 +216,12 @@ namespace rmf
         Field operator[](const std::string_view) const;
         bool  containsField(const std::string_view field);
         bool  containsField(const Field& field);
+
+        template <typename T>
+            requires isMemoryRegionViewCpt<T> || isMemoryRegionCpt<T>
+        auto regionify(T self);
     };
 
-    // Mixinable
     // Mutually exclusive with "Typed" nodes.
     class Pointer : public Typed
     {
@@ -229,6 +237,12 @@ namespace rmf
         Pointer& operator=(const Pointer&) = default;
 
         Typed    targetType() const;
+        template <typename T>
+            requires isMemoryRegionViewCpt<T> || isMemoryRegionCpt<T>
+        auto regionify(T self);
+        // Returns a new MemoryRegionTyped
+        template <isMemoryRegionTypedCpt MRT>
+        auto deref(this const MRT& self);
     };
 
     // A temporary holder of data of unknown type. Used by primitive
@@ -258,6 +272,13 @@ namespace rmf
         Primitive(const Primitive&)            = default;
         Primitive& operator=(Primitive&&)      = default;
         Primitive& operator=(const Primitive&) = default;
+
+        template <typename T>
+            requires isMemoryRegionViewCpt<T> || isMemoryRegionCpt<T>
+        auto regionify(T self);
+
+        template <isMemoryRegionTypedCpt MRT>
+        Unknown value(this const MRT& self);
     };
 
     class Array : public Typed
@@ -274,6 +295,14 @@ namespace rmf
         Array& operator=(const Array&) = default;
 
         Typed  targetType() const;
+
+        template <typename T>
+            requires isMemoryRegionViewCpt<T> || isMemoryRegionCpt<T>
+        auto regionify(T self);
+
+        // Returns a new MemoryRegionTyped
+        template <isMemoryRegionTypedCpt MRT>
+        auto at(this const MRT& self, size_t ind);
     };
 
     class Field : public Typed
@@ -289,11 +318,19 @@ namespace rmf
         Field& operator=(const Field&) = default;
         Field(std::weak_ptr<FieldData>);
 
-        template <typename TargetType, typename Node>
-        Node::template WithType<TargetType>
-                getTargetNode(this const Node& node);
-
         ssize_t offset() const;
+
+        template <typename T>
+            requires isMemoryRegionViewCpt<T> || isMemoryRegionCpt<T>
+        auto regionify(T self);
+
+        // Get back the struct from which a field belongs to.
+        template <isMemoryRegionTypedCpt MRT>
+        auto structify(this const MRT& self);
+
+        // Returns a new MemoryRegionTyped
+        template <isMemoryRegionTypedCpt MRT>
+        auto deref(this const MRT& self);
     };
 
     class StructBuilder;
@@ -413,6 +450,10 @@ struct std::hash<std::weak_ptr<rmf::BaseTypeData>>
         return std::hash<std::string>{}(h.lock()->name);
     }
 };
+
+// TODO: Make it satisfy random access iterator.
+static_assert(std::input_iterator<rmf::Struct::Iterator>,
+              "Struct Iterator should match iterator specs");
 
 #ifndef RMF_NO_CLEANUP_MACROS
 #undef RMF_PRIM_TYPES

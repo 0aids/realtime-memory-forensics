@@ -1,33 +1,12 @@
 #pragma once
 #include "rmf/config.hpp"
-#include "rmf/maps.hpp"
 #include "rmf/snapshots.hpp"
+#include "rmf/memory_region.hpp"
+
 #include <cassert>
-#include <concepts>
-#include <ranges>
 
 namespace rmf
 {
-    template <template <typename> typename SnapshotVectorLike =
-                  config::DefaultVectorLike>
-    struct OpInput
-    {
-        const Map&                          map;
-        const Snapshot<SnapshotVectorLike>& snap;
-    };
-
-    template <template <typename> typename SnapshotVectorLike =
-                  config::DefaultVectorLike>
-    struct OpOutput
-    {
-        Map                          map;
-        Snapshot<SnapshotVectorLike> snap;
-    };
-
-    template <template <typename> typename OpOutputContainerLike,
-              typename OpOutput_t>
-    concept OpOutputContainerCpt =
-        requires { std::ranges::range<OpOutputContainerLike<OpOutput_t>>; };
 
     template <template <typename> typename SnapshotVectorLikeIn1 =
                   config::DefaultVectorLike,
@@ -35,16 +14,17 @@ namespace rmf
                   config::DefaultVectorLike,
               template <typename> typename SnapshotVectorLikeOut =
                   config::DefaultVectorLike,
-              template <typename> typename OpOutputContainerLike =
+              template <typename> typename MemoryRegionContainerLike =
                   config::DefaultVectorLike>
-    OpOutputContainerLike<OpOutput<SnapshotVectorLikeOut>>
-    findChanged(OpInput<SnapshotVectorLikeIn1> in1,
-                OpInput<SnapshotVectorLikeIn1> in2, uintptr_t compareSize)
+    MemoryRegionContainerLike<MemoryRegion<SnapshotVectorLikeOut>>
+    findChanged(MemoryRegionView<SnapshotVectorLikeIn1> in1,
+                MemoryRegionView<SnapshotVectorLikeIn1> in2,
+                uintptr_t                               compareSize)
         requires SnapshotVectorCpt<SnapshotVectorLikeIn1> &&
                  SnapshotVectorCpt<SnapshotVectorLikeIn2> &&
                  SnapshotVectorCpt<SnapshotVectorLikeOut> &&
-                 OpOutputContainerCpt<OpOutputContainerLike,
-                                      OpOutput<SnapshotVectorLikeOut>>;
+                 MemoryRegionContainerCpt<MemoryRegionContainerLike,
+                                          MemoryRegion<SnapshotVectorLikeOut>>;
 
     template <template <typename> typename SnapshotVectorLikeIn1 =
                   config::DefaultVectorLike,
@@ -52,16 +32,17 @@ namespace rmf
                   config::DefaultVectorLike,
               template <typename> typename SnapshotVectorLikeOut =
                   config::DefaultVectorLike,
-              template <typename> typename OpOutputContainerLike =
+              template <typename> typename MemoryRegionContainerLike =
                   config::DefaultVectorLike>
-    OpOutputContainerLike<OpOutput<SnapshotVectorLikeOut>>
-    findUnchanged(OpInput<SnapshotVectorLikeIn1> in1,
-                  OpInput<SnapshotVectorLikeIn1> in2, uintptr_t compareSize)
+    MemoryRegionContainerLike<MemoryRegion<SnapshotVectorLikeOut>>
+    findUnchanged(MemoryRegionView<SnapshotVectorLikeIn1> in1,
+                  MemoryRegionView<SnapshotVectorLikeIn1> in2,
+                  uintptr_t                               compareSize)
         requires SnapshotVectorCpt<SnapshotVectorLikeIn1> &&
                  SnapshotVectorCpt<SnapshotVectorLikeIn2> &&
                  SnapshotVectorCpt<SnapshotVectorLikeOut> &&
-                 OpOutputContainerCpt<OpOutputContainerLike,
-                                      OpOutput<SnapshotVectorLikeOut>>;
+                 MemoryRegionContainerCpt<MemoryRegionContainerLike,
+                                          MemoryRegion<SnapshotVectorLikeOut>>;
 
     template <Numeric N,
               template <typename> typename SnapshotVectorLikeIn1 =
@@ -70,16 +51,17 @@ namespace rmf
                   config::DefaultVectorLike,
               template <typename> typename SnapshotVectorLikeOut =
                   config::DefaultVectorLike,
-              template <typename> typename OpOutputContainerLike =
+              template <typename> typename MemoryRegionContainerLike =
                   config::DefaultVectorLike>
-    OpOutputContainerLike<OpOutput<SnapshotVectorLikeOut>>
-    findNumChanged(OpInput<SnapshotVectorLikeIn1> in1,
-                   OpInput<SnapshotVectorLikeIn1> in2, N minChangeRequired)
+    MemoryRegionContainerLike<MemoryRegion<SnapshotVectorLikeOut>>
+    findNumChanged(MemoryRegionView<SnapshotVectorLikeIn1> in1,
+                   MemoryRegionView<SnapshotVectorLikeIn1> in2,
+                   N                                       minChangeRequired)
         requires SnapshotVectorCpt<SnapshotVectorLikeIn1> &&
                  SnapshotVectorCpt<SnapshotVectorLikeIn2> &&
                  SnapshotVectorCpt<SnapshotVectorLikeOut> &&
-                 OpOutputContainerCpt<OpOutputContainerLike,
-                                      OpOutput<SnapshotVectorLikeOut>>;
+                 MemoryRegionContainerCpt<MemoryRegionContainerLike,
+                                          MemoryRegion<SnapshotVectorLikeOut>>;
 
     template <Numeric N,
               template <typename> typename SnapshotVectorLikeIn1 =
@@ -88,57 +70,59 @@ namespace rmf
                   config::DefaultVectorLike,
               template <typename> typename SnapshotVectorLikeOut =
                   config::DefaultVectorLike,
-              template <typename> typename OpOutputContainerLike =
+              template <typename> typename MemoryRegionContainerLike =
                   config::DefaultVectorLike>
-    OpOutputContainerLike<OpOutput<SnapshotVectorLikeOut>>
-    findNumUnchanged(OpInput<SnapshotVectorLikeIn1> in1,
-                     OpInput<SnapshotVectorLikeIn1> in2, N maxChangeRequired)
+    MemoryRegionContainerLike<MemoryRegion<SnapshotVectorLikeOut>>
+    findNumUnchanged(MemoryRegionView<SnapshotVectorLikeIn1> in1,
+                     MemoryRegionView<SnapshotVectorLikeIn1> in2,
+                     N                                       maxChangeRequired)
         requires SnapshotVectorCpt<SnapshotVectorLikeIn1> &&
                  SnapshotVectorCpt<SnapshotVectorLikeIn2> &&
                  SnapshotVectorCpt<SnapshotVectorLikeOut> &&
-                 OpOutputContainerCpt<OpOutputContainerLike,
-                                      OpOutput<SnapshotVectorLikeOut>>;
+                 MemoryRegionContainerCpt<MemoryRegionContainerLike,
+                                          MemoryRegion<SnapshotVectorLikeOut>>;
 
     template <template <typename> typename SnapshotVectorLikeIn1 =
                   config::DefaultVectorLike,
               template <typename> typename SnapshotVectorLikeOut =
                   config::DefaultVectorLike,
-              template <typename> typename OpOutputContainerLike =
+              template <typename> typename MemoryRegionContainerLike =
                   config::DefaultVectorLike>
-    OpOutputContainerLike<OpOutput<SnapshotVectorLikeOut>>
-    findString(OpInput<SnapshotVectorLikeIn1> in1, const std::string_view str)
+    MemoryRegionContainerLike<MemoryRegion<SnapshotVectorLikeOut>>
+    findString(MemoryRegionView<SnapshotVectorLikeIn1> in1,
+               const std::string_view                  str)
         requires SnapshotVectorCpt<SnapshotVectorLikeIn1> &&
                  SnapshotVectorCpt<SnapshotVectorLikeOut> &&
-                 OpOutputContainerCpt<OpOutputContainerLike,
-                                      OpOutput<SnapshotVectorLikeOut>>;
+                 MemoryRegionContainerCpt<MemoryRegionContainerLike,
+                                          MemoryRegion<SnapshotVectorLikeOut>>;
 
     template <Numeric N,
               template <typename> typename SnapshotVectorLikeIn1 =
                   config::DefaultVectorLike,
               template <typename> typename SnapshotVectorLikeOut =
                   config::DefaultVectorLike,
-              template <typename> typename OpOutputContainerLike =
+              template <typename> typename MemoryRegionContainerLike =
                   config::DefaultVectorLike>
-    OpOutputContainerLike<OpOutput<SnapshotVectorLikeOut>>
-    findNumExact(OpInput<SnapshotVectorLikeIn1> in1, N num)
+    MemoryRegionContainerLike<MemoryRegion<SnapshotVectorLikeOut>>
+    findNumExact(MemoryRegionView<SnapshotVectorLikeIn1> in1, N num)
         requires SnapshotVectorCpt<SnapshotVectorLikeIn1> &&
                  SnapshotVectorCpt<SnapshotVectorLikeOut> &&
-                 OpOutputContainerCpt<OpOutputContainerLike,
-                                      OpOutput<SnapshotVectorLikeOut>>;
+                 MemoryRegionContainerCpt<MemoryRegionContainerLike,
+                                          MemoryRegion<SnapshotVectorLikeOut>>;
 
     template <Numeric N,
               template <typename> typename SnapshotVectorLikeIn1 =
                   config::DefaultVectorLike,
               template <typename> typename SnapshotVectorLikeOut =
                   config::DefaultVectorLike,
-              template <typename> typename OpOutputContainerLike =
+              template <typename> typename MemoryRegionContainerLike =
                   config::DefaultVectorLike>
-    OpOutputContainerLike<OpOutput<SnapshotVectorLikeOut>>
-    findNumInRange(OpInput<SnapshotVectorLikeIn1> in1, N min, N max)
+    MemoryRegionContainerLike<MemoryRegion<SnapshotVectorLikeOut>>
+    findNumInRange(MemoryRegionView<SnapshotVectorLikeIn1> in1, N min, N max)
         requires SnapshotVectorCpt<SnapshotVectorLikeIn1> &&
                  SnapshotVectorCpt<SnapshotVectorLikeOut> &&
-                 OpOutputContainerCpt<OpOutputContainerLike,
-                                      OpOutput<SnapshotVectorLikeOut>>;
+                 MemoryRegionContainerCpt<MemoryRegionContainerLike,
+                                          MemoryRegion<SnapshotVectorLikeOut>>;
 } // namespace rmf
 
 namespace rmf
@@ -146,15 +130,16 @@ namespace rmf
     template <template <typename> typename SnapshotVectorLikeIn1,
               template <typename> typename SnapshotVectorLikeIn2,
               template <typename> typename SnapshotVectorLikeOut,
-              template <typename> typename OpOutputContainerLike>
-    OpOutputContainerLike<OpOutput<SnapshotVectorLikeOut>>
-    findChanged(OpInput<SnapshotVectorLikeIn1> in1,
-                OpInput<SnapshotVectorLikeIn1> in2, uintptr_t compareSize)
+              template <typename> typename MemoryRegionContainerLike>
+    MemoryRegionContainerLike<MemoryRegion<SnapshotVectorLikeOut>>
+    findChanged(MemoryRegionView<SnapshotVectorLikeIn1> in1,
+                MemoryRegionView<SnapshotVectorLikeIn1> in2,
+                uintptr_t                               compareSize)
         requires SnapshotVectorCpt<SnapshotVectorLikeIn1> &&
                  SnapshotVectorCpt<SnapshotVectorLikeIn2> &&
                  SnapshotVectorCpt<SnapshotVectorLikeOut> &&
-                 OpOutputContainerCpt<OpOutputContainerLike,
-                                      OpOutput<SnapshotVectorLikeOut>>
+                 MemoryRegionContainerCpt<MemoryRegionContainerLike,
+                                          MemoryRegion<SnapshotVectorLikeOut>>
     {
         assert(false && "TODO!");
     }
@@ -162,15 +147,16 @@ namespace rmf
     template <template <typename> typename SnapshotVectorLikeIn1,
               template <typename> typename SnapshotVectorLikeIn2,
               template <typename> typename SnapshotVectorLikeOut,
-              template <typename> typename OpOutputContainerLike>
-    OpOutputContainerLike<OpOutput<SnapshotVectorLikeOut>>
-    findUnchanged(OpInput<SnapshotVectorLikeIn1> in1,
-                  OpInput<SnapshotVectorLikeIn1> in2, uintptr_t compareSize)
+              template <typename> typename MemoryRegionContainerLike>
+    MemoryRegionContainerLike<MemoryRegion<SnapshotVectorLikeOut>>
+    findUnchanged(MemoryRegionView<SnapshotVectorLikeIn1> in1,
+                  MemoryRegionView<SnapshotVectorLikeIn1> in2,
+                  uintptr_t                               compareSize)
         requires SnapshotVectorCpt<SnapshotVectorLikeIn1> &&
                  SnapshotVectorCpt<SnapshotVectorLikeIn2> &&
                  SnapshotVectorCpt<SnapshotVectorLikeOut> &&
-                 OpOutputContainerCpt<OpOutputContainerLike,
-                                      OpOutput<SnapshotVectorLikeOut>>
+                 MemoryRegionContainerCpt<MemoryRegionContainerLike,
+                                          MemoryRegion<SnapshotVectorLikeOut>>
     {
         assert(false && "TODO!");
     }
@@ -178,15 +164,16 @@ namespace rmf
     template <Numeric N, template <typename> typename SnapshotVectorLikeIn1,
               template <typename> typename SnapshotVectorLikeIn2,
               template <typename> typename SnapshotVectorLikeOut,
-              template <typename> typename OpOutputContainerLike>
-    OpOutputContainerLike<OpOutput<SnapshotVectorLikeOut>>
-    findNumChanged(OpInput<SnapshotVectorLikeIn1> in1,
-                   OpInput<SnapshotVectorLikeIn1> in2, N minChangeRequired)
+              template <typename> typename MemoryRegionContainerLike>
+    MemoryRegionContainerLike<MemoryRegion<SnapshotVectorLikeOut>>
+    findNumChanged(MemoryRegionView<SnapshotVectorLikeIn1> in1,
+                   MemoryRegionView<SnapshotVectorLikeIn1> in2,
+                   N                                       minChangeRequired)
         requires SnapshotVectorCpt<SnapshotVectorLikeIn1> &&
                  SnapshotVectorCpt<SnapshotVectorLikeIn2> &&
                  SnapshotVectorCpt<SnapshotVectorLikeOut> &&
-                 OpOutputContainerCpt<OpOutputContainerLike,
-                                      OpOutput<SnapshotVectorLikeOut>>
+                 MemoryRegionContainerCpt<MemoryRegionContainerLike,
+                                          MemoryRegion<SnapshotVectorLikeOut>>
     {
         assert(false && "TODO!");
     }
@@ -194,54 +181,56 @@ namespace rmf
     template <Numeric N, template <typename> typename SnapshotVectorLikeIn1,
               template <typename> typename SnapshotVectorLikeIn2,
               template <typename> typename SnapshotVectorLikeOut,
-              template <typename> typename OpOutputContainerLike>
-    OpOutputContainerLike<OpOutput<SnapshotVectorLikeOut>>
-    findNumUnchanged(OpInput<SnapshotVectorLikeIn1> in1,
-                     OpInput<SnapshotVectorLikeIn1> in2, N maxChangeRequired)
+              template <typename> typename MemoryRegionContainerLike>
+    MemoryRegionContainerLike<MemoryRegion<SnapshotVectorLikeOut>>
+    findNumUnchanged(MemoryRegionView<SnapshotVectorLikeIn1> in1,
+                     MemoryRegionView<SnapshotVectorLikeIn1> in2,
+                     N                                       maxChangeRequired)
         requires SnapshotVectorCpt<SnapshotVectorLikeIn1> &&
                  SnapshotVectorCpt<SnapshotVectorLikeIn2> &&
                  SnapshotVectorCpt<SnapshotVectorLikeOut> &&
-                 OpOutputContainerCpt<OpOutputContainerLike,
-                                      OpOutput<SnapshotVectorLikeOut>>
+                 MemoryRegionContainerCpt<MemoryRegionContainerLike,
+                                          MemoryRegion<SnapshotVectorLikeOut>>
     {
         assert(false && "TODO!");
     }
 
     template <template <typename> typename SnapshotVectorLikeIn1,
               template <typename> typename SnapshotVectorLikeOut,
-              template <typename> typename OpOutputContainerLike>
-    OpOutputContainerLike<OpOutput<SnapshotVectorLikeOut>>
-    findString(OpInput<SnapshotVectorLikeIn1> in1, const std::string_view str)
+              template <typename> typename MemoryRegionContainerLike>
+    MemoryRegionContainerLike<MemoryRegion<SnapshotVectorLikeOut>>
+    findString(MemoryRegionView<SnapshotVectorLikeIn1> in1,
+               const std::string_view                  str)
         requires SnapshotVectorCpt<SnapshotVectorLikeIn1> &&
                  SnapshotVectorCpt<SnapshotVectorLikeOut> &&
-                 OpOutputContainerCpt<OpOutputContainerLike,
-                                      OpOutput<SnapshotVectorLikeOut>>
+                 MemoryRegionContainerCpt<MemoryRegionContainerLike,
+                                          MemoryRegion<SnapshotVectorLikeOut>>
     {
         assert(false && "TODO!");
     }
 
     template <Numeric N, template <typename> typename SnapshotVectorLikeIn1,
               template <typename> typename SnapshotVectorLikeOut,
-              template <typename> typename OpOutputContainerLike>
-    OpOutputContainerLike<OpOutput<SnapshotVectorLikeOut>>
-    findNumExact(OpInput<SnapshotVectorLikeIn1> in1, N num)
+              template <typename> typename MemoryRegionContainerLike>
+    MemoryRegionContainerLike<MemoryRegion<SnapshotVectorLikeOut>>
+    findNumExact(MemoryRegionView<SnapshotVectorLikeIn1> in1, N num)
         requires SnapshotVectorCpt<SnapshotVectorLikeIn1> &&
                  SnapshotVectorCpt<SnapshotVectorLikeOut> &&
-                 OpOutputContainerCpt<OpOutputContainerLike,
-                                      OpOutput<SnapshotVectorLikeOut>>
+                 MemoryRegionContainerCpt<MemoryRegionContainerLike,
+                                          MemoryRegion<SnapshotVectorLikeOut>>
     {
         assert(false && "TODO!");
     }
 
     template <Numeric N, template <typename> typename SnapshotVectorLikeIn1,
               template <typename> typename SnapshotVectorLikeOut,
-              template <typename> typename OpOutputContainerLike>
-    OpOutputContainerLike<OpOutput<SnapshotVectorLikeOut>>
-    findNumInRange(OpInput<SnapshotVectorLikeIn1> in1, N min, N max)
+              template <typename> typename MemoryRegionContainerLike>
+    MemoryRegionContainerLike<MemoryRegion<SnapshotVectorLikeOut>>
+    findNumInRange(MemoryRegionView<SnapshotVectorLikeIn1> in1, N min, N max)
         requires SnapshotVectorCpt<SnapshotVectorLikeIn1> &&
                  SnapshotVectorCpt<SnapshotVectorLikeOut> &&
-                 OpOutputContainerCpt<OpOutputContainerLike,
-                                      OpOutput<SnapshotVectorLikeOut>>
+                 MemoryRegionContainerCpt<MemoryRegionContainerLike,
+                                          MemoryRegion<SnapshotVectorLikeOut>>
     {
         assert(false && "TODO!");
     }
