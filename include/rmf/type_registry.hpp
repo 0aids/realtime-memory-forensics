@@ -130,10 +130,7 @@ namespace rmf
         Typed& operator=(Typed&&)      = default;
         Typed& operator=(const Typed&) = default;
 
-        // MemoryRegionTyped<Typed> from a MemoryRegion (either view or not)
-        template <typename T>
-            requires isMemoryRegionViewCpt<T> || isMemoryRegionCpt<T>
-        auto regionify(T self);
+        auto   regionify(MemoryRegionView mrv);
         // Explicit conversions? as these are checked.
         // explicit operator Pointer();
         // explicit operator Array();
@@ -217,9 +214,7 @@ namespace rmf
         bool  containsField(const std::string_view field);
         bool  containsField(const Field& field);
 
-        template <typename T>
-            requires isMemoryRegionViewCpt<T> || isMemoryRegionCpt<T>
-        auto regionify(T self);
+        auto  regionify(MemoryRegionView mrf);
     };
 
     // Mutually exclusive with "Typed" nodes.
@@ -229,6 +224,7 @@ namespace rmf
         std::weak_ptr<PointerData> m_pointerData;
 
       public:
+        using MRP = MemoryRegionTyped<Pointer>;
         Pointer(const Typed&);
         Pointer()                          = delete;
         Pointer(Pointer&&)                 = default;
@@ -237,12 +233,9 @@ namespace rmf
         Pointer& operator=(const Pointer&) = default;
 
         Typed    targetType() const;
-        template <typename T>
-            requires isMemoryRegionViewCpt<T> || isMemoryRegionCpt<T>
-        auto regionify(T self);
+        auto     regionify(MemoryRegionView mrf);
         // Returns a new MemoryRegionTyped
-        template <isMemoryRegionTypedCpt MRT>
-        auto deref(this const MRT& self);
+        auto deref(this const MRP& self);
     };
 
     // A temporary holder of data of unknown type. Used by primitive
@@ -266,6 +259,7 @@ namespace rmf
         std::weak_ptr<PrimitiveData> m_data;
 
       public:
+        using MRP = MemoryRegionTyped<Primitive>;
         Primitive(const Typed&);
         Primitive()                            = delete;
         Primitive(Primitive&&)                 = default;
@@ -273,12 +267,9 @@ namespace rmf
         Primitive& operator=(Primitive&&)      = default;
         Primitive& operator=(const Primitive&) = default;
 
-        template <typename T>
-            requires isMemoryRegionViewCpt<T> || isMemoryRegionCpt<T>
-        auto regionify(T self);
+        auto       regionify(MemoryRegionView mrf);
 
-        template <isMemoryRegionTypedCpt MRT>
-        Unknown value(this const MRT& self);
+        Unknown    value(this const MRP& self);
     };
 
     class Array : public Typed
@@ -287,6 +278,7 @@ namespace rmf
         std::weak_ptr<ArrayData> m_data;
 
       public:
+        using MRA = MemoryRegionTyped<Array>;
         Array(const Typed&);
         Array()                        = delete;
         Array(Array&&)                 = default;
@@ -296,13 +288,10 @@ namespace rmf
 
         Typed  targetType() const;
 
-        template <typename T>
-            requires isMemoryRegionViewCpt<T> || isMemoryRegionCpt<T>
-        auto regionify(T self);
+        auto   regionify(MemoryRegionView mrf);
 
         // Returns a new MemoryRegionTyped
-        template <isMemoryRegionTypedCpt MRT>
-        auto at(this const MRT& self, size_t ind);
+        auto at(this const MRA& self, size_t ind);
     };
 
     class Field : public Typed
@@ -310,6 +299,7 @@ namespace rmf
         std::weak_ptr<FieldData> m_data;
 
       public:
+        using MRF = MemoryRegionTyped<Field>;
         Field(const Typed& typed);
         Field()                        = delete;
         Field(Field&&)                 = default;
@@ -320,17 +310,13 @@ namespace rmf
 
         ssize_t offset() const;
 
-        template <typename T>
-            requires isMemoryRegionViewCpt<T> || isMemoryRegionCpt<T>
-        auto regionify(T self);
+        auto    regionify(MemoryRegionView mrf);
 
         // Get back the struct from which a field belongs to.
-        template <isMemoryRegionTypedCpt MRT>
-        auto structify(this const MRT& self);
+        auto structify(this const MRF& self);
 
         // Returns a new MemoryRegionTyped
-        template <isMemoryRegionTypedCpt MRT>
-        auto deref(this const MRT& self);
+        auto deref(this const MRF& self);
     };
 
     class StructBuilder;

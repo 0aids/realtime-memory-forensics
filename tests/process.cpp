@@ -8,6 +8,6 @@ TEST(process, ReadMaps)
 {
     auto forker = ForkedProcess(infiniteLoopFunc);
     auto proc   = rmf::Process(forker.pid);
-    auto maps   = proc.getMaps<std::vector>();
+    auto maps   = proc.getMaps();
     EXPECT_GT(maps.size(), 0);
 }

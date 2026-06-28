@@ -6,7 +6,6 @@
 #include <memory>
 #include <string>
 #include <ranges>
-#include "rmf/config.hpp"
 
 namespace rmf
 {
@@ -79,10 +78,7 @@ namespace rmf
         bool                isHavePerms(const std::string_view perms);
         bool                isNotHavePerms(const std::string_view perms);
 
-        template <template <typename> typename MapsContainerLike =
-                      config::DefaultVectorLike>
-        MapsContainerLike<Map> chunkify(ptrdiff_t size,
-                                        ptrdiff_t overlap = 0) const;
+        std::vector<Map> chunkify(ptrdiff_t size, ptrdiff_t overlap = 0) const;
     };
 } // namespace rmf
 
@@ -158,11 +154,5 @@ namespace rmf
             }
         }
         return p;
-    }
-    template <template <typename> typename MapsContainerLike>
-    MapsContainerLike<Map> Map::chunkify(ptrdiff_t size,
-                                         ptrdiff_t overlap) const
-    {
-        assert(false && "TODO!");
     }
 } // namespace rmf

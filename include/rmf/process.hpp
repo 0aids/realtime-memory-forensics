@@ -1,78 +1,37 @@
 #pragma once
-#include "rmf/config.hpp"
 #include "rmf/maps.hpp"
 #include "rmf/snapshots.hpp"
 #include <sched.h>
 #include <fstream>
 #include <format>
 #include <cstring>
-#include <type_traits>
 
 namespace rmf
 {
     struct Process
     {
-        const pid_t pid;
+        const pid_t           pid;
 
-        // If you want to add custom allocators, use a "using" statement
-        // like:
-        //    template <typename T>
-        //    using MyVector = std::vector<T, MyAllocator>;
-        template <
-            template <typename> typename VectorLike = config::DefaultVectorLike>
-            requires std::ranges::range<VectorLike<Map>>
-        VectorLike<Map> getMaps() const;
+        std::vector<Map>      getMaps() const;
 
-        // If you want to add custom allocators, use a "using" statement
-        // like:
-        //    template <typename T>
-        //    using MyVector = std::vector<T, MyAllocator>;
-        template <
-            template <typename> typename VectorLike = config::DefaultVectorLike>
-            requires std::ranges::contiguous_range<VectorLike<uint8_t>>
-        Snapshot<VectorLike> getSnapshot(const Map& map) const;
+        Snapshot              getSnapshot(const Map& map) const;
 
-        /* This is true modern c++ */
-
-        // SnapshotsList getSnapshots(RangeWithMaps)
-        //
-        // Takes in two template parameters -
-        // 		* SnapshotVectorLike - Contiguous container for captured memory
-        // 		* SnapshotContainerLike - Container for holding snapshots
-        // Post requires clauses is to ensure maps is a valid range with maps inside.
-        template <template <typename> typename SnapshotVectorLike =
-                      config::DefaultVectorLike,
-                  template <typename> typename SnapshotContainerLike =
-                      SnapshotVectorLike>
-        SnapshotContainerLike<Snapshot<SnapshotVectorLike>>
-        getSnapshots(auto&& maps) const
-            requires std::ranges::contiguous_range<
-                         SnapshotVectorLike<uint8_t>> &&
-                     std::ranges::range<
-                         SnapshotContainerLike<Snapshot<SnapshotVectorLike>>> &&
-                     std::ranges::range<std::decay_t<decltype(maps)>> &&
-                     std::same_as<std::decay_t<std::ranges::range_value_t<
-                                      decltype(maps)>>,
-                                  Map>;
+        std::vector<Snapshot> getSnapshots(auto&& maps) const;
 
         // Split a map up into it's active regions, IE regions that are currently in memory.
-        template <template <typename> typename MapsContainerLike =
-                      config::DefaultVectorLike>
-        MapsContainerLike<Map> mapGetActive() const;
+        std::vector<Map> mapGetActive() const;
     };
 } // namespace rmf
 
 namespace rmf
 {
-    template <template <typename> typename VectorLike>
-        requires std::ranges::range<VectorLike<Map>>
-    VectorLike<Map> Process::getMaps() const
+    std::vector<Map> Process::getMaps() const
     {
         std::ifstream mapFile =
             std::ifstream(std::format("/proc/{}/maps", pid));
-        std::string     line;
-        uint32_t        unnamedRegionNumber = 0;
-        VectorLike<Map> maps;
+        std::string      line;
+        uint32_t         unnamedRegionNumber = 0;
+        std::vector<Map> maps;
 
         while (std::getline(mapFile, line))
         {
@@ -100,30 +59,17 @@ namespace rmf
         return maps;
     }
 
-    template <template <typename> typename VectorLike>
-        requires std::ranges::contiguous_range<VectorLike<uint8_t>>
-    Snapshot<VectorLike> Process::getSnapshot(const Map& map) const
+    Snapshot Process::getSnapshot(const Map& map) const
     {
         assert(false && "TODO!");
     }
 
-    template <template <typename> typename SnapshotVectorLike,
-              template <typename> typename SnapshotContainerLike>
-    SnapshotContainerLike<Snapshot<SnapshotVectorLike>>
-    Process::getSnapshots(auto&& maps) const
-        requires std::ranges::contiguous_range<SnapshotVectorLike<uint8_t>> &&
-                 std::ranges::range<
-                     SnapshotContainerLike<Snapshot<SnapshotVectorLike>>> &&
-                 std::ranges::range<std::decay_t<decltype(maps)>> &&
-                 std::same_as<
-                     std::decay_t<std::ranges::range_value_t<decltype(maps)>>,
-                     Map>
+    std::vector<Snapshot> Process::getSnapshots(auto&& maps) const
     {
         assert(false && "TODO!");
     }
 
-    template <template <typename> typename MapsContainerLike>
-    MapsContainerLike<Map> Process::mapGetActive() const
+    std::vector<Map> Process::mapGetActive() const
     {
         assert(false && "TODO!");
     }

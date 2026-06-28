@@ -1,17 +1,12 @@
 #pragma once
 
 #include <type_traits>
-#include <vector>
+#include <concepts>
 
 namespace rmf
 {
     template <typename N>
     concept Numeric = requires { std::is_arithmetic_v<N>; };
-    namespace config
-    {
-        template <typename T>
-        using DefaultVectorLike = std::vector<T>;
-    }
 
     class Typed;
     class Array;
