@@ -2,6 +2,38 @@
 #include <cstddef>
 namespace rmf
 {
+    bool Map::isLTSize(ptrdiff_t size) const
+    {
+        return rSize < size;
+    }
+    bool Map::isGTSize(ptrdiff_t size) const
+    {
+        return rSize > size;
+    }
+    bool Map::isEQSize(ptrdiff_t size) const
+    {
+        return rSize == size;
+    }
+    bool Map::isExactName(const std::string_view string) const
+    {
+        return string == *name;
+    }
+    bool Map::isSubName(const std::string_view string) const
+    {
+        return name->contains(string);
+    }
+    bool Map::isExactPerms(const std::string_view strperms) const
+    {
+        return Perms_Parse(strperms) == perms;
+    }
+    bool Map::isHavePerms(const std::string_view strperms) const
+    {
+        return (bool)(Perms_Parse(strperms) & perms);
+    }
+    bool Map::isNotHavePerms(const std::string_view strperms) const
+    {
+        return !(bool)(Perms_Parse(strperms) & perms);
+    }
 
     std::vector<Map> Map::chunkify(ptrdiff_t chunkSize, ptrdiff_t overlap) const
     {

@@ -66,13 +66,14 @@ namespace rmf
 
         constexpr bool      valid() const;
 
-        bool                isLTSize(ptrdiff_t size);
-        bool                isGTSize(ptrdiff_t size);
-        bool                isExactName(const std::string_view string);
-        bool                isSubName(const std::string_view string);
-        bool                isExactPerms(const std::string_view perms);
-        bool                isHavePerms(const std::string_view perms);
-        bool                isNotHavePerms(const std::string_view perms);
+        bool                isLTSize(ptrdiff_t size) const;
+        bool                isGTSize(ptrdiff_t size) const;
+        bool                isEQSize(ptrdiff_t size) const;
+        bool                isExactName(const std::string_view string) const;
+        bool                isSubName(const std::string_view string) const;
+        bool                isExactPerms(const std::string_view perms) const;
+        bool                isHavePerms(const std::string_view perms) const;
+        bool                isNotHavePerms(const std::string_view perms) const;
 
         std::vector<Map> chunkify(ptrdiff_t size, ptrdiff_t overlap = 0) const;
     };
