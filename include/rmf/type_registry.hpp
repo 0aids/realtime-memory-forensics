@@ -120,6 +120,7 @@ namespace rmf
         static Typed makeFromWptr(std::weak_ptr<BaseTypeData> data);
 
       public:
+        using MRT = MemoryRegionTyped<Typed>;
         ssize_t                size() const;
         ssize_t                alignment() const;
         Type                   type() const;
@@ -130,7 +131,7 @@ namespace rmf
         Typed& operator=(Typed&&)      = default;
         Typed& operator=(const Typed&) = default;
 
-        auto   regionify(MemoryRegionView mrv);
+        MRT    regionify(MemoryRegionView mrv);
         // Explicit conversions? as these are checked.
         // explicit operator Pointer();
         // explicit operator Array();
@@ -159,6 +160,7 @@ namespace rmf
         std::weak_ptr<StructData> m_data;
 
       public:
+        using MRS = MemoryRegionTyped<Struct>;
         // Not really sure about the constructor situation here.
         Struct(const Typed&);
         Struct()                                      = delete;
@@ -214,7 +216,7 @@ namespace rmf
         bool  containsField(const std::string_view field);
         bool  containsField(const Field& field);
 
-        auto  regionify(MemoryRegionView mrf);
+        MRS   regionify(MemoryRegionView mrf);
     };
 
     // Mutually exclusive with "Typed" nodes.
@@ -233,9 +235,9 @@ namespace rmf
         Pointer& operator=(const Pointer&) = default;
 
         Typed    targetType() const;
-        auto     regionify(MemoryRegionView mrf);
+        MRP      regionify(MemoryRegionView mrv);
         // Returns a new MemoryRegionTyped
-        auto deref(this const MRP& self);
+        MRT deref(this const MRP& self);
     };
 
     // A temporary holder of data of unknown type. Used by primitive
@@ -267,7 +269,7 @@ namespace rmf
         Primitive& operator=(Primitive&&)      = default;
         Primitive& operator=(const Primitive&) = default;
 
-        auto       regionify(MemoryRegionView mrf);
+        MRP        regionify(MemoryRegionView mrv);
 
         Unknown    value(this const MRP& self);
     };
@@ -288,10 +290,10 @@ namespace rmf
 
         Typed  targetType() const;
 
-        auto   regionify(MemoryRegionView mrf);
+        MRA    regionify(MemoryRegionView mrv);
 
         // Returns a new MemoryRegionTyped
-        auto at(this const MRA& self, size_t ind);
+        MRT at(this const MRA& self, size_t ind);
     };
 
     class Field : public Typed
@@ -300,6 +302,7 @@ namespace rmf
 
       public:
         using MRF = MemoryRegionTyped<Field>;
+        using MRS = MemoryRegionTyped<Struct>;
         Field(const Typed& typed);
         Field()                        = delete;
         Field(Field&&)                 = default;
@@ -310,13 +313,13 @@ namespace rmf
 
         ssize_t offset() const;
 
-        auto    regionify(MemoryRegionView mrf);
+        MRF     regionify(MemoryRegionView mrv);
 
         // Get back the struct from which a field belongs to.
-        auto structify(this const MRF& self);
+        MRS structify(this const MRF& self);
 
         // Returns a new MemoryRegionTyped
-        auto deref(this const MRF& self);
+        MRT deref(this const MRF& self);
     };
 
     class StructBuilder;

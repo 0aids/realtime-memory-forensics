@@ -20,8 +20,8 @@ set(CXX_COMP_COMMANDS
     $<$<CONFIG:Debug>:-O0> $<$<CONFIG:Release>:-O3>
 )
 
-option(Asan "Address sanitizer" ON)
-option(UBsan "Undefined behaviour sanitizer" OFF)
+option(Asan "Address sanitizer" OFF)
+option(UBsan "Undefined behaviour sanitizer" ON)
 if(Asan)
     add_compile_options(-fsanitize=address)
     add_link_options(-fsanitize=address)

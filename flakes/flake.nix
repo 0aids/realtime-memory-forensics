@@ -18,26 +18,6 @@
           inherit system;
           config.allowUnfree = true;
           config.cudaSupport = true;
-          # overlays = [
-          #   (final: prev: {
-          #     root = prev.root.overrideAttrs (old: {
-          #       src = pkgs.fetchFromGitHub {
-          #         owner = "0aids";
-          #         repo = "root";
-          #         hash = "sha256-+ct2VggHEZlFHrm9gN3BKKf5WsUWW3SPjxIPZm5fd38=";
-          #         rev = "b05a97247aad00946a45acd42c372a997d28cc22";
-          #       };
-          #       cmakeFlags = (old.cmakeFlags or [ ]) ++ [
-          #         "-DCMAKE_CXX_STANDARD=23"
-          #         "-DROOT_CXX_STANDARD=23"
-          #       ];
-          #       buildInputs = old.buildInputs ++ (with pkgs; [
-          #           curl
-          #           blas
-          #       ]);
-          #     });
-          #   })
-          # ];
         };
 
         pythonVer = pkgs.python313Packages;
@@ -56,6 +36,7 @@
             cmake
             ninja
             llvm.clang-tools
+            llvm.bintools
             gtest
             pre-commit
             ruff
