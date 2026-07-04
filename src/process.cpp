@@ -11,14 +11,15 @@ extern "C"
 
 namespace rmf
 {
-    MapsVec::MapsVec(const Process& proc, const std::vector<Map>& maps) :
+    MapsProcVec::MapsProcVec(const Process&          proc,
+                             const std::vector<Map>& maps) :
         std::vector<Map>(maps), proc(proc)
     {
     }
 
-    MapsVec MapsVec::getActive() const
+    MapsProcVec MapsProcVec::getActive() const
     {
-        auto mv = MapsVec(proc, *this);
+        auto mv = MapsProcVec(proc, *this);
         for (const auto& map : *this)
         {
             auto active = proc.mapGetActive(map);
@@ -27,13 +28,13 @@ namespace rmf
         return mv;
     }
 
-    MapsVec Process::getMaps() const
+    MapsProcVec Process::getMaps() const
     {
         std::ifstream mapFile =
             std::ifstream(std::format("/proc/{}/maps", pid));
         std::string line;
         uint32_t    unnamedRegionNumber = 0;
-        MapsVec     maps                = MapsVec(*this, {});
+        MapsProcVec maps                = MapsProcVec(*this, {});
 
         while (std::getline(mapFile, line))
         {
@@ -67,10 +68,8 @@ namespace rmf
 
         struct iovec        localIovec[1];
         struct iovec        sourceIovec[1];
-        Snapshot            snap = {
-            .data = std::make_shared<Snapshot::SnapshotVector>(),
-        };
-        snap.data->resize(map.rSize);
+        Snapshot            snap = {};
+        snap.resize(map.rSize);
         intptr_t totalBytesRead = 0;
         while (totalBytesRead < static_cast<intptr_t>(map.rSize))
         {
@@ -81,7 +80,7 @@ namespace rmf
             sourceIovec[0].iov_base = (void*)(map.tbegin() + totalBytesRead);
             sourceIovec[0].iov_len  = bytesToRead;
 
-            localIovec[0].iov_base = snap.data->data() + totalBytesRead;
+            localIovec[0].iov_base = snap.data() + totalBytesRead;
             localIovec[0].iov_len  = bytesToRead;
 
             ssize_t nread =
@@ -91,12 +90,12 @@ namespace rmf
             {
                 if (nread == -1 && totalBytesRead > 0)
                 {
-                    snap.data->clear();
+                    snap.clear();
                     perror("process_vm_readv");
                     return snap;
                 }
                 perror("process_vm_readv");
-                snap.data->resize(totalBytesRead);
+                snap.resize(totalBytesRead);
                 return snap;
             }
             totalBytesRead += nread;
@@ -108,7 +107,7 @@ namespace rmf
         return std::format("/proc/{}/pagemap", pid);
     }
 
-    MapsVec Process::mapGetActive(const Map& map) const
+    MapsProcVec Process::mapGetActive(const Map& map) const
     {
         const std::string pagemapPath = getPagemapPath();
         int               fd          = open(pagemapPath.c_str(), O_RDONLY);
@@ -116,7 +115,7 @@ namespace rmf
         {
             throw std::runtime_error("Failed to open the pagemap!");
         }
-        auto activeRegions = MapsVec(*this, mapGetActiveImpl(map, fd));
+        auto activeRegions = MapsProcVec(*this, mapGetActiveImpl(map, fd));
         close(fd);
         return activeRegions;
     }

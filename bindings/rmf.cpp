@@ -1,7 +1,9 @@
 #include <rmf/maps.hpp>
 #include <rmf/process.hpp>
-#include <rmf/memory_region.hpp>
 #include <rmf/op.hpp>
+
+#include <nanobind/stl/bind_vector.h>
+#include <nanobind/stl/string.h>
 #include <nanobind/nanobind.h>
 
 namespace nb = nanobind;
@@ -17,24 +19,30 @@ NB_MODULE(rmfpy, m)
         .def("Parse", rmf::Perms_Parse<std::string>);
 
     nb::class_<rmf::Map>(m, "Map")
-        .def_ro("name", &rmf::Map::name) // sus
-        .def("tbegin", &rmf::Map::tbegin)
-        .def("tend", &rmf::Map::tend)
-        .def("rbegin", &rmf::Map::rbegin)
-        .def("rend", &rmf::Map::rend)
-        .def("pbegin", &rmf::Map::pbegin)
-        .def("pend", &rmf::Map::pend)
-        .def("valid", &rmf::Map::valid)
-        .def("isLTSize", &rmf::Map::isLTSize)
-        .def("isGTSize", &rmf::Map::isGTSize)
-        .def("isEQSize", &rmf::Map::isEQSize)
-        .def("isExactName", &rmf::Map::isExactName)
-        .def("isSubName", &rmf::Map::isSubName)
-        .def("isExactPerms", &rmf::Map::isExactPerms)
-        .def("isHavePerms", &rmf::Map::isHavePerms)
-        .def("chunkify", &rmf::Map::chunkify);
-    nb::class_<rmf::MapsVec>(m, "MapsVec")
-        .def("getActive", &rmf::MapsVec::getActive);
+        .def_prop_ro("name", [](const rmf::Map&m){ return m.name.get(); }) // sus
+        .def_prop_ro("tbegin", &rmf::Map::tbegin)
+        .def_prop_ro("tend", &rmf::Map::tend)
+        .def_prop_ro("rbegin", &rmf::Map::rbegin)
+        .def_prop_ro("rend", &rmf::Map::rend)
+        .def_prop_ro("pbegin", &rmf::Map::pbegin)
+        .def_prop_ro("pend", &rmf::Map::pend)
+        .def_prop_ro("valid", &rmf::Map::valid)
+        .def_ro("rsize", &rmf::Map::rSize)
+        .def_ro("psize", &rmf::Map::pSize)
+        .def_prop_ro("isLTSize", &rmf::Map::isLTSize)
+        .def_prop_ro("isGTSize", &rmf::Map::isGTSize)
+        .def_prop_ro("isEQSize", &rmf::Map::isEQSize)
+        .def_prop_ro("isExactName", &rmf::Map::isExactName)
+        .def_prop_ro("isSubName", &rmf::Map::isSubName)
+        .def_prop_ro("isExactPerms", &rmf::Map::isExactPerms)
+        .def_prop_ro("isHavePerms", &rmf::Map::isHavePerms)
+        .def_prop_ro("chunkify", &rmf::Map::chunkify);
+
+
+    nb::bind_vector<rmf::MapsProcVec>(m, "MapsProcVec")
+        .def("getActive", &rmf::MapsProcVec::getActive);
+
+    nb::bind_vector<std::vector<rmf::Map>>(m, "MapsVec");
 
     nb::class_<rmf::Process>(m, "Process")
         .def(nb::init<pid_t>())
@@ -46,13 +54,8 @@ NB_MODULE(rmfpy, m)
         .def("mapGetActive", &rmf::Process::mapGetActive)
         .def("getPagemapPath", &rmf::Process::getPagemapPath);
 
-    nb::class_<rmf::MemoryRegion>(m, "MemoryRegion")
-        .def(nb::init<rmf::Map, rmf::Snapshot>());
+    nb::bind_vector<rmf::Snapshot>(m, "Snapshot");
 
-    nb::class_<rmf::MemoryRegionView>(m, "MemoryRegionView")
-        .def(nb::init<const rmf::Map&, const rmf::Snapshot&>())
-        // implicit conversions?
-        ;
     m.def("findChanged", &rmf::findChanged);
     m.def("findUnchanged", &rmf::findUnchanged);
     m.def("findI8Changed", &rmf::findNumChanged<int8_t>);

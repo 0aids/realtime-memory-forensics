@@ -6,7 +6,10 @@
 #include <sys/signal.h>
 #include <csignal>
 #include <thread>
-#include "rmf/memory_region.hpp"
+#include <utility>
+#include <rmf/config.hpp>
+#include <rmf/maps.hpp>
+#include <rmf/snapshots.hpp>
 
 struct ForkedProcess
 {
@@ -62,7 +65,7 @@ static auto makeNumData(std::initializer_list<N> vals) -> std::vector<uint8_t>
 }
 
 static auto makeMRV(std::vector<uint8_t> data, uintptr_t pAddr = 0x1000,
-                    ptrdiff_t rAddr = 0) -> rmf::MemoryRegion
+                    ptrdiff_t rAddr = 0) -> std::pair<rmf::Map, rmf::Snapshot>
 {
     rmf::Map map{
         .name  = std::make_shared<const std::string>("test"),
@@ -71,8 +74,5 @@ static auto makeMRV(std::vector<uint8_t> data, uintptr_t pAddr = 0x1000,
         .rAddr = rAddr,
         .rSize = static_cast<ptrdiff_t>(data.size()),
     };
-    rmf::Snapshot snap{
-        .data = std::make_shared<std::vector<uint8_t>>(std::move(data)),
-    };
-    return {.map = std::move(map), .snap = std::move(snap)};
+    return {std::move(map), std::move(data)};
 }

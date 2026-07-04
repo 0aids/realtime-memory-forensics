@@ -22,7 +22,7 @@ TEST(process, ReadMemory)
     auto snaps = proc.getSnapshots(maps);
     EXPECT_EQ(snaps.size(), maps.size());
     std::println("snaps: {}, maps: {}", snaps.size(), maps.size());
-    std::span<uint8_t> firstSnapSpan = *snaps[0].data;
+    std::span<uint8_t> firstSnapSpan = snaps[0];
     std::println("snaps first 100 bytes: {::02x}",
                  firstSnapSpan.subspan(0, 100));
 }

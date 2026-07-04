@@ -3,30 +3,29 @@
 
 namespace rmf
 {
-    std::vector<Map> findChanged(MemoryRegionView in1, MemoryRegionView in2,
+    std::vector<Map> findChanged(const Map& m1, const Snapshot& s1,
+                                 const Map& m2, const Snapshot& s2,
                                  uintptr_t compareSize)
-
     {
         std::vector<Map> results;
         uintptr_t        bytesCompared = 0;
-        while (bytesCompared < in1.snap.data->size())
+        while (bytesCompared < s1.size())
         {
-            uintptr_t toCompare =
-                (in1.snap.data->size() - bytesCompared > compareSize) ?
-                    compareSize :
-                    in1.snap.data->size() - bytesCompared;
+            uintptr_t toCompare = (s1.size() - bytesCompared > compareSize) ?
+                                      compareSize :
+                                      s1.size() - bytesCompared;
 
-            if (memcmp(in1.snap.data->data() + bytesCompared,
-                       in2.snap.data->data() + bytesCompared, toCompare))
+            if (memcmp(s1.data() + bytesCompared, s2.data() + bytesCompared,
+                       toCompare))
             {
                 if (!results.empty() &&
-                    results.back().rend() == in1.map.rAddr + bytesCompared)
+                    results.back().rend() == m1.rAddr + bytesCompared)
                 {
                     results.back().rSize += toCompare;
                 }
                 else
                 {
-                    Map map = in1.map;
+                    Map map = m1;
                     map.rAddr += bytesCompared;
                     map.rSize = toCompare;
                     results.push_back(map);
@@ -37,30 +36,30 @@ namespace rmf
         return results;
     }
 
-    std::vector<Map> findUnchanged(MemoryRegionView in1, MemoryRegionView in2,
+    std::vector<Map> findUnchanged(const Map& m1, const Snapshot& s1,
+                                   const Map& m2, const Snapshot& s2,
                                    uintptr_t compareSize)
 
     {
         std::vector<Map> results;
         uintptr_t        bytesCompared = 0;
-        while (bytesCompared < in1.snap.data->size())
+        while (bytesCompared < s1.size())
         {
-            uintptr_t toCompare =
-                (in1.snap.data->size() - bytesCompared > compareSize) ?
-                    compareSize :
-                    in1.snap.data->size() - bytesCompared;
+            uintptr_t toCompare = (s1.size() - bytesCompared > compareSize) ?
+                                      compareSize :
+                                      s1.size() - bytesCompared;
 
-            if (!memcmp(in1.snap.data->data() + bytesCompared,
-                        in2.snap.data->data() + bytesCompared, toCompare))
+            if (!memcmp(s1.data() + bytesCompared, s2.data() + bytesCompared,
+                        toCompare))
             {
                 if (!results.empty() &&
-                    results.back().rend() == in1.map.rAddr + bytesCompared)
+                    results.back().rend() == m1.rAddr + bytesCompared)
                 {
                     results.back().rSize += toCompare;
                 }
                 else
                 {
-                    Map toPush = in1.map;
+                    Map toPush = m1;
                     toPush.rAddr += bytesCompared;
                     toPush.rSize = toCompare;
                     results.push_back(toPush);
@@ -71,13 +70,13 @@ namespace rmf
         return results;
     }
 
-    std::vector<Map> findString(MemoryRegionView       in1,
+    std::vector<Map> findString(const Map& m1, const Snapshot& s1,
                                 const std::string_view str)
     {
         std::vector<Map> results;
-        const char* head = reinterpret_cast<const char*>(in1.snap.data->data());
-        const char* begin = head;
-        const char* end   = head + in1.snap.data->size();
+        const char*      head  = reinterpret_cast<const char*>(s1.data());
+        const char*      begin = head;
+        const char*      end   = head + s1.size();
 
         while (head < end)
         {
@@ -88,7 +87,7 @@ namespace rmf
 
             if (std::memcmp(head, str.data(), str.size()) == 0)
             {
-                Map map   = in1.map;
+                Map map   = m1;
                 map.rAddr = head - begin;
                 map.rSize = str.size();
                 results.push_back(map);

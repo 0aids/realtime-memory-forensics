@@ -1,36 +1,41 @@
 #pragma once
 #include "rmf/config.hpp"
 #include "rmf/snapshots.hpp"
-#include "rmf/memory_region.hpp"
+#include "rmf/maps.hpp"
+
 #include <cstring>
 
 #include <cassert>
 
 namespace rmf
 {
-    std::vector<Map> findChanged(MemoryRegionView in1, MemoryRegionView in2,
+    std::vector<Map> findChanged(const Map& m1, const Snapshot& s1,
+                                 const Map& m2, const Snapshot& s2,
                                  uintptr_t compareSize);
 
-    std::vector<Map> findUnchanged(MemoryRegionView in1, MemoryRegionView in2,
+    std::vector<Map> findUnchanged(const Map& m1, const Snapshot& s1,
+                                   const Map& m2, const Snapshot& s2,
                                    uintptr_t compareSize);
 
     template <Numeric N>
-    std::vector<Map> findNumChanged(MemoryRegionView in1, MemoryRegionView in2,
+    std::vector<Map> findNumChanged(const Map& m1, const Snapshot& s1,
+                                    const Map& m2, const Snapshot& s2,
                                     N minChangeRequired);
 
     template <Numeric N>
-    std::vector<Map> findNumUnchanged(MemoryRegionView in1,
-                                      MemoryRegionView in2,
-                                      N                maxChangeRequired);
+    std::vector<Map> findNumUnchanged(const Map& m1, const Snapshot& s1,
+                                      const Map& m2, const Snapshot& s2,
+                                      N maxChangeRequired);
 
-    std::vector<Map> findString(MemoryRegionView       in1,
+    std::vector<Map> findString(const Map& m1, const Snapshot& s1,
                                 const std::string_view str);
 
     template <Numeric N>
-    std::vector<Map> findNumExact(MemoryRegionView in1, N num);
+    std::vector<Map> findNumExact(const Map& m1, const Snapshot& s1, N num);
 
     template <Numeric N>
-    std::vector<Map> findNumInRange(MemoryRegionView in1, N min, N max);
+    std::vector<Map> findNumInRange(const Map& m1, const Snapshot& s1, N min,
+                                    N max);
 } // namespace rmf
 
 namespace rmf
@@ -48,7 +53,8 @@ namespace rmf
         }
     }
     template <Numeric N>
-    std::vector<Map> findNumChanged(MemoryRegionView in1, MemoryRegionView in2,
+    std::vector<Map> findNumChanged(const Map& m1, const Snapshot& s1,
+                                    const Map& m2, const Snapshot& s2,
                                     N minChangeRequired)
 
     {
@@ -57,21 +63,21 @@ namespace rmf
         constexpr size_t size      = sizeof(N);
 
         // Prealign to the next available slot.
-        uintptr_t bytesCompared = Dtl::prealign(in1.map, alignment);
+        uintptr_t bytesCompared = Dtl::prealign(m1, alignment);
 
         // Ensure we don't read out of bounds
-        while (bytesCompared + size <= in1.snap.data->size())
+        while (bytesCompared + size <= s1.size())
         {
             N value1;
-            memcpy(&value1, in1.snap.data->data() + bytesCompared, size);
+            memcpy(&value1, s1.data() + bytesCompared, size);
             N value2;
-            memcpy(&value2, in2.snap.data->data() + bytesCompared, size);
+            memcpy(&value2, s2.data() + bytesCompared, size);
 
             N diff = value2 - value1;
 
             if (diff >= minChangeRequired)
             {
-                Map newnode = in1.map;
+                Map newnode = m1;
                 newnode.rAddr += bytesCompared;
                 newnode.rSize = size;
                 results.push_back(newnode);
@@ -83,29 +89,30 @@ namespace rmf
     }
 
     template <Numeric N>
-    std::vector<Map> findNumUnchanged(MemoryRegionView in1,
-                                      MemoryRegionView in2, N maxChangeRequired)
+    std::vector<Map> findNumUnchanged(const Map& m1, const Snapshot& s1,
+                                      const Map& m2, const Snapshot& s2,
+                                      N maxChangeRequired)
     {
         std::vector<Map> results;
         constexpr size_t alignment = alignof(N);
         constexpr size_t size      = sizeof(N);
 
         // Prealign to the next available slot.
-        uintptr_t bytesCompared = Dtl::prealign(in1.map, alignment);
+        uintptr_t bytesCompared = Dtl::prealign(m1, alignment);
 
         // Ensure we don't read out of bounds
-        while (bytesCompared + size <= in1.snap.data->size())
+        while (bytesCompared + size <= s1.size())
         {
             N value1;
-            memcpy(&value1, in1.snap.data->data() + bytesCompared, size);
+            memcpy(&value1, s1.data() + bytesCompared, size);
             N value2;
-            memcpy(&value2, in2.snap.data->data() + bytesCompared, size);
+            memcpy(&value2, s2.data() + bytesCompared, size);
 
             N diff = value2 - value1;
 
             if (diff <= maxChangeRequired)
             {
-                Map map = in1.map;
+                Map map = m1;
                 map.rAddr += bytesCompared;
                 map.rSize = size;
                 results.push_back(map);
@@ -116,20 +123,20 @@ namespace rmf
         return results;
     }
     template <Numeric N>
-    std::vector<Map> findNumExact(MemoryRegionView in1, N num)
+    std::vector<Map> findNumExact(const Map& m1, const Snapshot& s1, N num)
     {
         std::vector<Map> results;
         constexpr size_t alignment     = alignof(N);
         constexpr size_t size          = sizeof(N);
-        uintptr_t        bytesCompared = Dtl::prealign(in1.map, alignment);
+        uintptr_t        bytesCompared = Dtl::prealign(m1, alignment);
 
-        while (bytesCompared + size <= in1.snap.data->size())
+        while (bytesCompared + size <= s1.size())
         {
             N value;
-            memcpy(&value, in1.snap.data->data() + bytesCompared, size);
+            memcpy(&value, s1.data() + bytesCompared, size);
             if (value == num)
             {
-                Map map = in1.map;
+                Map map = m1;
                 map.rAddr += bytesCompared;
                 map.rSize = size;
                 results.push_back(map);
@@ -140,20 +147,21 @@ namespace rmf
     }
 
     template <Numeric N>
-    std::vector<Map> findNumInRange(MemoryRegionView in1, N min, N max)
+    std::vector<Map> findNumInRange(const Map& m1, const Snapshot& s1, N min,
+                                    N max)
     {
         std::vector<Map> results;
         constexpr size_t alignment     = alignof(N);
         constexpr size_t size          = sizeof(N);
-        uintptr_t        bytesCompared = Dtl::prealign(in1.map, alignment);
+        uintptr_t        bytesCompared = Dtl::prealign(m1, alignment);
 
-        while (bytesCompared + size <= in1.snap.data->size())
+        while (bytesCompared + size <= s1.size())
         {
             N value;
-            memcpy(&value, in1.snap.data->data() + bytesCompared, size);
+            memcpy(&value, s1.data() + bytesCompared, size);
             if (min <= value && value <= max)
             {
-                Map map = in1.map;
+                Map map = m1;
                 map.rAddr += bytesCompared;
                 map.rSize = size;
                 results.push_back(map);

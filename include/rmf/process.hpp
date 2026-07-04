@@ -8,20 +8,13 @@
 namespace rmf
 {
     struct Process;
-
-    struct MapsVec : public std::vector<Map>
-    {
-        MapsVec(const Process& proc, const std::vector<Map>& map);
-        const Process& proc;
-        using std::vector<Map>::vector;
-        MapsVec getActive() const;
-    };
+    struct MapsProcVec;
 
     struct Process
     {
-        const pid_t pid;
+        const pid_t pid = 0;
 
-        MapsVec     getMaps() const;
+        MapsProcVec getMaps() const;
 
         Snapshot    getSnapshot(const Map& map) const;
 
@@ -31,12 +24,20 @@ namespace rmf
         std::vector<Snapshot> getSnapshots(const MapsRange& maps) const;
 
         // Split a map up into it's active regions, IE regions that are currently in memory.
-        MapsVec     mapGetActive(const Map& map) const;
+        MapsProcVec mapGetActive(const Map& map) const;
         std::string getPagemapPath() const;
 
       private:
         std::vector<Map> mapGetActiveImpl(const Map& map,
                                           int        fileDescriptor) const;
+    };
+
+    struct MapsProcVec : public std::vector<Map>
+    {
+        MapsProcVec(const Process& proc, const std::vector<Map>& map);
+        Process proc;
+        using std::vector<Map>::vector;
+        MapsProcVec getActive() const;
     };
 } // namespace rmf
 
