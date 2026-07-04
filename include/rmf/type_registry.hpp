@@ -119,7 +119,6 @@ namespace rmf
         static Typed makeFromWptr(std::weak_ptr<BaseTypeData> data);
 
       public:
-        // // using MRT = MemoryRegionTyped<Typed>;
         ssize_t                size() const;
         ssize_t                alignment() const;
         Type                   type() const;
@@ -130,7 +129,6 @@ namespace rmf
         Typed& operator=(Typed&&)      = default;
         Typed& operator=(const Typed&) = default;
 
-        // MRT    regionify(MemoryRegionView mrv);
         // Explicit conversions? as these are checked.
         // explicit operator Pointer();
         // explicit operator Array();
@@ -143,7 +141,6 @@ namespace rmf
         std::weak_ptr<StructData> m_data;
 
       public:
-        // // using MRS = MemoryRegionTyped<Struct>;
         // Not really sure about the constructor situation here.
         Struct(const Typed&);
         Struct()                                      = delete;
@@ -197,8 +194,6 @@ namespace rmf
         Field operator[](const std::string_view) const;
         bool  containsField(const std::string_view field);
         bool  containsField(const Field& field);
-
-        // MRS   regionify(MemoryRegionView mrf);
     };
 
     // Mutually exclusive with "Typed" nodes.
@@ -208,7 +203,6 @@ namespace rmf
         std::weak_ptr<PointerData> m_pointerData;
 
       public:
-        // // using MRP = MemoryRegionTyped<Pointer>;
         Pointer(const Typed&);
         Pointer()                          = delete;
         Pointer(Pointer&&)                 = default;
@@ -217,9 +211,7 @@ namespace rmf
         Pointer& operator=(const Pointer&) = default;
 
         Typed    targetType() const;
-        // MRP      regionify(MemoryRegionView mrv);
         // // Returns a new MemoryRegionTyped
-        // MRT deref(this const MRP& self);
     };
 
     // A temporary holder of data of unknown type. Used by primitive
@@ -243,17 +235,12 @@ namespace rmf
         std::weak_ptr<PrimitiveData> m_data;
 
       public:
-        // // using MRP = MemoryRegionTyped<Primitive>;
         Primitive(const Typed&);
         Primitive()                            = delete;
         Primitive(Primitive&&)                 = default;
         Primitive(const Primitive&)            = default;
         Primitive& operator=(Primitive&&)      = default;
         Primitive& operator=(const Primitive&) = default;
-
-        // MRP        regionify(MemoryRegionView mrv);
-
-        // Unknown    value(this const MRP& self);
     };
 
     class Array : public Typed
@@ -262,7 +249,6 @@ namespace rmf
         std::weak_ptr<ArrayData> m_data;
 
       public:
-        // // using MRA = MemoryRegionTyped<Array>;
         Array(const Typed&);
         Array()                        = delete;
         Array(Array&&)                 = default;
@@ -272,10 +258,7 @@ namespace rmf
 
         Typed  targetType() const;
 
-        // MRA    regionify(MemoryRegionView mrv);
-
         // // Returns a new MemoryRegionTyped
-        // MRT at(this const MRA& self, size_t ind);
     };
 
     class Field : public Typed
@@ -283,8 +266,6 @@ namespace rmf
         std::weak_ptr<FieldData> m_data;
 
       public:
-        // // using MRF = MemoryRegionTyped<Field>;
-        // // using MRS = MemoryRegionTyped<Struct>;
         Field(const Typed& typed);
         Field()                        = delete;
         Field(Field&&)                 = default;
@@ -295,13 +276,9 @@ namespace rmf
 
         ssize_t offset() const;
 
-        // MRF     regionify(MemoryRegionView mrv);
-
         // Get back the struct from which a field belongs to.
-        // MRS structify(this const MRF& self);
 
         // // Returns a new MemoryRegionTyped
-        // MRT deref(this const MRF& self);
     };
 
     class StructBuilder;

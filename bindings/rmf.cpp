@@ -4,6 +4,7 @@
 
 #include <nanobind/stl/bind_vector.h>
 #include <nanobind/stl/string.h>
+#include <nanobind/ndarray.h>
 #include <nanobind/nanobind.h>
 
 namespace nb = nanobind;
@@ -29,14 +30,14 @@ NB_MODULE(rmfpy, m)
         .def_prop_ro("valid", &rmf::Map::valid)
         .def_ro("rsize", &rmf::Map::rSize)
         .def_ro("psize", &rmf::Map::pSize)
-        .def_prop_ro("isLTSize", &rmf::Map::isLTSize)
-        .def_prop_ro("isGTSize", &rmf::Map::isGTSize)
-        .def_prop_ro("isEQSize", &rmf::Map::isEQSize)
-        .def_prop_ro("isExactName", &rmf::Map::isExactName)
-        .def_prop_ro("isSubName", &rmf::Map::isSubName)
-        .def_prop_ro("isExactPerms", &rmf::Map::isExactPerms)
-        .def_prop_ro("isHavePerms", &rmf::Map::isHavePerms)
-        .def_prop_ro("chunkify", &rmf::Map::chunkify);
+        .def("isLTSize", &rmf::Map::isLTSize)
+        .def("isGTSize", &rmf::Map::isGTSize)
+        .def("isEQSize", &rmf::Map::isEQSize)
+        .def("isExactName", &rmf::Map::isExactName)
+        .def("isSubName", &rmf::Map::isSubName)
+        .def("isExactPerms", &rmf::Map::isExactPerms)
+        .def("isHavePerms", &rmf::Map::isHavePerms)
+        .def("chunkify", &rmf::Map::chunkify);
 
 
     nb::bind_vector<rmf::MapsProcVec>(m, "MapsProcVec")
