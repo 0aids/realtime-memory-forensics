@@ -139,22 +139,6 @@ namespace rmf
         // explicit operator Primitive();
     };
 
-    template <typename T>
-    concept FieldDeducibleCpt = requires {
-        std::same_as<T, std::string_view> || std::same_as<T, Field>;
-    };
-
-    template <typename T>
-    concept TypeDeducibleCpt = requires {
-        std::same_as<T, PType> || std::same_as<T, std::string_view> ||
-            std::same_as<T, Struct>;
-    };
-
-    template <typename T>
-    concept StructDeducibleCpt = requires {
-        std::same_as<T, std::string_view> || std::same_as<T, Struct>;
-    };
-
     class Struct : public Typed
     {
         std::weak_ptr<StructData> m_data;
@@ -359,7 +343,7 @@ namespace rmf
                      PrimitiveList&& primitiveList);
 
       public:
-        static TypeRegistry Make();
+        static TypeRegistry New();
         TypeRegistry()                               = delete;
         TypeRegistry(const TypeRegistry&)            = default;
         TypeRegistry(TypeRegistry&&)                 = default;

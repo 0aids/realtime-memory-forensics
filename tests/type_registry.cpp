@@ -26,7 +26,7 @@ TEST(type_registry, registerTest)
     };
     std::vector<ssize_t> sizes = {};
 
-    auto                 tr = rmf::TypeRegistry::Make();
+    auto                 tr = rmf::TypeRegistry::New();
     auto testStruct = tr.defStruct("TestStruct")
                           .field(tr.prim.u32, "data")
                           .field(tr.arrOf(tr.prim.u8, 4), "array")
@@ -61,7 +61,7 @@ TEST(type_registry, registerTest)
 
 TEST(type_registry, EnsurePrimitiveTypesConstructed)
 {
-    auto tr = rmf::TypeRegistry::Make();
+    auto tr = rmf::TypeRegistry::New();
 #define X(_name, _size)                                                        \
     EXPECT_EQ(tr.prim._name##_size.name(), #_name #_size);                     \
     EXPECT_EQ(tr.prim._name##_size.alignment(), _size / 8);                    \
@@ -74,7 +74,7 @@ TEST(type_registry, EnsurePrimitiveTypesConstructed)
 
 TEST(type_registry, PrimitiveV0)
 {
-    auto tr = rmf::TypeRegistry::Make();
+    auto tr = rmf::TypeRegistry::New();
     EXPECT_EQ(tr.prim.v0.size(), 0);
     EXPECT_EQ(tr.prim.v0.alignment(), 0);
     EXPECT_EQ(tr.prim.v0.type(), rmf::Type::Primitive);
@@ -87,7 +87,7 @@ TEST(type_registry, PrimitiveV0)
 
 TEST(type_registry, EmptyStruct)
 {
-    auto tr = rmf::TypeRegistry::Make();
+    auto tr = rmf::TypeRegistry::New();
     auto s  = tr.defStruct("Empty").end();
     EXPECT_EQ(s.size(), 0);
     EXPECT_EQ(s.alignment(), 0);
@@ -96,7 +96,7 @@ TEST(type_registry, EmptyStruct)
 
 TEST(type_registry, SingleField)
 {
-    auto tr = rmf::TypeRegistry::Make();
+    auto tr = rmf::TypeRegistry::New();
     auto s  = tr.defStruct("S").field(tr.prim.u32, "x").end();
     EXPECT_EQ(s.size(), 4);
     EXPECT_EQ(s.alignment(), 4);
@@ -113,7 +113,7 @@ struct PaddingLayout
 
 TEST(type_registry, PaddingRequired)
 {
-    auto tr = rmf::TypeRegistry::Make();
+    auto tr = rmf::TypeRegistry::New();
     auto s =
         tr.defStruct("P").field(tr.prim.u8, "a").field(tr.prim.u64, "b").end();
     EXPECT_EQ(s.size(), sizeof(PaddingLayout));
@@ -130,7 +130,7 @@ struct NoPaddingLayout
 
 TEST(type_registry, NoPadding)
 {
-    auto tr = rmf::TypeRegistry::Make();
+    auto tr = rmf::TypeRegistry::New();
     auto s =
         tr.defStruct("N").field(tr.prim.u32, "x").field(tr.prim.u32, "y").end();
     EXPECT_EQ(s.size(), sizeof(NoPaddingLayout));
@@ -149,7 +149,7 @@ struct MultiPaddingLayout
 
 TEST(type_registry, MultiplePadding)
 {
-    auto tr = rmf::TypeRegistry::Make();
+    auto tr = rmf::TypeRegistry::New();
     auto s  = tr.defStruct("M")
                   .field(tr.prim.u8, "a")
                   .field(tr.prim.u16, "b")
@@ -170,14 +170,14 @@ TEST(type_registry, MultiplePadding)
 
 TEST(type_registry, GetFieldMissing)
 {
-    auto tr = rmf::TypeRegistry::Make();
+    auto tr = rmf::TypeRegistry::New();
     auto s  = tr.defStruct("S").field(tr.prim.u32, "x").end();
     EXPECT_FALSE(s.getField("does_not_exist").has_value());
 }
 
 TEST(type_registry, BracketExisting)
 {
-    auto tr = rmf::TypeRegistry::Make();
+    auto tr = rmf::TypeRegistry::New();
     auto s  = tr.defStruct("S").field(tr.prim.u32, "x").end();
     auto f  = s["x"];
     EXPECT_EQ(f.name(), "x");
@@ -186,7 +186,7 @@ TEST(type_registry, BracketExisting)
 
 TEST(type_registry, BracketMissingThrows)
 {
-    auto tr = rmf::TypeRegistry::Make();
+    auto tr = rmf::TypeRegistry::New();
     auto s  = tr.defStruct("S").field(tr.prim.u32, "x").end();
     EXPECT_THROW(s["nope"], std::runtime_error);
 }
@@ -197,21 +197,21 @@ TEST(type_registry, BracketMissingThrows)
 
 TEST(type_registry, ContainsExisting)
 {
-    auto tr = rmf::TypeRegistry::Make();
+    auto tr = rmf::TypeRegistry::New();
     auto s  = tr.defStruct("S").field(tr.prim.u32, "x").end();
     EXPECT_TRUE(s.containsField("x"));
 }
 
 TEST(type_registry, ContainsMissing)
 {
-    auto tr = rmf::TypeRegistry::Make();
+    auto tr = rmf::TypeRegistry::New();
     auto s  = tr.defStruct("S").field(tr.prim.u32, "x").end();
     EXPECT_FALSE(s.containsField("nope"));
 }
 
 TEST(type_registry, ContainsByField)
 {
-    auto tr = rmf::TypeRegistry::Make();
+    auto tr = rmf::TypeRegistry::New();
     auto s  = tr.defStruct("S").field(tr.prim.u32, "x").end();
     auto f  = s["x"];
     EXPECT_TRUE(s.containsField(f));
@@ -223,14 +223,14 @@ TEST(type_registry, ContainsByField)
 
 TEST(type_registry, EmptyStructEndEqualsBegin)
 {
-    auto tr = rmf::TypeRegistry::Make();
+    auto tr = rmf::TypeRegistry::New();
     auto s  = tr.defStruct("E").end();
     EXPECT_EQ(s.begin(), s.end());
 }
 
 TEST(type_registry, IteratorPostfix)
 {
-    auto tr = rmf::TypeRegistry::Make();
+    auto tr = rmf::TypeRegistry::New();
     auto s =
         tr.defStruct("S").field(tr.prim.u32, "a").field(tr.prim.u32, "b").end();
     auto it  = s.begin();
@@ -243,7 +243,7 @@ TEST(type_registry, IteratorPostfix)
 
 TEST(type_registry, StdDistance)
 {
-    auto tr = rmf::TypeRegistry::Make();
+    auto tr = rmf::TypeRegistry::New();
     auto s  = tr.defStruct("S")
                   .field(tr.prim.u32, "a")
                   .field(tr.prim.u16, "b")
@@ -258,7 +258,7 @@ TEST(type_registry, StdDistance)
 
 TEST(type_registry, ArrayOfPrimitive)
 {
-    auto tr = rmf::TypeRegistry::Make();
+    auto tr = rmf::TypeRegistry::New();
     auto a  = tr.arrOf(tr.prim.u32, 5);
     EXPECT_EQ(a.name(), "u32[5]");
     EXPECT_EQ(a.size(), 20);
@@ -268,7 +268,7 @@ TEST(type_registry, ArrayOfPrimitive)
 
 TEST(type_registry, ArraySizeZero)
 {
-    auto tr = rmf::TypeRegistry::Make();
+    auto tr = rmf::TypeRegistry::New();
     auto a  = tr.arrOf(tr.prim.u32, 0);
     EXPECT_EQ(a.name(), "u32[0]");
     EXPECT_EQ(a.size(), 0);
@@ -276,7 +276,7 @@ TEST(type_registry, ArraySizeZero)
 
 TEST(type_registry, ArrayOfArray)
 {
-    auto tr    = rmf::TypeRegistry::Make();
+    auto tr    = rmf::TypeRegistry::New();
     auto inner = tr.arrOf(tr.prim.u8, 3);
     auto outer = tr.arrOf(inner, 2);
     EXPECT_EQ(outer.name(), "u8[3][2]");
@@ -290,7 +290,7 @@ TEST(type_registry, ArrayOfArray)
 
 TEST(type_registry, PointerToPrimitive)
 {
-    auto tr = rmf::TypeRegistry::Make();
+    auto tr = rmf::TypeRegistry::New();
     auto p  = tr.ptrTo(tr.prim.u32);
     EXPECT_EQ(p.name(), "u32*");
     EXPECT_EQ(p.size(), sizeof(void*));
@@ -300,7 +300,7 @@ TEST(type_registry, PointerToPrimitive)
 
 TEST(type_registry, PointerToSelf)
 {
-    auto tr = rmf::TypeRegistry::Make();
+    auto tr = rmf::TypeRegistry::New();
     tr.defStruct("MyStruct").field(tr.prim.u8, "x").end();
     auto p = tr.ptrTo(tr.struct_("MyStruct"));
     EXPECT_EQ(p.name(), "MyStruct*");
@@ -308,7 +308,7 @@ TEST(type_registry, PointerToSelf)
 
 TEST(type_registry, PointerToPointer)
 {
-    auto tr = rmf::TypeRegistry::Make();
+    auto tr = rmf::TypeRegistry::New();
     auto p  = tr.ptrTo(tr.ptrTo(tr.prim.u8));
     EXPECT_EQ(p.name(), "u8**");
 }
@@ -319,7 +319,7 @@ TEST(type_registry, PointerToPointer)
 
 TEST(type_registry, LookupExisting)
 {
-    auto tr = rmf::TypeRegistry::Make();
+    auto tr = rmf::TypeRegistry::New();
     tr.defStruct("A").field(tr.prim.u32, "x").end();
     auto s = tr.struct_("A");
     EXPECT_EQ(s.name(), "A");
@@ -328,7 +328,7 @@ TEST(type_registry, LookupExisting)
 
 TEST(type_registry, LookupMissingThrows)
 {
-    auto tr = rmf::TypeRegistry::Make();
+    auto tr = rmf::TypeRegistry::New();
     EXPECT_THROW(tr.struct_("DoesNotExist"), std::out_of_range);
 }
 
@@ -347,7 +347,7 @@ struct StructBLayout
 
 TEST(type_registry, TwoStructs)
 {
-    auto tr = rmf::TypeRegistry::Make();
+    auto tr = rmf::TypeRegistry::New();
     auto a  = tr.defStruct("A").field(tr.prim.u32, "x").end();
     auto b  = tr.defStruct("B").field(tr.prim.u64, "y").end();
     EXPECT_EQ(a.size(), sizeof(StructALayout));

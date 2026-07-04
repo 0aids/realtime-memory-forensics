@@ -11,13 +11,29 @@ extern "C"
 
 namespace rmf
 {
-    std::vector<Map> Process::getMaps() const
+    MapsVec::MapsVec(const Process& proc, const std::vector<Map>& maps) :
+        std::vector<Map>(maps), proc(proc)
+    {
+    }
+
+    MapsVec MapsVec::getActive() const
+    {
+        auto mv = MapsVec(proc, *this);
+        for (const auto& map : *this)
+        {
+            auto active = proc.mapGetActive(map);
+            std::move(active.begin(), active.end(), std::back_inserter(mv));
+        }
+        return mv;
+    }
+
+    MapsVec Process::getMaps() const
     {
         std::ifstream mapFile =
             std::ifstream(std::format("/proc/{}/maps", pid));
-        std::string      line;
-        uint32_t         unnamedRegionNumber = 0;
-        std::vector<Map> maps;
+        std::string line;
+        uint32_t    unnamedRegionNumber = 0;
+        MapsVec     maps                = MapsVec(*this, {});
 
         while (std::getline(mapFile, line))
         {
@@ -92,7 +108,7 @@ namespace rmf
         return std::format("/proc/{}/pagemap", pid);
     }
 
-    std::vector<Map> Process::mapGetActive(const Map& map) const
+    MapsVec Process::mapGetActive(const Map& map) const
     {
         const std::string pagemapPath = getPagemapPath();
         int               fd          = open(pagemapPath.c_str(), O_RDONLY);
@@ -100,7 +116,7 @@ namespace rmf
         {
             throw std::runtime_error("Failed to open the pagemap!");
         }
-        std::vector<Map> activeRegions = mapGetActiveImpl(map, fd);
+        auto activeRegions = MapsVec(*this, mapGetActiveImpl(map, fd));
         close(fd);
         return activeRegions;
     }

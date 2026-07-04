@@ -34,7 +34,7 @@ namespace rmf
     };
 
     // In order to preconstruct all the stuff with deleted default constructors.
-    TypeRegistry TypeRegistry::Make()
+    TypeRegistry TypeRegistry::New()
     {
         std::vector<std::shared_ptr<PrimitiveData>> primitives{};
         // Initialise all the primitive types.

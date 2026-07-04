@@ -11,6 +11,7 @@ add_compile_options(
     -fdiagnostics-color=always
     -fno-omit-frame-pointer
     -ggdb
+	-fPIC
 )
 set(CXX_COMP_COMMANDS
     -Wall -Wextra -Wpedantic -Wno-cpp
