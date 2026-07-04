@@ -28,7 +28,7 @@ namespace rmf
         template <std::ranges::random_access_range MapsRange>
             requires std::is_convertible_v<
                 std::ranges::range_value_t<MapsRange>, Map>
-        std::vector<Snapshot> getSnapshots(MapsRange maps) const;
+        std::vector<Snapshot> getSnapshots(const MapsRange& maps) const;
 
         // Split a map up into it's active regions, IE regions that are currently in memory.
         MapsVec     mapGetActive(const Map& map) const;
@@ -45,7 +45,7 @@ namespace rmf
     template <std::ranges::random_access_range MapsRange>
         requires std::is_convertible_v<std::ranges::range_value_t<MapsRange>,
                                        Map>
-    std::vector<Snapshot> Process::getSnapshots(MapsRange maps) const
+    std::vector<Snapshot> Process::getSnapshots(const MapsRange& maps) const
     {
         std::vector<Snapshot> snapshotsVec;
         snapshotsVec.reserve(maps.size());

@@ -2,6 +2,7 @@
 #include "rmf/config.hpp"
 #include "rmf/snapshots.hpp"
 #include "rmf/memory_region.hpp"
+#include <cstring>
 
 #include <cassert>
 
